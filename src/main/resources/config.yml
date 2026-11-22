@@ -1,0 +1,63 @@
+# Dead Streets R04: experimental migrating hordes, persistent walker spawners, opt-in Metropolis flags.
+spawners:
+  enabled: true
+  activation-radius: 16
+  wave-min: 2
+  wave-max: 5
+  interval-min-seconds: 30
+  interval-max-seconds: 60
+  nearby-cap: 16
+  max-new-zombies-per-second: 30
+  nearby-cap-radius: 12
+  reset-cooldown-seconds: 60
+  show-countdown: true
+zombies:
+  stop-natural-zombie-spawns: true
+  stop-vanilla-zombie-spawners: true
+  stop-zombie-reinforcements: true
+  never-burn-in-daylight: true
+  make-all-zombies-persistent: true
+warnings:
+  play-sound: true
+  fade-in-ticks: 10
+  stay-ticks: 70
+  fade-out-ticks: 15
+
+# Proposed STARTING RANGES per actually placed Metropolis BUILD (not per district).
+# No landmark or MegaMall type: those use their actual district context.
+# Activation is experimental and OFF by default; verify visibility ordering on Paper 26.2 first.
+population:
+  ranges:
+    HIGHRISE: {min: 2, max: 9}
+    MIDRISE: {min: 1, max: 7}
+    LOWRISE: {min: 0, max: 5}
+    RESIDENTIAL: {min: 0, max: 4}
+    DENSERESIDENTIAL: {min: 0, max: 4}
+    INDUSTRIAL: {min: 0, max: 6}
+    FARM: {min: 0, max: 2}
+    FOREST: {min: 0, max: 1}
+    PARK: {min: 0, max: 2}
+
+  activation:
+    enabled: false
+    max-chunks-per-tick: 2
+    max-queued-chunks: 8192
+    max-new-zombies-per-tick: 12
+    max-per-build: 64
+    cached-regions: 64
+    max-region-file-bytes: 4194304
+    max-region-records: 12000
+
+# R04 migrating hordes — EXPERIMENTAL. Enable only in a backup test world.
+hordes:
+  enabled: false
+  ambient-creation: true
+  ambient-every-seconds: 420
+  max-groups-per-world: 12
+  min-population: 24
+  max-population: 100
+  virtual-speed-blocks-per-second: 0.75
+  max-materializations-per-second: 8
+  max-materializations-per-chunk: 4
+  warning-distance: 150
+  warning-reset-seconds: 240
