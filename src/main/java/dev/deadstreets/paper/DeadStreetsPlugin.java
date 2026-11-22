@@ -29,6 +29,8 @@ import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.block.Action;
 import org.bukkit.block.data.Openable;
 import org.bukkit.entity.Entity;
@@ -40,7 +42,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.Locale;
 import java.util.Objects;
 
-/** R01 gameplay slice. Horde migration and Metropolis marker ingestion are intentionally not enabled yet. */
+/** Dead Streets: Paper zombie gameplay, persistent populations, opt-in experimental hordes. */
 public final class DeadStreetsPlugin extends JavaPlugin implements Listener, CommandExecutor {
     private NamespacedKey walkerTag;
     private SpawnerManager spawners;
@@ -58,7 +60,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         refreshLoadedZombies();
         population.start();
         hordes.start();
-        getLogger().info("R04: experimental migrating horde simulation available behind opt-in.");
+        getLogger().info("R05: experimental look-ahead horde simulation available behind opt-in.");
     }
     @Override public void onDisable() {
         if (spawners != null) spawners.stop();
@@ -127,6 +129,12 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     @EventHandler public void onEntitiesUnload(EntitiesUnloadEvent event) { hordes.onEntitiesUnload(event.getChunk()); }
     @EventHandler public void onZombieDeath(EntityDeathEvent event) { if(event.getEntity() instanceof Zombie zombie) hordes.onZombieDeath(zombie); }
     @EventHandler public void onQuit(PlayerQuitEvent event) { hordes.forgetPlayer(event.getPlayer().getUniqueId()); }
+    @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void onTeleport(PlayerTeleportEvent event) {
+        hordes.observeTeleport(event.getPlayer(),event.getTo());
+    }
+    @EventHandler public void onJoin(PlayerJoinEvent event) {
+        hordes.observeTeleport(event.getPlayer(),event.getPlayer().getLocation());
+    }
     @EventHandler public void onChunkUnload(ChunkUnloadEvent event) { spawners.onChunkUnload(event.getChunk()); population.onChunkUnload(event.getChunk()); }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void onBreak(BlockBreakEvent event) {
         spawners.onBreak(event.getBlock());
@@ -158,7 +166,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     }
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0 || args[0].equalsIgnoreCase("status")) {
-            sender.sendMessage(ChatColor.GRAY + "Dead Streets R04 | managed spawners: " + spawners.size()
+            sender.sendMessage(ChatColor.GRAY + "Dead Streets R05 | managed spawners: " + spawners.size()
                 + " | " + hordes.status() + " | Metropolis: " + (population.enabled()?population.status():"activation disabled"));
             return true;
         }

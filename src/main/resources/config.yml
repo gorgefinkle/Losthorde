@@ -1,4 +1,4 @@
-# Dead Streets R04: experimental migrating hordes, persistent walker spawners, opt-in Metropolis flags.
+# Dead Streets R05: experimental migrating hordes, persistent walker spawners, opt-in Metropolis flags.
 spawners:
   enabled: true
   activation-radius: 16
@@ -48,7 +48,7 @@ population:
     max-region-file-bytes: 4194304
     max-region-records: 12000
 
-# R04 migrating hordes — EXPERIMENTAL. Enable only in a backup test world.
+# R05 migrating hordes — EXPERIMENTAL. Enable only in a backup test world.
 hordes:
   enabled: false
   ambient-creation: true
@@ -61,3 +61,12 @@ hordes:
   max-materializations-per-chunk: 4
   warning-distance: 150
   warning-reset-seconds: 240
+  # Local pathfinder steering toward the horde migration heading (not player homing).
+  max-navigation-goals-per-4s: 24
+  # Bounded preparation of ALREADY GENERATED chunks outside every player's view.
+  # Unverified with real players: retain overall hordes.enabled=false until tested.
+  prefetch:
+    enabled: true
+    max-tickets: 8
+    requests-per-second: 2
+    ticket-seconds: 30

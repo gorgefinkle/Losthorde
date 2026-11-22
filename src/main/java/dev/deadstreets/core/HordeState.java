@@ -37,6 +37,10 @@ public final class HordeState {
     public double heading() { return heading; }
     public long updatedAt() { return updatedAt; }
     public boolean hasInterest(long now) { return soundX != null && now < soundExpires; }
+    public boolean hasPhysicalWalkers() { return population > pending; }
+    public double desiredHeading(long now) {
+        return hasInterest(now) ? Math.atan2(soundZ - z, soundX - x) : heading;
+    }
 
     public boolean hear(double originX, double originZ, double loudness, long now) {
         if (!Double.isFinite(originX) || !Double.isFinite(originZ) || !Double.isFinite(loudness)) return false;
@@ -54,7 +58,8 @@ public final class HordeState {
         if (now <= updatedAt) return;
         double dt = Math.min(5.0, (now-updatedAt)/1000.0);
         updatedAt = now;
-        if (pending <= 0 || dt <= 0 || blocksPerSecond <= 0) return;
+        // Never let the virtual anchor migrate away from physical walkers left in chunks.
+        if (pending <= 0 || hasPhysicalWalkers() || dt <= 0 || blocksPerSecond <= 0) return;
         double direction = heading;
         if (hasInterest(now)) direction = Math.atan2(soundZ-z,soundX-x);
         else { soundX=null; soundZ=null; }

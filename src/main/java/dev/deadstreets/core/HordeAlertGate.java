@@ -22,7 +22,7 @@ public final class HordeAlertGate {
         Key key=new Key(player,horde);
         Visit prior=history.get(key);
         boolean inside=distance<=announceRange;
-        boolean approaching=prior!=null && distance < prior.lastDistance-1.0;
+        boolean approaching=prior!=null && distance < prior.lastDistance-0.15;
         long leftAt=prior==null?-1:prior.leftAt;
         if(!inside && (prior==null || prior.lastDistance<=announceRange)) leftAt=nowMillis;
         boolean rearmed=prior==null || prior.warnedAt<0 || (leftAt>=0 && nowMillis-leftAt>=resetMillis);

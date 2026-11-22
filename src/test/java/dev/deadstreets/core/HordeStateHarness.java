@@ -25,9 +25,15 @@ public final class HordeStateHarness {
         check(restored.x()-pos<3.76); // downtime is capped to five simulated seconds
         restored.materialized();restored.materialized();
         check(restored.pending()==18 && restored.population()==20);
+        double anchor=restored.x();
+        restored.advance(10_005_000L,1.0);
+        check(restored.x()==anchor); // materialized walkers stay physically behind; virtual anchor cannot drift
         restored.died();
         check(restored.population()==19);
         check(HordeState.restore(restored.save()).pending()==18);
+        restored.died(); // all physical zombies dead, virtual remainder may migrate again
+        restored.advance(10_010_000L,1.0);
+        check(restored.x()>anchor);
         HordeState frenzied=new HordeState(UUID.randomUUID(),world,5,Temperament.FRENZIED,0,0,0,0);
         check(frenzied.hear(125,0,1,1));
         check(!frenzied.hear(130,0,1,1));

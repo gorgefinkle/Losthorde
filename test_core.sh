@@ -7,3 +7,5 @@ mkdir -p build/core
 "$JAVA" -ea -cp build/core dev.deadstreets.core.CoreHarness
 
 "$JAVA" -ea -cp build/core dev.deadstreets.core.HordeStateHarness
+
+"$JAVA" -ea -cp build/core dev.deadstreets.core.ObservationGuardHarness

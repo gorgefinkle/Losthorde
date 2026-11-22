@@ -1,18 +1,20 @@
 # Losthorde / Dead Streets
 
-Experimental Paper 26.2 / Java 25 zombie population and migration plugin with an optional Metropolis population marker integration.
+Standalone Java 25 / Paper 26.2 zombie-horde plugin, with an **optional** external district/build population marker interface. Public source contains no Metropolis generator code, assets, schematics, or integration patches.
 
-**R04 is a test-only checkpoint**, not a completed Walking Dead-style simulation. See [R04 status](docs/STATUS_R04.md) for verified behavior, unfinished functionality, and acceptance gates.
+**Current release: R05 experimental**. Physical horde arrival with real clients has not yet been verified. The two riskiest features, `hordes.enabled` and `population.activation.enabled`, are **OFF** by default.
 
-Current systems:
-- Persistent daylight-immune zombies and 16-block proximity spawners (instant wave, randomized 30–60-second waves and floating countdown).
-- A deterministic per-build Metropolis marker reader, disabled by default pending no-pop-in verification.
-- Persistent shared virtual hordes, sound-sensitive movement, loaded/unobserved-chunk activation, and colored arrival warnings. **Horde migration is opt-in and experimental.**
+Current implementations:
+- Persistent daylight-immune walkers.
+- Zombie spawners: 16-block activation, instant 2–5 wave, 30–60-second follow-up waves, floating countdown, configurable caps.
+- Shared persistent virtual hordes with temperament-dependent noise sensitivity and danger-colored title warnings.
+- Conservative multi-player observation guard, limited prefetch of existing chunks, and low-frequency native pathfinder steering for physical walkers.
+- Optional deterministic build flags: initial populations across footprint chunks, activation guarded against immediate duplication; not end-to-end verified with real Metropolis generation.
 
-### Build
+See [R05 verification status](docs/STATUS_R05.md) and [public repository boundary](docs/PUBLIC_REPOSITORY_POLICY.md).
 
-Run `bash test_core.sh` with Java 25. For Maven compile against the Paper 26.2 API dependency specified in `pom.xml` using `mvn package` (requires access to Paper's Maven repository).
+## Building
 
-For offline local compilation, use the `build_offline.sh` helper with `PAPER_API_JAR` set to a resolved Paper API JAR and `JAVA_HOME` set to Java 25. The script embeds only compiled plugin code and config, not the API dependency.
+Run `JAVA_HOME=/path/to/jdk25 bash test_core.sh`. Use `mvn -B -ntp package` where Paper Maven dependencies resolve, or set `JAVA_HOME`, `PAPER_API_JAR` and (if needed) `PAPER_DEPENDENCY_CLASSPATH` and run `bash build_offline.sh`.
 
-Do not install two DeadStreets JAR versions simultaneously. Do not enable experimental migration or Metropolis activation in a valuable world until in-game checks pass.
+Do not use multiple DeadStreets versions simultaneously. Do not enable experimental arrival or Metropolis population activation on a valuable world.
