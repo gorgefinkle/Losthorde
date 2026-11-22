@@ -41,8 +41,11 @@ final class PopulationManager {
     private record Snapshot(long size, long mtime, long checkedMillis, List<MetropolisFlag> flags) {}
 
     private final DeadStreetsPlugin plugin;
+    private final PopulationJournal journal;
     private final ArrayDeque<ChunkRef> pending = new ArrayDeque<>();
     private final HashSet<ChunkRef> pendingSet = new HashSet<>();
+    private final LinkedHashMap<ChunkRef,Long> lateRetry = new LinkedHashMap<>();
+    private int retryTick;
     private final LinkedHashMap<Path,Snapshot> cache = new LinkedHashMap<>(64,0.75f,true);
     private BukkitTask task;
     private int remainingBudget;
@@ -54,31 +57,34 @@ final class PopulationManager {
     private long deferredObserved;
     private long droppedQueue;
 
-    PopulationManager(DeadStreetsPlugin plugin) { this.plugin = plugin; }
+    PopulationManager(DeadStreetsPlugin plugin) { this.plugin = plugin;this.journal=new PopulationJournal(plugin); }
 
     boolean enabled() { return plugin.getConfig().getBoolean("population.activation.enabled",false); }
 
     void start() {
         if (!enabled()) return;
+        journal.load();
         // Startup scan is bounded per tick. It does not load new chunks.
         for (World w : Bukkit.getWorlds()) for (Chunk chunk : w.getLoadedChunks()) enqueue(chunk);
         task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
         plugin.getLogger().warning("EXPERIMENTAL population activation enabled: use only on a backup/test world.");
     }
-    void stop() { if(task!=null) task.cancel(); pending.clear();pendingSet.clear();cache.clear(); }
+    void stop() { if(task!=null) task.cancel(); pending.clear();pendingSet.clear();lateRetry.clear();cache.clear(); }
 
     void onChunkLoad(Chunk chunk) {
         if (!enabled()) return;
         if (!Bukkit.isPrimaryThread()) { enqueue(chunk); return; }
         // Try before client receives a newly loaded chunk. No observer may already see it.
-        if (chunk.isEntitiesLoaded() && chunk.getPlayersSeeingChunk().isEmpty()) activate(chunk, true);
+        if (chunk.isEntitiesLoaded() && plugin.isUnobserved(chunk)) activate(chunk, true);
         else enqueue(chunk);
     }
     void onEntitiesLoad(Chunk chunk) {
         if (enabled()) enqueue(chunk);
     }
     void onChunkUnload(Chunk chunk) {
-        pendingSet.remove(new ChunkRef(chunk.getWorld().getUID(),chunk.getX(),chunk.getZ()));
+        // Keep this key in pendingSet until its queued entry is consumed. Dropping only
+        // the key allows every unload/reload to add an unbounded duplicate queue entry.
+        lateRetry.remove(new ChunkRef(chunk.getWorld().getUID(),chunk.getX(),chunk.getZ()));
     }
     private void enqueue(Chunk chunk) {
         var key=new ChunkRef(chunk.getWorld().getUID(),chunk.getX(),chunk.getZ());
@@ -96,6 +102,17 @@ final class PopulationManager {
     private void tick() {
         if (!enabled()) return;
         resetBudget();
+        if(++retryTick%20==0) {
+            int attempts=0;
+            long now=System.currentTimeMillis();
+            for(var it=lateRetry.entrySet().iterator();it.hasNext() && attempts<4;) {
+                var entry=it.next();
+                if(entry.getValue()>now)continue;
+                ChunkRef ref=entry.getKey(); it.remove(); attempts++;
+                World w=Bukkit.getWorld(ref.worldId());
+                if(w!=null && w.isChunkLoaded(ref.x(),ref.z()))enqueue(w.getChunkAt(ref.x(),ref.z()));
+            }
+        }
         int limit = Math.max(1, Math.min(16, plugin.getConfig().getInt("population.activation.max-chunks-per-tick",2)));
         for(int i=0; i<limit && !pending.isEmpty();i++) {
             ChunkRef key=pending.removeFirst();pendingSet.remove(key);
@@ -103,7 +120,7 @@ final class PopulationManager {
             if(world==null || !world.isChunkLoaded(key.x(),key.z())) continue;
             Chunk chunk=world.getChunkAt(key.x(),key.z());
             if(!chunk.isEntitiesLoaded()) {enqueue(chunk);continue;}
-            if (isObserved(chunk)) { deferredObserved++; continue; }
+            if (!plugin.isUnobserved(chunk)) { deferredObserved++; continue; }
             activate(chunk,false);
         }
         // Entries declined because players saw the area are reconsidered on a future chunk load.
@@ -116,28 +133,18 @@ final class PopulationManager {
             remainingBudget=Math.max(1,Math.min(200,plugin.getConfig().getInt("population.activation.max-new-zombies-per-tick",12)));
         }
     }
-    private boolean isObserved(Chunk chunk) {
-        if(!chunk.getPlayersSeeingChunk().isEmpty()) return true;
-        // For *already-loaded* chunks, protect the entire adjacent view-distance area,
-        // not only the chunk's own current client tracking set.
-        World w=chunk.getWorld();
-        int radius=Math.max(128,w.getViewDistance()*16+32);
-        double radiusSq=(double)radius*radius;
-        double x=chunk.getX()*16+8.0,z=chunk.getZ()*16+8.0;
-        for(Player p:w.getPlayers()) {
-            double dx=p.getLocation().getX()-x,dz=p.getLocation().getZ()-z;
-            if(dx*dx+dz*dz<radiusSq) return true;
-        }
-        return false;
-    }
-
     private void activate(Chunk chunk, boolean fromChunkLoad) {
         Plugin metropolis=Bukkit.getPluginManager().getPlugin("Metropolis");
         if(metropolis==null || !metropolis.isEnabled() || !chunk.isEntitiesLoaded()) return;
-        if(!chunk.getPlayersSeeingChunk().isEmpty()) {deferredObserved++;return;}
-        if(!fromChunkLoad && isObserved(chunk)) {deferredObserved++;return;}
+        if(!plugin.isUnobserved(chunk)) {deferredObserved++;return;}
         resetBudget();
         if(remainingBudget<=0) {enqueue(chunk);return;}
+        // The exporter may finish a BUILD after the first chunk-load callback. Retry
+        // currently loaded chunks at low frequency while they remain unobserved.
+        ChunkRef ref = new ChunkRef(chunk.getWorld().getUID(),chunk.getX(),chunk.getZ());
+        int retryCap=Math.max(128,Math.min(8192,plugin.getConfig().getInt("population.activation.max-late-retries",2048)));
+        if(lateRetry.size()<retryCap)lateRetry.put(ref,System.currentTimeMillis()+1000L*Math.max(3,Math.min(600,
+            plugin.getConfig().getInt("population.activation.late-retry-seconds",30))));
         World w=chunk.getWorld();
         int cx=chunk.getX(),cz=chunk.getZ();
         var unique=new HashSet<String>();
@@ -164,28 +171,38 @@ final class PopulationManager {
                     // Backwards compatibility: R03's initial test build used a BYTE completion key.
                     if(chunk.getPersistentDataContainer().has(key,PersistentDataType.BYTE)) continue;
                     Integer checkpoint=chunk.getPersistentDataContainer().get(key,PersistentDataType.INTEGER);
-                    int cursor=checkpoint==null?0:checkpoint;
-                    if(cursor>=assigned.size()) continue;
+                    String journalKey=PopulationJournal.key(flag,chunk);
+                    int cursor=Math.max(checkpoint==null?0:checkpoint,journal.cursor(journalKey));
+                    if(cursor>=assigned.size())continue;
                     // Progress is recorded BEFORE each attempted spawn. This permits large builds
                     // to use a strict global spawn budget without either duplicating earlier
                     // ordinals or blocking forever when a build exceeds the per-tick budget.
                     while(cursor<assigned.size() && remainingBudget>0) {
                         var candidate=assigned.get(cursor++);
+                        // An invalid location consumes the attempt without quota admission.
+                        Location at=findSafeStandingLocation(w,flag,candidate);
+                        if(at==null) {
+                            if(!journal.write(journalKey,cursor))return;
+                            chunk.getPersistentDataContainer().set(key,PersistentDataType.INTEGER,cursor);
+                            skippedLocations++;remainingBudget--;continue;
+                        }
+                        if(!plugin.isUnobserved(chunk)) {cursor--;deferredObserved++;break;}
+                        if(!plugin.budget().reserve()) {cursor--;break;}
+                        // Independent durable log survives any interleaving of chunk and
+                        // entity saves. Never spawn unless the ordinal is committed.
+                        if(!journal.write(journalKey,cursor))return;
                         chunk.getPersistentDataContainer().set(key,PersistentDataType.INTEGER,cursor);
                         remainingBudget--;
-                        Location at=findSafeStandingLocation(w,flag,candidate);
-                        if(at==null) {skippedLocations++;continue;}
                         try {
-                            Zombie zombie=w.spawn(at,Zombie.class);
-                            plugin.markWalker(zombie);
+                            Zombie zombie=w.spawn(at,Zombie.class,z->{plugin.markWalker(z);plugin.budget().tag(z);});
                             createdZombies++;
                         } catch(RuntimeException ex) {
                             skippedLocations++;
-                            plugin.getLogger().warning("Failed to activate Metropolis build flag " + flag.buildId()+": "+ex.getMessage());
+                            plugin.getLogger().warning("Population admission consumed, entity creation uncertain for " + flag.buildId()+": "+ex.getMessage());
                         }
                     }
                     if(cursor==assigned.size()) processedSlices++;
-                    else enqueue(chunk);
+                    else if(plugin.budget().reserved()<plugin.budget().maximum())enqueue(chunk);
                 }
             }
     }
@@ -247,6 +264,6 @@ final class PopulationManager {
     }
     String status() {
         return "slices="+processedSlices+", zombies="+createdZombies+", no-space="+skippedLocations
-                +", invalid="+invalidFlags+", observed-deferred="+deferredObserved+", queue="+pendingSet.size()+", queued-dropped="+droppedQueue;
+                +", invalid="+invalidFlags+", journal-slices="+journal.distinctSlices()+", observed-deferred="+deferredObserved+", queue="+pending.size()+", late-retry="+lateRetry.size()+", queued-dropped="+droppedQueue;
     }
 }

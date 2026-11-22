@@ -1,7 +1,7 @@
-# Development notes
+# Developer notes: R03
 
-Java 25, Paper 26.2. R05 is a full-source checkpoint, including an offline build helper and core harness. Do not upload Metropolis source or source modifications into this public repository. All integration information is format-level only.
+Repository root is the full standalone source. Java 25 + Paper 26.2 required. `./test_core.sh` runs 239 core assertions, and `mvn -B -ntp -DskipTests package` builds `DeadStreets_R03.jar` when Maven can resolve Paper API and transitive dependencies.
 
-The `ObservationGuard` test is a deterministic **simulation** of multiple player observation radii, not a substitute for real client testing. `HordeManager` uses small, already-generated chunk look-ahead leases to overcome the conflict between normal player view-distance chunk loading and strict no-pop-in margins. It cannot prove client visibility merely from `getPlayersSeeingChunk`.
+The optional Metropolis adapter patch targets **only** the owner-supplied R14_5D full-source baseline. See `integrations/metropolis/R14_5D_population_flags.patch`. Set `deadstreets.export-build-flags: true` in Metropolis only on a backed-up development world. It writes one TSV BUILD record after a placed BUILD parcel completes, with no block edits. The independent Dead Streets importer is separately opt-in with `population.activation.enabled: true`. Neither side is enabled by default.
 
-`hordes.enabled` and `population.activation.enabled` must stay false by default until multiplayer/in-game acceptance tests pass. Check `docs/STATUS_R05.md` for remaining issues.
+The R03 importer has passed a genuine Paper smoke test using a **synthetic** marker, including restart persistence. Full in-game no-pop-in and actual Metropolis end-to-end acceptance tests remain pending; don't enable the experimental integration on a valuable world.

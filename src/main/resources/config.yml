@@ -1,4 +1,4 @@
-# Dead Streets R05: experimental migrating hordes, persistent walker spawners, opt-in Metropolis flags.
+# Dead Streets R06: experimental migrating hordes, persistent walker spawners, opt-in Metropolis flags.
 spawners:
   enabled: true
   activation-radius: 16
@@ -10,6 +10,8 @@ spawners:
   max-new-zombies-per-second: 30
   nearby-cap-radius: 12
   reset-cooldown-seconds: 60
+  # Rescan nearby loaded chunks for schematic-placed spawner blocks (per server, not player).
+  late-scan-chunks-per-second: 16
   show-countdown: true
 zombies:
   stop-natural-zombie-spawns: true
@@ -17,6 +19,8 @@ zombies:
   stop-zombie-reinforcements: true
   never-burn-in-daylight: true
   make-all-zombies-persistent: true
+  # Durable global admission cap for NEW Dead Streets walkers, including offloaded chunks.
+  max-total-managed-walkers: 1800
 warnings:
   play-sound: true
   fade-in-ticks: 10
@@ -47,6 +51,9 @@ population:
     cached-regions: 64
     max-region-file-bytes: 4194304
     max-region-records: 12000
+    # Once-per-30s retries when Metropolis finishes a build after chunk loading.
+    max-late-retries: 2048
+    late-retry-seconds: 30
 
 # R05 migrating hordes — EXPERIMENTAL. Enable only in a backup test world.
 hordes:
@@ -54,6 +61,8 @@ hordes:
   ambient-creation: true
   ambient-every-seconds: 420
   max-groups-per-world: 12
+  # Virtual-only portions retire after prolonged unobserved absence, no physical removals.
+  virtual-retire-after-seconds: 1800
   min-population: 24
   max-population: 100
   virtual-speed-blocks-per-second: 0.75
@@ -63,7 +72,8 @@ hordes:
   warning-reset-seconds: 240
   # Local pathfinder steering toward the horde migration heading (not player homing).
   max-navigation-goals-per-4s: 24
-  # Bounded preparation of ALREADY GENERATED chunks outside every player's view.
+  # Bounded preparation of ALREADY GENERATED chunks, including travel corridors.
+  # Being loaded NEVER authorizes zombie creation inside observed areas.
   # Unverified with real players: retain overall hordes.enabled=false until tested.
   prefetch:
     enabled: true

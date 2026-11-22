@@ -52,6 +52,9 @@ public final class SpawnerManager {
     private final SplittableRandom random = new SplittableRandom();
     private BukkitTask task;
     private long ticks;
+    private int scanCursor;
+    private record ScanKey(UUID world,int cx,int cz) {}
+    private final Map<ScanKey,Long> recentlyScanned = new HashMap<>();
     SpawnerManager(DeadStreetsPlugin plugin) { this.plugin=plugin; }
     int size() { return tracked.size(); }
     void start() {
@@ -104,6 +107,7 @@ public final class SpawnerManager {
         if(!plugin.getConfig().getBoolean("spawners.enabled",true)) return;
         SpawnerCycle.Rules rules = rules();
         long now = System.currentTimeMillis();
+        scanNearPlayers(now);
         int newZombieBudget = Math.max(1,plugin.getConfig().getInt("spawners.max-new-zombies-per-second",30));
         // Index each player ONCE per world/chunk. Spawners don't scan the full online player list.
         Map<UUID,Map<Long,java.util.List<Player>>> players = new HashMap<>();
@@ -150,6 +154,28 @@ public final class SpawnerManager {
         }
         if(ticks%60==0) writeCheckpoints();
     }
+    /** Bounded local re-scan discovers zombie spawners pasted AFTER ChunkLoadEvent.
+     * Only looks at already-loaded chunks near players; never touches generation. */
+    private void scanNearPlayers(long now) {
+        int scanned=0;
+        int limit=Math.max(1,Math.min(32,plugin.getConfig().getInt("spawners.late-scan-chunks-per-second",16)));
+        for(World w:Bukkit.getWorlds()) for(Player p:w.getPlayers()) {
+            int px=p.getLocation().getBlockX()>>4,pz=p.getLocation().getBlockZ()>>4;
+            // Rotate the scan across a 5x5 window, covering approaching spawners.
+            for(int i=0;i<25 && scanned<limit;i++) {
+                int index=(scanCursor+i)%25;
+                int cx=px+index%5-2,cz=pz+index/5-2;
+                ScanKey key=new ScanKey(w.getUID(),cx,cz);
+                if(now-recentlyScanned.getOrDefault(key,0L)<10_000L || !w.isChunkLoaded(cx,cz))continue;
+                recentlyScanned.put(key,now);
+                onChunkLoad(w.getChunkAt(cx,cz));scanned++;
+            }
+            scanCursor=(scanCursor+7)%25;
+            if(scanned>=limit)break;
+        }
+        if(ticks%300==0)recentlyScanned.entrySet().removeIf(e->now-e.getValue()>120_000L);
+    }
+
     private SpawnerCycle.Rules rules() {
         var c=plugin.getConfig();
         int lo=Math.max(1,c.getInt("spawners.wave-min",2));
@@ -197,8 +223,10 @@ public final class SpawnerManager {
                 Block floor=w.getBlockAt(x,y-1,z);
                 if(foot.isPassable() && head.isPassable() && floor.getType().isSolid() && !foot.isLiquid() && !head.isLiquid()) {
                     try {
-                        Zombie zombie=w.spawn(new Location(w,x+.5,y,z+.5),Zombie.class);
-                        plugin.markWalker(zombie);
+                        if(!plugin.budget().reserve())return spawned;
+                        Zombie zombie=w.spawn(new Location(w,x+.5,y,z+.5),Zombie.class,created->{
+                            plugin.markWalker(created);plugin.budget().tag(created);
+                        });
                         spawned++;
                     } catch (RuntimeException ex) { plugin.getLogger().warning("Spawner zombie creation failed: " +ex.getMessage()); }
                     break;

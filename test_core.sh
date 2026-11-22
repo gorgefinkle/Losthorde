@@ -9,3 +9,5 @@ mkdir -p build/core
 "$JAVA" -ea -cp build/core dev.deadstreets.core.HordeStateHarness
 
 "$JAVA" -ea -cp build/core dev.deadstreets.core.ObservationGuardHarness
+
+"$JAVA" -ea -cp build/core dev.deadstreets.core.HordeArrivalHarness

@@ -2,6 +2,7 @@ package dev.deadstreets.paper;
 
 import dev.deadstreets.core.DangerRating;
 import dev.deadstreets.core.HordeAlertGate;
+import dev.deadstreets.core.HordeArrivalPolicy;
 import dev.deadstreets.core.HordeState;
 import dev.deadstreets.core.ObservationGuard;
 import dev.deadstreets.core.Temperament;
@@ -45,7 +46,7 @@ final class HordeManager {
     private final DeadStreetsPlugin plugin;
     private final NamespacedKey hordeTag;
     private final SplittableRandom random = new SplittableRandom();
-    private final ObservationGuard observation = new ObservationGuard();
+    private final ObservationGuard observation;
     private record ChunkKey(UUID worldId, int cx, int cz) {}
     private record Prefetch(long expiresAt) {}
     private final Map<ChunkKey,Prefetch> tickets = new HashMap<>();
@@ -55,6 +56,8 @@ final class HordeManager {
     private long rejectedUnobserved;
     private long movedWalkers;
     private final Map<UUID,HordeState> hordes = new HashMap<>();
+    private final Map<UUID,Long> lastInterest = new HashMap<>();
+    private long retiredVirtual;
     private final Map<UUID,HashSet<UUID>> loadedPhysical = new HashMap<>();
     private final Map<UUID,Long> nextAmbient = new HashMap<>();
     private final Map<UUID,Long> sprintSound = new HashMap<>();
@@ -71,23 +74,24 @@ final class HordeManager {
 
     HordeManager(DeadStreetsPlugin plugin) {
         this.plugin=plugin;
+        this.observation=plugin.observation();
         this.hordeTag = new NamespacedKey(plugin,"horde_id");
     }
     boolean enabled() {return plugin.getConfig().getBoolean("hordes.enabled",false);}
     void start() {
-        if(!enabled()) return;
         load();
+        if(!enabled()) return;
         alertGate=new HordeAlertGate(Math.max(24,plugin.getConfig().getDouble("hordes.warning-distance",150)),
                 Math.max(10,plugin.getConfig().getLong("hordes.warning-reset-seconds",240))*1000L);
         for(World w:Bukkit.getWorlds()) for(Chunk c:w.getLoadedChunks()) onEntitiesLoad(c);
         long now=System.currentTimeMillis();
         for(World w:Bukkit.getWorlds()) nextAmbient.put(w.getUID(),now + intervalMs());
         tickTask=Bukkit.getScheduler().runTaskTimer(plugin,this::tick,20,20);
-        plugin.getLogger().warning("R05 experimental migrating hordes ON: unobserved chunk activation only; use a backup world.");
+        plugin.getLogger().warning("R06 experimental migrating hordes ON: unobserved chunk activation only; use a backup world.");
     }
     void stop() {
         if(tickTask!=null) tickTask.cancel();
-        if(enabled()) save();
+        save();
         for(ChunkKey key : new ArrayList<>(tickets.keySet())) {
             World w=Bukkit.getWorld(key.worldId());
             if(w!=null) w.removePluginChunkTicket(key.cx(),key.cz(),plugin);
@@ -102,7 +106,8 @@ final class HordeManager {
                 +", viewed-skips="+blockedVisible+", ground-skips="+missingGround
                 +", noise="+soundsAccepted+", warnings="+warningsSent
                 +", lookahead-tickets="+tickets.size()+", lookahead-requests="+requestedChunks
-                +", movement-goals="+movedWalkers+", visibility-rejections="+rejectedUnobserved;
+                +", movement-goals="+movedWalkers+", visibility-rejections="+rejectedUnobserved
+                +", retired-virtual="+retiredVirtual;
     }
     HordeState spawnManual(World world, double playerX, double playerZ, int size, Temperament temperament) {
         if(!enabled()) throw new IllegalStateException("Hordes are disabled in config.yml");
@@ -117,12 +122,12 @@ final class HordeManager {
             // An incoming migration, not a homing missile: offset trajectory by up to 60 degrees.
             HordeState h=new HordeState(UUID.randomUUID(),world.getUID(),size,temperament,
                     x,z,direction+Math.PI+random.nextDouble(-Math.PI/3,Math.PI/3),now);
-            hordes.put(h.id(),h);save();return h;
+            hordes.put(h.id(),h);lastInterest.put(h.id(),now);save();return h;
         }
         throw new IllegalStateException("Could not find a suitably distant, unobserved approach area");
     }
     private boolean candidateUnobserved(World world,double x,double z) {
-        recordObservers(world,System.currentTimeMillis());
+        plugin.recordObservers(world,System.currentTimeMillis());
         if(observation.protectedPoint(world.getUID(),x,z,System.currentTimeMillis())) return false;
         for(Player p:world.getPlayers()) {
             double dx=x-p.getLocation().getX(),dz=z-p.getLocation().getZ();
@@ -143,7 +148,7 @@ final class HordeManager {
     private void tick() {
         tickNumber++;
         long now=System.currentTimeMillis();
-        for(World w:Bukkit.getWorlds()) recordObservers(w,now);
+        for(World w:Bukkit.getWorlds()) plugin.recordObservers(w,now);
         if(tickNumber%2==0) {
             observation.prune(now);
             cleanPrefetch(now);
@@ -165,15 +170,32 @@ final class HordeManager {
             }
         }
         double speed=Math.max(0,Math.min(2.0,plugin.getConfig().getDouble("hordes.virtual-speed-blocks-per-second",0.75)));
+        long retireAfter=1000L*Math.max(600,plugin.getConfig().getLong("hordes.virtual-retire-after-seconds",1800));
         int budget=availableBudget();
         for(HordeState h:new ArrayList<>(hordes.values())) {
             World w=Bukkit.getWorld(h.worldId());
             if(w==null) continue;
+            if(nearSomePlayer(w,h.x(),h.z(),512))lastInterest.put(h.id(),now);
+            else if(h.pending()>0 && now-lastInterest.getOrDefault(h.id(),now)>=retireAfter
+                    && !observation.protectedPoint(w.getUID(),h.x(),h.z(),now)) {
+                h.retirePending();retiredVirtual++;
+                lastInterest.remove(h.id());
+                if(h.empty()){hordes.remove(h.id());loadedPhysical.remove(h.id());}
+                save();continue;
+            }
             // Do not advance invisible walkers into an observed area. Wait for a safe
             // chunk activation; an already-physical portion can keep walking naturally.
-            if(!observation.protectedPoint(w.getUID(),h.x(),h.z(),now))
-                h.advance(now,speed);
-            if(h.pending()>0 && budget>0 && nearSomePlayer(w,h.x(),h.z(),384)) {
+            // Advance virtual groups toward the edge of the shared observation buffer.
+            // They may not jump into observed space; physical members cross that edge on foot.
+            double direction=h.desiredHeading(now);
+            double step=Math.max(0,Math.min(2.0,speed))*1.0;
+            double nx=h.x()+Math.cos(direction)*step,nz=h.z()+Math.sin(direction)*step;
+            if(HordeArrivalPolicy.advanceVirtual(observation.protectedPoint(w.getUID(),nx,nz,now))) h.advance(now,speed);
+            boolean nearBoundary=observation.protectedPoint(w.getUID(),
+                h.x()+Math.cos(h.desiredHeading(now))*24,
+                h.z()+Math.sin(h.desiredHeading(now))*24,now);
+            if(h.pending()>0 && budget>0 && nearSomePlayer(w,h.x(),h.z(),HordeArrivalPolicy.MATERIALIZATION_NEAR_PLAYER)
+                    && nearBoundary) {
                 // For chunks already loaded, don't spawn inside any player's observation buffer.
                 // Newly loading chunks have their own, earlier activation hook below.
                 int cx=(int)Math.floor(h.x())>>4,cz=(int)Math.floor(h.z())>>4;
@@ -211,7 +233,10 @@ final class HordeManager {
         prefetchApproaches(now);
         if(tickNumber%30==0) {alertGate.prune(now);save();}
     }
-    private int countWorld(World w) {int n=0;for(HordeState h:hordes.values()) if(h.worldId().equals(w.getUID()) && !h.empty())n++;return n;}
+    // Only virtual groups consume ambient migration slots. Fully-materialized
+    // groups remain tracked for deaths/warnings but no longer block new migrations.
+    private int countWorld(World w) {int n=0;for(HordeState h:hordes.values())
+        if(h.worldId().equals(w.getUID()) && h.pending()>0)n++;return n;}
     private boolean nearSomePlayer(World w,double x,double z,double radius) {
         for(Player p:w.getPlayers()) {double dx=p.getLocation().getX()-x,dz=p.getLocation().getZ()-z;
             if(dx*dx+dz*dz<=radius*radius) return true;}
@@ -227,29 +252,24 @@ final class HordeManager {
             if(!h.worldId().equals(w.getUID()) || h.pending()<=0)continue;
             double dx=h.x()-(chunk.getX()*16+8.0),dz=h.z()-(chunk.getZ()*16+8.0);
             if(dx*dx+dz*dz>48*48)continue;
-            if(!nearSomePlayer(w,h.x(),h.z(),384)) continue;
+            if(!nearSomePlayer(w,h.x(),h.z(),HordeArrivalPolicy.MATERIALIZATION_NEAR_PLAYER)) continue;
+            double angle=h.desiredHeading(System.currentTimeMillis());
+            if(!observation.protectedPoint(w.getUID(),h.x()+Math.cos(angle)*24,
+                    h.z()+Math.sin(angle)*24,System.currentTimeMillis()))continue;
             budget-=materialize(h,chunk,Math.min(3,budget),true);
         }
     }
-    private void recordObservers(World w,long now) {
-        for(Player p:w.getPlayers()) {
-            var v=p.getVelocity();
-            observation.observe(p.getUniqueId(),w.getUID(),p.getLocation().getX(),
-                    p.getLocation().getZ(),v.getX(),v.getZ(),w.getViewDistance(),now);
-        }
-    }
+    private void recordObservers(World w,long now) {plugin.recordObservers(w,now);}
     void observeTeleport(Player player,Location destination) {
         if(!enabled() || destination==null || destination.getWorld()==null)return;
-        observation.observeTeleport(player.getUniqueId(),destination.getWorld().getUID(),
-            destination.getX(),destination.getZ(),
-            destination.getWorld().getViewDistance(),System.currentTimeMillis());
+        plugin.observeTeleport(player,destination);
     }
     private boolean safeToMaterialize(Chunk chunk,boolean fromLoad) {
         if(!chunk.isEntitiesLoaded() || !chunk.getPlayersSeeingChunk().isEmpty()) return false;
         World w=chunk.getWorld();
         long now=System.currentTimeMillis();
-        recordObservers(w,now);
-        if(observation.protectedChunk(w.getUID(),chunk.getX(),chunk.getZ(),now)) {
+        plugin.recordObservers(w,now);
+        if(!plugin.isUnobserved(chunk)) {
             rejectedUnobserved++;
             return false;
         }
@@ -258,9 +278,12 @@ final class HordeManager {
         return true;
     }
 
-    /** Limited look-ahead of existing chunks is required: ordinary client-view chunks are
-     * already too close for a strict no-pop-in margin. Never generate a missing chunk.
-     * The ticket cap is GLOBAL, so even 50 players cannot multiply this per player. */
+    /**
+     * Bounded corridor loading is distinct from zombie MATERIALIZATION. Loading an
+     * existing chunk in a player's observation zone is fine; spawning there isn't.
+     * This bridges the 64-block safety buffer between the natural player view
+     * radius and the original exterior horde activation point.
+     */
     private void prefetchApproaches(long now) {
         if(!plugin.getConfig().getBoolean("hordes.prefetch.enabled",true))return;
         int maxTickets=Math.max(0,Math.min(32,plugin.getConfig().getInt("hordes.prefetch.max-tickets",8)));
@@ -269,29 +292,38 @@ final class HordeManager {
         int sent=0;
         for(HordeState h:hordes.values()) {
             if(sent>=perTick || tickets.size()+inFlight.size()>=maxTickets)break;
-            if(h.pending()==0)continue;
             World w=Bukkit.getWorld(h.worldId());
-            if(w==null || !nearSomePlayer(w,h.x(),h.z(),448))continue;
-            int ax=(int)Math.floor(h.x())>>4,az=(int)Math.floor(h.z())>>4;
-            int[][] offsets={{0,0},{0,1},{1,0},{0,-1},{-1,0},{1,1},{1,-1},{-1,1},{-1,-1}};
-            for(int[] offset:offsets) {
+            if(w==null || !nearSomePlayer(w,h.x(),h.z(),1024))continue;
+            double ax=h.x(),az=h.z();
+            HashSet<UUID> physical=loadedPhysical.get(h.id());
+            if(physical!=null)for(UUID id:physical) {
+                Entity e=Bukkit.getEntity(id);
+                if(e instanceof Zombie z && z.isValid()) {ax=z.getLocation().getX();az=z.getLocation().getZ();break;}
+            }
+            double heading=h.desiredHeading(now);
+            // Load a short corridor through the buffer toward the horde's direction.
+            // Real zombies remain saved physical entities. No virtual entity is moved here.
+            for(int step=0;step<=7;step++) {
                 if(sent>=perTick || tickets.size()+inFlight.size()>=maxTickets)break;
-                int cx=ax+offset[0],cz=az+offset[1];
+                int cx=(int)Math.floor(ax+Math.cos(heading)*step*16)>>4;
+                int cz=(int)Math.floor(az+Math.sin(heading)*step*16)>>4;
                 ChunkKey key=new ChunkKey(w.getUID(),cx,cz);
                 if(tickets.containsKey(key) || inFlight.contains(key)
-                    || now<retryAfter.getOrDefault(key,0L))continue;
-                if(observation.protectedChunk(w.getUID(),cx,cz,now))continue;
-                if(w.isChunkLoaded(cx,cz))continue; // normal tick path handles loaded chunks
+                        || now<retryAfter.getOrDefault(key,0L))continue;
                 inFlight.add(key);sent++;requestedChunks++;
-                try {
-                    w.getChunkAtAsync(cx,cz,false,chunk -> {
-                        Runnable complete = () -> finishPrefetch(key,chunk);
-                        if(Bukkit.isPrimaryThread())complete.run();
-                        else Bukkit.getScheduler().runTask(plugin,complete);
-                    });
-                } catch(RuntimeException ex) {
-                    inFlight.remove(key);retryAfter.put(key,now+60_000L);
-                    plugin.getLogger().warning("Horde look-ahead failed: "+ex.getMessage());
+                if(w.isChunkLoaded(cx,cz)) {
+                    finishPrefetch(key,w.getChunkAt(cx,cz));
+                } else {
+                    try {
+                        w.getChunkAtAsync(cx,cz,false,chunk -> {
+                            Runnable complete = () -> finishPrefetch(key,chunk);
+                            if(Bukkit.isPrimaryThread())complete.run();
+                            else Bukkit.getScheduler().runTask(plugin,complete);
+                        });
+                    } catch(RuntimeException ex) {
+                        inFlight.remove(key);retryAfter.put(key,now+60_000L);
+                        plugin.getLogger().warning("Horde look-ahead failed: "+ex.getMessage());
+                    }
                 }
             }
         }
@@ -301,9 +333,11 @@ final class HordeManager {
         if(!enabled() || chunk==null) {retryAfter.put(key,System.currentTimeMillis()+60_000L);return;}
         if(tickets.containsKey(key))return;
         int max=Math.max(0,Math.min(32,plugin.getConfig().getInt("hordes.prefetch.max-tickets",8)));
-        if(tickets.size()>=max || !safeToMaterialize(chunk,false)) {
+        if(tickets.size()>=max) {
             retryAfter.put(key,System.currentTimeMillis()+10_000L);return;
         }
+        // Admission must never depend on this prefetch: the shared guard is
+        // evaluated separately in materialize().
         if(!chunk.addPluginChunkTicket(plugin))return;
         int seconds=Math.max(5,Math.min(90,plugin.getConfig().getInt("hordes.prefetch.ticket-seconds",30)));
         tickets.put(key,new Prefetch(System.currentTimeMillis()+seconds*1000L));
@@ -336,7 +370,7 @@ final class HordeManager {
                 Entity entity=Bukkit.getEntity(members.get((i+offset)%members.size()));
                 if(!(entity instanceof Zombie zombie) || !zombie.isValid() || zombie.getTarget()!=null)continue;
                 var loc=zombie.getLocation();
-                if(!nearSomePlayer(w,loc.getX(),loc.getZ(),192))continue;
+                if(!nearSomePlayer(w,loc.getX(),loc.getZ(),HordeArrivalPolicy.STEERING_NEAR_PLAYER))continue;
                 double angle=h.desiredHeading(now);
                 double tx=loc.getX()+Math.cos(angle)*13,tz=loc.getZ()+Math.sin(angle)*13;
                 int bx=(int)Math.floor(tx),bz=(int)Math.floor(tz);
@@ -366,14 +400,23 @@ final class HordeManager {
                 if(!feet.isPassable() || !head.isPassable() || feet.isLiquid() || head.isLiquid()
                     || !floor.getType().isSolid() || floor.getType()==Material.MAGMA_BLOCK)continue;
                 if(!safeToMaterialize(c,fromLoad)) return made;
+                if(!plugin.budget().reserve())return made;
+                // Write-ahead debit: if the process dies while Paper writes its entity region,
+                // the ordinal remains consumed rather than resurrecting a duplicate walker.
+                h.materialized();
+                if(!save())return made;
                 try {
-                    Zombie zombie=w.spawn(new Location(w,x+0.5,y,z+0.5),Zombie.class);
-                    plugin.markWalker(zombie);
-                    zombie.getPersistentDataContainer().set(hordeTag,PersistentDataType.STRING,h.id().toString());
+                    Zombie zombie=w.spawn(new Location(w,x+0.5,y,z+0.5),Zombie.class,created -> {
+                        plugin.markWalker(created);
+                        plugin.budget().tag(created);
+                        created.getPersistentDataContainer().set(hordeTag,PersistentDataType.STRING,h.id().toString());
+                    });
                     loadedPhysical.computeIfAbsent(h.id(),ignore->new HashSet<>()).add(zombie.getUniqueId());
-                    h.materialized();made++;spawnedPhysical++;remainingMaterializationBudget--;success=true;
+                    made++;spawnedPhysical++;remainingMaterializationBudget--;success=true;
                 } catch(RuntimeException ex) {
-                    plugin.getLogger().warning("Horde zombie spawn failed: "+ex.getMessage());
+                    // Fail closed if a Java-side error occurs after the entity may have been
+                    // created: a lost slot is safer than a second zombie for the same ordinal.
+                    plugin.getLogger().warning("Horde spawn admission consumed, entity creation uncertain: "+ex.getMessage());
                 }
                 if(success)break;
             }
@@ -405,17 +448,16 @@ final class HordeManager {
         }
     }
     void onZombieDeath(Zombie z) {
-        if(!enabled())return;
         String id=z.getPersistentDataContainer().get(hordeTag,PersistentDataType.STRING);
         if(id==null)return;
         try {
             UUID uuid=UUID.fromString(id);
             HordeState h=hordes.get(uuid);
-            if(h!=null) {h.died(); if(h.empty()){hordes.remove(uuid);loadedPhysical.remove(uuid);}save();}
+            if(h!=null) {h.died(); if(h.empty()){hordes.remove(uuid);loadedPhysical.remove(uuid);lastInterest.remove(uuid);}save();}
             var set=loadedPhysical.get(uuid);if(set!=null)set.remove(z.getUniqueId());
         }catch(IllegalArgumentException ignored){}
     }
-    void forgetPlayer(UUID id) {if(alertGate!=null) alertGate.forget(id);sprintSound.remove(id);observation.forget(id);}
+    void forgetPlayer(UUID id) {if(alertGate!=null) alertGate.forget(id);sprintSound.remove(id);}
     boolean sprintSoundDue(UUID id,long now) {
         if(!enabled())return false;
         long prev=sprintSound.getOrDefault(id,0L);
@@ -425,6 +467,7 @@ final class HordeManager {
     void sound(World w,double x,double z,double loudness) {
         if(!enabled())return;
         long now=System.currentTimeMillis();
+        int navigationBudget=32;
         for(HordeState h:hordes.values()) {
             if(!h.worldId().equals(w.getUID()))continue;
             if(h.hear(x,z,loudness,now)) soundsAccepted++;
@@ -433,6 +476,7 @@ final class HordeManager {
             var tracked=loadedPhysical.get(h.id());
             if(tracked==null || tracked.isEmpty())continue;
             for(UUID entityId:tracked) {
+                if(navigationBudget<=0)break;
                 Entity entity=Bukkit.getEntity(entityId);
                 if(!(entity instanceof Zombie zombie) || !zombie.isValid() || zombie.getTarget()!=null)continue;
                 Location at=zombie.getLocation();
@@ -440,7 +484,10 @@ final class HordeManager {
                 double radius=h.temperament().baseHearingRange()*Math.min(3,loudness);
                 if(dx*dx+dz*dz<=radius*radius && dx*dx+dz*dz>9) {
                     // Pathfind in already-loaded local terrain only; do not route virtual entities.
-                    if(dx*dx+dz*dz<64*64) zombie.getPathfinder().moveTo(new Location(w,x,at.getY(),z),1.0);
+                    if(dx*dx+dz*dz<64*64) {
+                        zombie.getPathfinder().moveTo(new Location(w,x,at.getY(),z),1.0);
+                        navigationBudget--;
+                    }
                 }
             }
         }
@@ -453,12 +500,13 @@ final class HordeManager {
             for(String line:Files.readAllLines(p,StandardCharsets.UTF_8)) {
                 if(line.isBlank() || line.startsWith("#"))continue;
                 if(++n>100_000)throw new IOException("Horde state exceeds record limit");
-                try {HordeState h=HordeState.restore(line);hordes.putIfAbsent(h.id(),h);}
+                try {HordeState h=HordeState.restore(line);hordes.putIfAbsent(h.id(),h);
+                    lastInterest.put(h.id(),System.currentTimeMillis());}
                 catch(RuntimeException bad){plugin.getLogger().warning("Skipping malformed horde state record");}
             }
         } catch(IOException error) {plugin.getLogger().severe("Cannot read horde state: "+error.getMessage());}
     }
-    private void save() {
+    private boolean save() {
         try {
             Path file=stateFile();Files.createDirectories(file.getParent());
             Path tmp=file.resolveSibling("hordes-v1.txt.tmp");
@@ -467,6 +515,7 @@ final class HordeManager {
             Files.write(tmp,lines,StandardCharsets.UTF_8);
             try {Files.move(tmp,file,StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);}
             catch(java.nio.file.AtomicMoveNotSupportedException ex) {Files.move(tmp,file,StandardCopyOption.REPLACE_EXISTING);}
-        }catch(IOException ex){plugin.getLogger().severe("Could not save horde state: "+ex.getMessage());}
+            return true;
+        }catch(IOException ex){plugin.getLogger().severe("Could not save horde state: "+ex.getMessage());return false;}
     }
 }
