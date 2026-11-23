@@ -60,6 +60,7 @@ final class BloodMoonManager {
     }
 
     boolean shouldBlockSleep(World world) {
+        if (!plugin.getConfig().getBoolean("blood-moon.enabled", true)) return false;
         long fullTime = world.getFullTime();
         long day = Math.floorDiv(fullTime, TICKS_PER_DAY);
         long dayTime = Math.floorMod(fullTime, TICKS_PER_DAY);
