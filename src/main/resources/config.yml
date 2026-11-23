@@ -65,7 +65,7 @@ vanilla-spawners:
   # ALLOW_ALL leaves every vanilla spawner untouched. CONVERT_TO_ZOMBIES converts
   # every loaded/newly placed spawner to zombies while preserving its other settings.
   # Returning to ALLOW_ALL restores the original mob type for spawners converted by this version.
-  mode: ALLOW_ALL
+  mode: CONVERT_TO_ZOMBIES
 warnings:
   play-sound: true
   fade-in-ticks: 10
@@ -74,7 +74,7 @@ warnings:
 
 # Proposed STARTING RANGES per actually placed Metropolis BUILD (not per district).
 # No landmark or MegaMall type: those use their actual district context.
-# Activation is experimental and OFF by default; verify visibility ordering on Paper 26.2 first.
+# Activation is experimental; enable on a backup/test world and verify visibility ordering on Paper 26.2.
 population:
   ranges:
     HIGHRISE: {min: 2, max: 9}
@@ -88,7 +88,7 @@ population:
     PARK: {min: 0, max: 2}
 
   activation:
-    enabled: false
+    enabled: true
     max-chunks-per-tick: 2
     max-queued-chunks: 8192
     max-new-zombies-per-tick: 3
