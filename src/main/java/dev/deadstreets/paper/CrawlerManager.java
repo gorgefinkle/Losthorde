@@ -89,7 +89,7 @@ final class CrawlerManager {
         }
         if (destination == null) {
             if (!force) plugin.budget().rollback();
-            return "No safe spawn position found in already-loaded nearby chunks.");
+            return "No safe spawn position found in already-loaded nearby chunks.";
         }
         try {
             Location at = destination;
@@ -100,7 +100,7 @@ final class CrawlerManager {
                 if (!force) plugin.budget().tag(created);
                 plugin.visuals().attachSoon(created);
             });
-            return (force ? "DEV FORCE: spawned uncounted test " : "Spawned test Crawler " + zombie.getUniqueId() + " nearby using Paper's fixed low-profile pose.";
+            return (force ? "DEV FORCE: spawned uncounted test Crawler " : "Spawned test Crawler ") + zombie.getUniqueId() + " nearby using Paper's fixed low-profile pose.";
         } catch (RuntimeException failure) {
             if (!force) plugin.budget().rollback();
             return "Test Crawler spawn failed: " + failure.getMessage();
