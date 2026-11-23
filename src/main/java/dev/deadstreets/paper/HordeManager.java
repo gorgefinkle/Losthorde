@@ -499,6 +499,30 @@ final class HordeManager {
         if(made>0) save(); // record decrement promptly; physical entity persistence is managed by Paper
         return made;
     }
+    /** Absorb a nearby scraggler into the shared population without spawning or teleporting it. */
+    boolean absorbScraggler(Zombie zombie) {
+        if(!enabled() || zombie==null || !zombie.isValid()
+                || !zombie.getPersistentDataContainer().has(plugin.scragglerTag(),PersistentDataType.BYTE)
+                || zombie.getPersistentDataContainer().has(hordeTag,PersistentDataType.STRING))return false;
+        World world=zombie.getWorld();Location at=zombie.getLocation();
+        HordeState nearest=null;double best=32.0*32.0;
+        for(HordeState h:hordes.values()){
+            if(!h.worldId().equals(world.getUID())||h.empty())continue;
+            double dx=at.getX()-h.x(),dz=at.getZ()-h.z(),distance=dx*dx+dz*dz;
+            HashSet<UUID> members=loadedPhysical.get(h.id());
+            if(members!=null)for(UUID id:members){Entity e=Bukkit.getEntity(id);if(e instanceof Zombie live&&live.isValid()){
+                double pdx=at.getX()-live.getLocation().getX(),pdz=at.getZ()-live.getLocation().getZ();
+                distance=Math.min(distance,pdx*pdx+pdz*pdz);
+            }}
+            if(distance<best){best=distance;nearest=h;}
+        }
+        if(nearest==null)return false;
+        nearest.absorbPhysicalMember();
+        zombie.getPersistentDataContainer().remove(plugin.scragglerTag());
+        zombie.getPersistentDataContainer().set(hordeTag,PersistentDataType.STRING,nearest.id().toString());
+        loadedPhysical.computeIfAbsent(nearest.id(),ignored->new HashSet<>()).add(zombie.getUniqueId());
+        save();return true;
+    }
     void onEntitiesLoad(Chunk chunk) {
         if(!enabled())return;
         for(Entity e:chunk.getEntities()) {

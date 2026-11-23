@@ -59,6 +59,7 @@ final class ScragglerManager {
             var pdc=zombie.getPersistentDataContainer();
             if(!pdc.has(plugin.scragglerTag(),PersistentDataType.BYTE)
                     || pdc.has(plugin.hordeMemberTag(),PersistentDataType.STRING))continue;
+            if(plugin.tryJoinHorde(zombie))continue;
             if(now<nextWander.getOrDefault(zombie.getUniqueId(),0L))continue;
             nextWander.put(zombie.getUniqueId(),now+random.nextLong(12_000L,35_001L));
             if(zombie.getTarget()!=null||zombie.isDead())continue;

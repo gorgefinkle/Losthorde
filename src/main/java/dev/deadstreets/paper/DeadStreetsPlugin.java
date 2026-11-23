@@ -113,6 +113,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         if (walkerBudget != null) walkerBudget.stop();
     }
     NamespacedKey scragglerTag() { return scragglerTag; }
+    boolean tryJoinHorde(Zombie zombie) { return hordes!=null && hordes.absorbScraggler(zombie); }
     NamespacedKey hordeMemberTag() { return hordeMemberTag; }
     public void markWalker(Zombie zombie) {
         zombie.getPersistentDataContainer().set(walkerTag, PersistentDataType.BYTE, (byte) 1);

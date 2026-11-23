@@ -72,6 +72,8 @@ public final class HordeState {
     public void turn(double radians) {if (Double.isFinite(radians)) heading = radians;}
     /** Called only after a successfully spawned physical walker, never for a failed attempt. */
     public void materialized() {if (pending <= 0) throw new IllegalStateException("No pending walkers");pending--;}
+    /** Add an already-physical independent walker to this shared horde. */
+    public void absorbPhysicalMember() { if (population <= 0) throw new IllegalStateException("Cannot join an empty horde"); population++; }
     public void died() {if (population > 0) population--;}
     /** Retire unmaterialized walkers only when a group has been completely absent
      * from all active gameplay for a long time; physical entities are untouched. */
