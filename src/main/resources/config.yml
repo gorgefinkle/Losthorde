@@ -83,14 +83,6 @@ hordes:
   max-materializations-per-second: 12
   max-materializations-per-chunk: 6
   warning-distance: 150
-  scragglers:
-    enabled: true
-    ambient-every-seconds: 45
-    max-groups-per-world: 48
-    min-population: 1
-    max-population: 3
-    wander-radius: 220
-    activation-distance: 128
   warning-reset-seconds: 240
   # Local pathfinder steering toward the horde migration heading (not player homing).
   max-navigation-goals-per-4s: 24
