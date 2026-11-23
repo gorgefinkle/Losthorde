@@ -111,9 +111,22 @@ public final class SpawnerManager {
         if (tracked.containsKey(id)) return;
         String saved = checkpoints.get(id.key());
         SpawnerCycle cycle;
-        try { cycle = saved==null ? new SpawnerCycle() : SpawnerCycle.restore(saved); }
+        try {
+            if(saved==null) cycle=new SpawnerCycle();
+            else {
+                String[] state=saved.split("\\|",-1);
+                cycle=SpawnerCycle.restore(state[0]);
+                
+            }
+        }
         catch (RuntimeException ex) { plugin.getLogger().warning("Ignoring corrupt spawner state " +id.key());cycle=new SpawnerCycle(); }
-        tracked.put(id,new Managed(id,cycle));
+        Managed managed=new Managed(id,cycle);
+        if(saved!=null) {
+            String[] state=saved.split("\\|",-1);
+            if(state.length>1) try { managed.pendingWave=Math.max(0,Math.min(256,Integer.parseInt(state[1]))); }
+            catch(NumberFormatException ignored) { managed.pendingWave=0; }
+        }
+        tracked.put(id,managed);
     }
     void onChunkUnload(Chunk chunk) {
         var iter = tracked.values().iterator();
@@ -282,7 +295,7 @@ public final class SpawnerManager {
         m.countdown=null;m.lastText="";
     }
     private static SpawnerId id(Block block) { return new SpawnerId(block.getWorld().getUID(),block.getX(),block.getY(),block.getZ()); }
-    private void checkpoint(Managed m) { checkpoints.put(m.id.key(),m.cycle.save(System.currentTimeMillis())); }
+    private void checkpoint(Managed m) { checkpoints.put(m.id.key(),m.cycle.save(System.currentTimeMillis())+"|"+m.pendingWave); }
     private Path dataFile() { return plugin.getDataFolder().toPath().resolve("spawner-states.properties"); }
     private void readCheckpoints() {
         if(!Files.isRegularFile(dataFile())) return;
