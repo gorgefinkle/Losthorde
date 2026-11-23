@@ -28,6 +28,7 @@ UTF-8 JSON Lines: one complete JSON object per line. Append only after a logical
     {"x": 140, "y": 82, "z": 220}
   ]
 }
+```
 
 All fields shown are required, including `worldSeed`. `interiorCandidates` may be an empty array, but should contain up to 64 distinct, interior candidate standing positions where possible. Coordinates are block coordinates for the zombie's feet; Dead Streets rechecks floor, clearance, roof, liquids, chunk-loaded state, and player visibility before materialization.
 
@@ -40,4 +41,3 @@ Dead Streets reads the file only when its optional population activation feature
 ## Metropolis responsibilities
 
 No zombie spawning, no mob-policy changes, no Dead Streets dependency, no chunk forcing, and no blocking file I/O on the generation thread. Export completion must be independent of whether Dead Streets is installed or running.
-```
