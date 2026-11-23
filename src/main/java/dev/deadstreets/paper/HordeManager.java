@@ -239,7 +239,7 @@ final class HordeManager {
     // Only virtual groups consume ambient migration slots. Fully-materialized
     // groups remain tracked for deaths/warnings but no longer block new migrations.
     private static String approachDirection(double playerX,double playerZ,double sourceX,double sourceZ) {
-        double angle=Math.atan2(sourceX-playerX, sourceZ-playerZ);
+        double angle=Math.atan2(sourceX-playerX, playerZ-sourceZ);
         int sector=(int)Math.floor((angle+Math.PI/8.0)/(Math.PI/4.0));
         return switch(Math.floorMod(sector,8)) {
             case 0 -> "North";

@@ -20,7 +20,6 @@ spawners:
   show-countdown: true
 zombies:
   stop-natural-zombie-spawns: true
-  stop-vanilla-zombie-spawners: true
   stop-zombie-reinforcements: true
   never-burn-in-daylight: true
   make-all-zombies-persistent: true

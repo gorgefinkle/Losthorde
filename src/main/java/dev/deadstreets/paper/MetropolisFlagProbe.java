@@ -32,7 +32,7 @@ final class MetropolisFlagProbe {
             player.sendMessage(ChatColor.YELLOW + "No Metropolis build flags for current 32x32-chunk region (" + rx + "," + rz + ").");
             return;
         }
-        int valid = 0, duplicates = 0, bad = 0, eligible = 0, estimate = 0;
+        int valid = 0, duplicates = 0, bad = 0, eligible = 0, estimate = 0, interiorCandidates = 0;
         HashSet<String> ids = new HashSet<>(); // bounded to ONE region for this admin probe
         try (BufferedReader in = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
             for (String line; (line = in.readLine()) != null;) {
@@ -43,6 +43,7 @@ final class MetropolisFlagProbe {
                     }
                     if (!ids.add(flag.buildId())) { duplicates++; continue; }
                     valid++;
+                    interiorCandidates += flag.interiorPoints().size();
                     String root = "population.ranges." + flag.districtType();
                     if (!ds.getConfig().contains(root)) continue;
                     int lo = ds.getConfig().getInt(root + ".min", 0);
@@ -58,7 +59,7 @@ final class MetropolisFlagProbe {
         }
         player.sendMessage(ChatColor.AQUA + "Dead Streets / Metropolis marker probe: region " + rx + "," + rz);
         player.sendMessage(ChatColor.GRAY + "Build flags " + valid + " | configured " + eligible
-                + " | potential initial walkers " + estimate + " | duplicates " + duplicates + " | invalid " + bad);
-        player.sendMessage(ChatColor.YELLOW + "Read-only diagnostic. Flag-to-zombie activation is NOT yet implemented.");
+                + " | indoor candidate columns " + interiorCandidates + " | potential initial walkers " + estimate + " | duplicates " + duplicates + " | invalid " + bad);
+        player.sendMessage(ChatColor.GRAY + "Read-only marker diagnostic. Activation is controlled by population.activation.enabled.");
     }
 }

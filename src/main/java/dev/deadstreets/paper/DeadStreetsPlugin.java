@@ -159,7 +159,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         else if (type==EntityType.VILLAGER || type==EntityType.WANDERING_TRADER) key="villagers";
         else if (type==EntityType.BAT || type==EntityType.GLOW_SQUID) key="ambient";
         else if (event.getEntity() instanceof org.bukkit.entity.Animals) key="animals";
-        else if (event.getEntity() instanceof org.bukkit.entity.Monster && !(event.getEntity() instanceof Zombie)) key="other_hostiles";
+        else if (event.getEntity() instanceof org.bukkit.entity.Enemy && !(event.getEntity() instanceof Zombie)) key="other_hostiles";
         if (key==null) return true;
         double chance=Math.max(0.0,Math.min(1.0,getConfig().getDouble("vanilla-mobs.natural-spawn-chance."+key,0.15)));
         return chance>=1.0 || (chance>0.0 && ThreadLocalRandom.current().nextDouble()<chance);
