@@ -277,6 +277,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         for (var world : Bukkit.getWorlds()) for (var chunk : world.getLoadedChunks()) refreshExistingZombies(chunk);
     }
     @EventHandler public void onEntitiesLoad(EntitiesLoadEvent event) {
+        refreshExistingZombies(event.getChunk());
         population.onEntitiesLoad(event.getChunk());
         hordes.onEntitiesLoad(event.getChunk());
         scragglers.onEntitiesLoad(event.getChunk());
@@ -284,7 +285,10 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         // zero viewers and the same conservative position checks.
         hordes.onChunkLoad(event.getChunk());
     }
-    @EventHandler public void onEntitiesUnload(EntitiesUnloadEvent event) { hordes.onEntitiesUnload(event.getChunk()); }
+    @EventHandler public void onEntitiesUnload(EntitiesUnloadEvent event) {
+        if (visuals != null) visuals.onChunkUnload(event.getChunk());
+        hordes.onEntitiesUnload(event.getChunk());
+    }
     @EventHandler public void onZombieDeath(EntityDeathEvent event) {
         if(event.getEntity() instanceof Zombie zombie) {
             if (visuals != null) visuals.onDeath(zombie);
