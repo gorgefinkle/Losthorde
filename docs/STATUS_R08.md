@@ -8,7 +8,7 @@
 - Vanilla spawner modes:
   - `ALLOW_ALL`: leave vanilla spawners alone.
   - `CONVERT_TO_ZOMBIES`: convert loaded and newly placed spawners. When the Dead Streets proximity controller is enabled, its immediate wave and randomized 30–60-second waves own spawning and vanilla SPAWNER events are suppressed to prevent double waves. If the proximity controller is disabled, the converted vanilla spawner runs normally.
-- Larger shared virtual horde population defaults, continued virtual migration after partial materialization, eight-way compass alerts relative to each player, and nearest-physical-member direction selection.
+- Larger shared virtual horde population defaults, continued virtual migration after partial materialization, eight-way compass alerts relative to each player, nearest-physical-member direction selection, and estimated ETA/population/temperament display.
 - `/deadstreets horde tp [uuid]`: diagnostic teleport to an active horde anchor, loading only an already-generated chunk and searching for safe ground.
 - Scraggler assignment to a configurable subset of managed walkers. Scragglers get occasional local wander goals using loaded terrain only, persist as normal entities, and can join a nearby horde as an already-physical member.
 - Metropolis marker v2 parsing, deterministic per-build population rolls, explicit candidate-column assignment, safe indoor floor/roof validation, write-ahead admission journal, chunk retry after observation protection, and regression harness cases.

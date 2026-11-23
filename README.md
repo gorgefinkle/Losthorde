@@ -9,7 +9,7 @@ Experimental Paper 26.2 / Java 25 zombie population and migration plugin, with a
 - Persistent daylight-immune walkers with a durable global admission budget.
 - Configurable natural mob pass-through rates, including a low rate for other hostile mobs.
 - Vanilla spawner policy: `ALLOW_ALL` or `CONVERT_TO_ZOMBIES`. When the Dead Streets proximity-wave controller is enabled, converted spawners use its immediate first wave, randomized 30–60-second follow-up waves, nearby cap, and floating countdown. If that controller is disabled, converted vanilla spawners operate as ordinary zombie spawners.
-- Persistent shared virtual hordes with larger configured populations, sound-sensitive migration, physical emergence only in unobserved chunks, and eight-way per-player arrival directions.
+- Persistent shared virtual hordes with larger configured populations, sound-sensitive migration, physical emergence only in unobserved chunks, and eight-way per-player arrival directions, estimated ETA, population and temperament.
 - Scragglers: a configurable subset of managed walkers gets independent local wander goals and may join a nearby shared horde. The wander manager does not spawn entities or generate chunks.
 - Optional Metropolis BUILD population records. Metropolis writes a file-only sidecar after a BUILD has fully pasted; Dead Streets reads its district, footprint, and candidate interior columns, then validates safe indoor standing positions before spawning. Population activation remains disabled by default until the no-pop-in gate is passed.
 
