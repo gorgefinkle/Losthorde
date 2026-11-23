@@ -8,6 +8,7 @@ import dev.deadstreets.core.HordeState;
 import dev.deadstreets.core.ObservationGuard;
 import dev.deadstreets.core.Temperament;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -227,8 +228,8 @@ final class HordeManager {
                 }
                 // Shared horde, one alert per nearby player. Gate also ensures closing distance.
                 if(h.population()>0 && alertGate.observe(p.getUniqueId(),h.id(),dist,now)) {
-                    double speed=Math.max(0.25,plugin.getConfig().getDouble("hordes.virtual-speed-blocks-per-second",1.0));
-                    int eta=(int)Math.min(3600,Math.ceil(dist/speed));
+                    double alertSpeed=Math.max(0.25,plugin.getConfig().getDouble("hordes.virtual-speed-blocks-per-second",1.0));
+                    int eta=(int)Math.min(3600,Math.ceil(dist/alertSpeed));
                     plugin.showWarning(p,DangerRating.calculate(h.population(),h.temperament()),
                             CompassDirection.from(p.getLocation().getX(),p.getLocation().getZ(),sourceX,sourceZ),eta);
                     warningsSent++;
