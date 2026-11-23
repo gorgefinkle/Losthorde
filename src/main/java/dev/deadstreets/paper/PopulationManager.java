@@ -257,7 +257,7 @@ final class PopulationManager {
             cache.put(path,new Snapshot(size,stamp,now,prev.flags()));return prev.flags();
         }
         List<MetropolisFlag> records=new ArrayList<>();
-        if(size>0 && size<=Math.max(256*1024L,plugin.getConfig().getLong("population.activation.max-region-file-bytes",4*1024*1024L))) {
+        if(size>0 && size<=Math.max(256*1024L,plugin.getConfig().getLong("population.activation.max-region-file-bytes",6*1024*1024L))) {
             int maxRows=Math.max(100,Math.min(30000,plugin.getConfig().getInt("population.activation.max-region-records",12000)));
             HashSet<String> seen=new HashSet<>();
             try(BufferedReader lines=Files.newBufferedReader(path,StandardCharsets.UTF_8)) {
