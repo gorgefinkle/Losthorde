@@ -1,4 +1,9 @@
 # Dead Streets R08: persistent scragglers, larger migrating hordes, building populations, vanilla mob policy.
+scragglers:
+  enabled: true
+  assignment-chance: 0.12
+  max-chunks-per-cycle: 32
+
 spawners:
   enabled: true
   activation-radius: 16

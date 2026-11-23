@@ -252,6 +252,62 @@ final class HordeManager {
             default -> "North-West";
         };
     }
+    /** Admin-only diagnostic teleport. It never creates or force-generates terrain. */
+    String teleportToHorde(Player player, String requestedId) {
+        HordeState selected=null;
+        if(requestedId!=null && !requestedId.isBlank()) {
+            UUID id;
+            try { id=UUID.fromString(requestedId); }
+            catch(IllegalArgumentException bad) { return "Invalid horde UUID."; }
+            HordeState candidate=hordes.get(id);
+            if(candidate==null || !candidate.worldId().equals(player.getWorld().getUID()))
+                return "That horde is not active in this world.";
+            selected=candidate;
+        } else {
+            double best=Double.MAX_VALUE;
+            for(HordeState candidate:hordes.values()) {
+                if(!candidate.worldId().equals(player.getWorld().getUID()) || candidate.empty())continue;
+                double dx=player.getLocation().getX()-candidate.x(),dz=player.getLocation().getZ()-candidate.z();
+                double d=dx*dx+dz*dz;
+                if(d<best){best=d;selected=candidate;}
+            }
+            if(selected==null)return "No active horde exists in this world.";
+        }
+        final HordeState target=selected;
+        int cx=((int)Math.floor(target.x()))>>4,cz=((int)Math.floor(target.z()))>>4;
+        World world=player.getWorld();
+        if(!world.isChunkLoaded(cx,cz)) {
+            world.getChunkAtAsync(cx,cz,false,chunk -> {
+                if(chunk==null || !chunk.isLoaded()) { player.sendMessage(ChatColor.RED+"Horde area is not currently loaded; no terrain was generated."); return; }
+                Location safe=findHordeTeleportSpot(chunk,target.x(),target.z());
+                if(safe==null) {player.sendMessage(ChatColor.RED+"No safe landing spot near this horde anchor.");return;}
+                player.teleport(safe);
+                player.sendMessage(ChatColor.YELLOW+"Teleported near horde "+target.id()+" (population "+target.population()+").");
+            });
+        } else {
+            Location safe=findHordeTeleportSpot(world.getChunkAt(cx,cz),target.x(),target.z());
+            if(safe==null)return "No safe landing spot near this horde anchor.";
+            player.teleport(safe);
+            return "Teleported near horde "+target.id()+" (population "+target.population()+").";
+        }
+        return "Loading the horde's already-generated chunk; no new terrain will be generated.";
+    }
+    private Location findHordeTeleportSpot(Chunk chunk,double anchorX,double anchorZ) {
+        World world=chunk.getWorld();
+        int ax=(int)Math.floor(anchorX),az=(int)Math.floor(anchorZ);
+        for(int radius=0;radius<=8;radius++) for(int dx=-radius;dx<=radius;dx++) for(int dz=-radius;dz<=radius;dz++) {
+            if(Math.max(Math.abs(dx),Math.abs(dz))!=radius)continue;
+            int x=ax+dx,z=az+dz;
+            if((x>>4)!=chunk.getX() || (z>>4)!=chunk.getZ())continue;
+            int y=world.getHighestBlockYAt(x,z)+1;
+            if(y<=world.getMinHeight()+1 || y>=world.getMaxHeight()-2)continue;
+            Block feet=world.getBlockAt(x,y,z),head=world.getBlockAt(x,y+1,z),floor=world.getBlockAt(x,y-1,z);
+            if(feet.isPassable()&&head.isPassable()&&!feet.isLiquid()&&!head.isLiquid()&&floor.getType().isSolid())
+                return new Location(world,x+.5,y,z+.5);
+        }
+        return null;
+    }
+
     private int countWorld(World w) {int n=0;for(HordeState h:hordes.values())
         if(h.worldId().equals(w.getUID()) && h.pending()>0)n++;return n;}
     private boolean nearSomePlayer(World w,double x,double z,double radius) {

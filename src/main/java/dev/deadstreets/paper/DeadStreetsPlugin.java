@@ -53,6 +53,9 @@ import java.util.concurrent.ThreadLocalRandom;
 /** Dead Streets: Paper zombie gameplay, persistent populations, opt-in experimental hordes. */
 public final class DeadStreetsPlugin extends JavaPlugin implements Listener, CommandExecutor {
     private NamespacedKey walkerTag;
+    private NamespacedKey scragglerTag;
+    private NamespacedKey hordeMemberTag;
+    private ScragglerManager scragglers;
     private SpawnerManager spawners;
     private PopulationManager population;
     private HordeManager hordes;
@@ -85,29 +88,39 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     @Override public void onEnable() {
         saveDefaultConfig();
         walkerTag = new NamespacedKey(this, "dead_streets_walker");
+        scragglerTag = new NamespacedKey(this, "scraggler_v1");
+        hordeMemberTag = new NamespacedKey(this, "horde_id");
         walkerBudget = new WalkerBudget(this);
         walkerBudget.load();
         spawners = new SpawnerManager(this);
         population = new PopulationManager(this);
         hordes = new HordeManager(this);
+        scragglers = new ScragglerManager(this);
         Bukkit.getPluginManager().registerEvents(this, this);
         Objects.requireNonNull(getCommand("deadstreets"), "deadstreets command").setExecutor(this);
         spawners.start();
         refreshLoadedZombies();
         population.start();
         hordes.start();
+        scragglers.start();
         getLogger().info("R06: repaired experimental horde arrival, observation and durable quotas; opt-in.");
     }
     @Override public void onDisable() {
         if (spawners != null) spawners.stop();
         if (population != null) population.stop();
         if (hordes != null) hordes.stop();
+        if (scragglers != null) scragglers.stop();
         if (walkerBudget != null) walkerBudget.stop();
     }
+    NamespacedKey scragglerTag() { return scragglerTag; }
+    NamespacedKey hordeMemberTag() { return hordeMemberTag; }
     public void markWalker(Zombie zombie) {
         zombie.getPersistentDataContainer().set(walkerTag, PersistentDataType.BYTE, (byte) 1);
         zombie.setPersistent(true);
         zombie.setRemoveWhenFarAway(false);
+        double chance=Math.max(0.0,Math.min(1.0,getConfig().getDouble("scragglers.assignment-chance",0.12)));
+        if(chance>0 && ThreadLocalRandom.current().nextDouble()<chance)
+            zombie.getPersistentDataContainer().set(scragglerTag,PersistentDataType.BYTE,(byte)1);
         if (getConfig().getBoolean("zombies.never-burn-in-daylight",true)) zombie.setShouldBurnInDay(false);
     }
     private boolean isOurs(Zombie zombie) {return isManagedWalker(zombie);}
@@ -155,6 +168,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         refreshExistingZombies(event.getChunk());
         population.onChunkLoad(event.getChunk());
         hordes.onChunkLoad(event.getChunk());
+        scragglers.onChunkLoad(event.getChunk());
     }
     private void refreshExistingZombies(org.bukkit.Chunk chunk) {
         for (Entity entity : chunk.getEntities()) {
@@ -171,6 +185,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     @EventHandler public void onEntitiesLoad(EntitiesLoadEvent event) {
         population.onEntitiesLoad(event.getChunk());
         hordes.onEntitiesLoad(event.getChunk());
+        scragglers.onEntitiesLoad(event.getChunk());
         // Entity chunks can finish loading after the block-chunk event. Still require
         // zero viewers and the same conservative position checks.
         hordes.onChunkLoad(event.getChunk());
@@ -178,6 +193,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     @EventHandler public void onEntitiesUnload(EntitiesUnloadEvent event) { hordes.onEntitiesUnload(event.getChunk()); }
     @EventHandler public void onZombieDeath(EntityDeathEvent event) {
         if(event.getEntity() instanceof Zombie zombie) {
+            scragglers.onZombieDeath(zombie);
             hordes.onZombieDeath(zombie);
             walkerBudget.onDeath(zombie);
         }
@@ -226,6 +242,11 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         }
         if (args.length >= 2 && args[0].equalsIgnoreCase("horde")) {
             if (args[1].equalsIgnoreCase("status")) {sender.sendMessage(ChatColor.GRAY+hordes.status());return true;}
+            if(args[1].equalsIgnoreCase("tp") && sender instanceof Player player) {
+                String result=hordes.teleportToHorde(player,args.length>=3?args[2]:null);
+                if(result!=null) sender.sendMessage(ChatColor.YELLOW+result);
+                return true;
+            }
             if(args.length==4 && args[1].equalsIgnoreCase("spawn")) {
                 if(!(sender instanceof Player player)) {sender.sendMessage("Spawn commands require an in-world player.");return true;}
                 try {
@@ -252,7 +273,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             } catch (IllegalArgumentException ex) { sender.sendMessage(ChatColor.RED+"Use /deadstreets testwarning <1..1000000> <docile|restless|agitated|frenzied>"); }
             return true;
         }
-        sender.sendMessage(ChatColor.RED+"Usage: /deadstreets [status|flags|horde status|horde spawn <population> <temperament>|testwarning <population> <temperament>]");
+        sender.sendMessage(ChatColor.RED+"Usage: /deadstreets [status|flags|horde status|horde spawn <population> <temperament>|horde tp [uuid]|testwarning <population> <temperament>]");
         return true;
     }
     public void showWarning(Player player, DangerRating rating) {
