@@ -277,13 +277,14 @@ final class HordeManager {
         int cx=((int)Math.floor(target.x()))>>4,cz=((int)Math.floor(target.z()))>>4;
         World world=player.getWorld();
         if(!world.isChunkLoaded(cx,cz)) {
-            world.getChunkAtAsync(cx,cz,false,chunk -> {
+            world.getChunkAtAsync(cx,cz,false,chunk -> Bukkit.getScheduler().runTask(plugin,() -> {
+                if(!player.isOnline())return;
                 if(chunk==null || !chunk.isLoaded()) { player.sendMessage(ChatColor.RED+"Horde area is not currently loaded; no terrain was generated."); return; }
                 Location safe=findHordeTeleportSpot(chunk,target.x(),target.z());
                 if(safe==null) {player.sendMessage(ChatColor.RED+"No safe landing spot near this horde anchor.");return;}
                 player.teleport(safe);
                 player.sendMessage(ChatColor.YELLOW+"Teleported near horde "+target.id()+" (population "+target.population()+").");
-            });
+            }));
         } else {
             Location safe=findHordeTeleportSpot(world.getChunkAt(cx,cz),target.x(),target.z());
             if(safe==null)return "No safe landing spot near this horde anchor.";

@@ -36,6 +36,7 @@ vanilla-mobs:
     animals: 0.10
     villagers: 0.20
     ambient: 0.05
+    other_hostiles: 0.02
 vanilla-spawners:
   # ALLOW_ALL leaves every vanilla spawner untouched. CONVERT_TO_ZOMBIES converts
   # every loaded/newly placed spawner to zombies while preserving its other settings.
@@ -79,11 +80,11 @@ hordes:
   enabled: true
   ambient-creation: true
   ambient-every-seconds: 180
-  max-groups-per-world: 12
+  max-groups-per-world: 8
   # Virtual-only portions retire after prolonged unobserved absence, no physical removals.
   virtual-retire-after-seconds: 1800
-  min-population: 40
-  max-population: 180
+  min-population: 90
+  max-population: 240
   virtual-speed-blocks-per-second: 1.0
   max-materializations-per-second: 12
   max-materializations-per-chunk: 6

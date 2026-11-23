@@ -132,6 +132,11 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         if (event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.NATURAL && getConfig().getBoolean("zombies.stop-natural-zombie-spawns",false)) {
             event.setCancelled(true); return;
         }
+        if(event.getSpawnReason()==CreatureSpawnEvent.SpawnReason.SPAWNER
+                && "CONVERT_TO_ZOMBIES".equalsIgnoreCase(getConfig().getString("vanilla-spawners.mode","ALLOW_ALL"))) {
+            event.setCancelled(true);
+            return;
+        }
         if (event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.REINFORCEMENTS && getConfig().getBoolean("zombies.stop-zombie-reinforcements",false)) {
             event.setCancelled(true); return;
         }
@@ -153,6 +158,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         else if (type==EntityType.VILLAGER || type==EntityType.WANDERING_TRADER) key="villagers";
         else if (type==EntityType.BAT || type==EntityType.GLOW_SQUID) key="ambient";
         else if (event.getEntity() instanceof org.bukkit.entity.Animals) key="animals";
+        else if (event.getEntity() instanceof org.bukkit.entity.Monster && !(event.getEntity() instanceof Zombie)) key="other_hostiles";
         if (key==null) return true;
         double chance=Math.max(0.0,Math.min(1.0,getConfig().getDouble("vanilla-mobs.natural-spawn-chance."+key,0.15)));
         return chance>=1.0 || (chance>0.0 && ThreadLocalRandom.current().nextDouble()<chance);
@@ -237,7 +243,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0 || args[0].equalsIgnoreCase("status")) {
             sender.sendMessage(ChatColor.GRAY + "Dead Streets R06 | managed spawners: " + spawners.size()
-                + " | quota="+walkerBudget.reserved()+"/"+walkerBudget.maximum()+" denied="+walkerBudget.denied()+" | " + hordes.status() + " | Metropolis: " + (population.enabled()?population.status():"activation disabled"));
+                + " | quota="+walkerBudget.reserved()+"/"+walkerBudget.maximum()+" denied="+walkerBudget.denied()+" | " + hordes.status() + " | " + scragglers.status() + " | Metropolis: " + (population.enabled()?population.status():"activation disabled"));
             return true;
         }
         if (args.length >= 2 && args[0].equalsIgnoreCase("horde")) {

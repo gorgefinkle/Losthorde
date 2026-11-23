@@ -28,3 +28,12 @@ GitHub Actions workflow runs were created by pushes but failed before any job st
 ## Acceptance gate
 
 Do not install this branch as a test build yet. Complete the remaining systems, run Java 25 core tests and Paper 26.2 Maven packaging, then validate spawner conversion in both modes and natural spawn filtering on a disposable server. Connected-client visibility and genuine Metropolis integration remain separate acceptance tests.
+
+
+## R08 follow-up implementation (still unverified)
+- Added independent scraggler wandering for a configurable share of managed walkers; the wander manager does not spawn entities or generate chunks.
+- Added /deadstreets horde tp [uuid], which only loads an already-generated anchor chunk and searches for safe ground.
+- Added eight-way per-player approach direction, preferring the nearest tracked physical member over the virtual anchor.
+- Metropolis integration is on the separate Metropolis branch deadstreets-building-population-export. Its exporter emits v2 records after completed BUILD paste/decay, including sampled indoor standing coordinates. The consumer validates them before spawning.
+- Added v2 marker parsing and core tests for explicit interior-coordinate assignment. Real exporter-to-consumer operation, Paper runtime visibility ordering, and pathfinding still require end-to-end validation.
+- Converted vanilla spawners use the Dead Streets proximity-wave controller without also emitting vanilla SPAWNER-reason zombies. Other natural hostile monsters receive a separate low pass-through rate.
