@@ -97,9 +97,10 @@ final class HulkManager {
         try {
             Location at = destination;
             Zombie zombie = at.getWorld().spawn(at, Zombie.class, created -> {
-                plugin.markWalker(created);
+                plugin.markTestWalker(created);
                 if (!isHulk(created)) apply(created);
                 plugin.budget().tag(created);
+                plugin.visuals().attachSoon(created);
             });
             return "Spawned test Hulk " + zombie.getUniqueId() + " at three-block target scale.";
         } catch (RuntimeException failure) {
