@@ -2,7 +2,7 @@ package dev.deadstreets.paper;
 
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
-import org.bukkit.Pose;
+import org.bukkit.entity.Pose;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
@@ -94,10 +94,11 @@ final class CrawlerManager {
         try {
             Location at = destination;
             Zombie zombie = at.getWorld().spawn(at, Zombie.class, created -> {
+                plugin.markTestWalker(created);
                 prepareTest(created);
-                plugin.markWalker(created);
-                plugin.budget().tag(created);
                 refresh(created);
+                plugin.budget().tag(created);
+                plugin.visuals().attachSoon(created);
             });
             return "Spawned test Crawler " + zombie.getUniqueId() + " nearby using Paper's fixed low-profile pose.";
         } catch (RuntimeException failure) {
@@ -105,5 +106,40 @@ final class CrawlerManager {
             return "Test Crawler spawn failed: " + failure.getMessage();
         }
     }
+
+    /** Creates 1–4 low-profile crawlers from a Popper, using only nearby already-loaded safe positions. */
+    int spawnFromPopper(Location center, int count) {
+        int spawned = 0;
+        for (int i = 0; i < count; i++) {
+            Location destination = null;
+            for (int attempt = 0; attempt < 24 && destination == null; attempt++) {
+                int x = center.getBlockX() + ThreadLocalRandom.current().nextInt(-3, 4);
+                int z = center.getBlockZ() + ThreadLocalRandom.current().nextInt(-3, 4);
+                if (!center.getWorld().isChunkLoaded(x >> 4, z >> 4)) continue;
+                for (int delta : new int[]{0, 1, -1, 2, -2}) {
+                    int y = center.getBlockY() + delta;
+                    if (y <= center.getWorld().getMinHeight() + 1 || y >= center.getWorld().getMaxHeight() - 2) continue;
+                    var feet = center.getWorld().getBlockAt(x, y, z);
+                    var head = center.getWorld().getBlockAt(x, y + 1, z);
+                    var floor = center.getWorld().getBlockAt(x, y - 1, z);
+                    if (feet.isPassable() && head.isPassable() && !feet.isLiquid() && !head.isLiquid()
+                            && floor.getType().isSolid()) {
+                        destination = new Location(center.getWorld(), x + 0.5, y, z + 0.5);
+                        break;
+                    }
+                }
+            }
+            if (destination == null || !plugin.budget().reserve()) break;
+            try {
+                destination.getWorld().spawn(destination, Zombie.class, created -> plugin.markPopperCrawler(created));
+                spawned++;
+            } catch (RuntimeException failure) {
+                plugin.budget().rollback();
+                plugin.getLogger().warning("Popper crawler spawn failed: " + failure.getMessage());
+            }
+        }
+        return spawned;
+    }
+
     private static double clamp(double value, double min, double max) { return Math.max(min, Math.min(max, value)); }
 }
