@@ -120,12 +120,18 @@ final class PopulationManager {
             if(world==null || !world.isChunkLoaded(key.x(),key.z())) continue;
             Chunk chunk=world.getChunkAt(key.x(),key.z());
             if(!chunk.isEntitiesLoaded()) {enqueue(chunk);continue;}
-            if (!plugin.isUnobserved(chunk)) { deferredObserved++; continue; }
+            if (!plugin.isUnobserved(chunk)) { deferredObserved++; scheduleLateRetry(key,System.currentTimeMillis()); continue; }
             activate(chunk,false);
         }
         // Entries declined because players saw the area are reconsidered on a future chunk load.
         // No continuously repeated scanning of observed chunks.
     }
+    private void scheduleLateRetry(ChunkRef ref,long now) {
+        int retryCap=Math.max(128,Math.min(8192,plugin.getConfig().getInt("population.activation.max-late-retries",2048)));
+        if(lateRetry.containsKey(ref)||lateRetry.size()<retryCap)
+            lateRetry.put(ref,now+1000L*Math.max(3,Math.min(600,plugin.getConfig().getInt("population.activation.late-retry-seconds",30))));
+    }
+
     private void resetBudget() {
         int current = Bukkit.getCurrentTick();
         if (current != lastTick) {
@@ -136,7 +142,7 @@ final class PopulationManager {
     private void activate(Chunk chunk, boolean fromChunkLoad) {
         Plugin metropolis=Bukkit.getPluginManager().getPlugin("Metropolis");
         if(metropolis==null || !metropolis.isEnabled() || !chunk.isEntitiesLoaded()) return;
-        if(!plugin.isUnobserved(chunk)) {deferredObserved++;return;}
+        if(!plugin.isUnobserved(chunk)) {deferredObserved++;scheduleLateRetry(new ChunkRef(chunk.getWorld().getUID(),chunk.getX(),chunk.getZ()),System.currentTimeMillis());return;}
         resetBudget();
         if(remainingBudget<=0) {enqueue(chunk);return;}
         // The exporter may finish a BUILD after the first chunk-load callback. Retry
