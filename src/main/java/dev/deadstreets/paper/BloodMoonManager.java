@@ -10,7 +10,14 @@ import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -42,6 +49,7 @@ final class BloodMoonManager {
     void start() {
         if (!plugin.getConfig().getBoolean("blood-moon.enabled", true)) return;
         for (World world : Bukkit.getWorlds()) worlds.put(world.getUID(), new WorldEvent());
+        loadState();
         task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
     }
 
@@ -90,6 +98,7 @@ final class BloodMoonManager {
 
             if (eventDay && dayTime >= 6_000 && dayTime < 13_000 && state.warnedDay != day) {
                 state.warnedDay = day;
+                saveState();
                 for (Player player : world.getPlayers()) {
                     player.sendTitle(ChatColor.RED + "BLOOD MOON APPROACHING",
                             ChatColor.DARK_RED + "Get inside. Nightfall is coming.",
@@ -110,8 +119,10 @@ final class BloodMoonManager {
                     if (created > 0) {
                         state.wavesSent++;
                         state.nextWaveAt = now + waveInterval;
+                        saveState();
                     } else {
                         state.nextWaveAt = now + 15_000L;
+                        saveState();
                     }
                 }
                 if (state.wavesSent >= maxWaves && dayTime < 13_000) end(world, state);
@@ -125,6 +136,7 @@ final class BloodMoonManager {
         state.activeDay = day;
         state.wavesSent = 0;
         state.nextWaveAt = now;
+        saveState();
         state.bar = Bukkit.createBossBar(ChatColor.DARK_RED + "BLOOD MOON  •  HORDES INBOUND",
                 BarColor.RED, BarStyle.SEGMENTED_10);
         state.bar.setProgress(1.0);
@@ -189,5 +201,56 @@ final class BloodMoonManager {
         }
         state.activeDay = Long.MIN_VALUE;
         state.wavesSent = 0;
+        saveState();
+    }
+
+    private Path stateFile() { return plugin.getDataFolder().toPath().resolve("blood-moon-state-v1.txt"); }
+
+    private void loadState() {
+        Path file = stateFile();
+        if (!Files.isRegularFile(file)) return;
+        try {
+            int count = 0;
+            for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+                if (line.isBlank() || line.startsWith("#")) continue;
+                if (++count > 10_000) throw new IOException("Blood Moon state exceeds record limit");
+                String[] p = line.split("\\|", -1);
+                if (p.length != 5) continue;
+                try {
+                    UUID id = UUID.fromString(p[0]);
+                    WorldEvent state = worlds.computeIfAbsent(id, ignored -> new WorldEvent());
+                    state.warnedDay = Long.parseLong(p[1]);
+                    state.activeDay = Long.parseLong(p[2]);
+                    state.nextWaveAt = Long.parseLong(p[3]);
+                    state.wavesSent = Math.max(0, Math.min(8, Integer.parseInt(p[4])));
+                } catch (RuntimeException malformed) {
+                    plugin.getLogger().warning("Ignoring malformed Blood Moon state record");
+                }
+            }
+        } catch (IOException error) {
+            plugin.getLogger().severe("Could not read Blood Moon state: " + error.getMessage());
+        }
+    }
+
+    private void saveState() {
+        try {
+            Path file = stateFile();
+            Files.createDirectories(file.getParent());
+            Path tmp = file.resolveSibling("blood-moon-state-v1.txt.tmp");
+            List<String> lines = new ArrayList<>();
+            lines.add("# world UUID | warned day | active day | next wave epoch ms | waves sent");
+            for (Map.Entry<UUID, WorldEvent> entry : worlds.entrySet()) {
+                WorldEvent state = entry.getValue();
+                lines.add(entry.getKey() + "|" + state.warnedDay + "|" + state.activeDay + "|"
+                        + state.nextWaveAt + "|" + state.wavesSent);
+            }
+            Files.write(tmp, lines, StandardCharsets.UTF_8);
+            try { Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE); }
+            catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
+                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException error) {
+            plugin.getLogger().severe("Could not save Blood Moon state: " + error.getMessage());
+        }
     }
 }
