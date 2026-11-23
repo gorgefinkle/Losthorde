@@ -87,7 +87,7 @@ final class BloodMoonManager {
         long dayTime = Math.floorMod(fullTime, TICKS_PER_DAY);
         int interval = intervalDays();
         return day > 0 && Math.floorMod(day, interval) == 0 && dayTime >= 12_542L
-                && dayTime < SUNRISE_TICK;
+                && dayTime < SUNRISE_TICK && active(world);
     }
 
     boolean active(World world) {
@@ -162,6 +162,13 @@ final class BloodMoonManager {
             long day = Math.floorDiv(fullTime, TICKS_PER_DAY);
             long dayTime = Math.floorMod(fullTime, TICKS_PER_DAY);
             boolean eventDay = day > 0 && Math.floorMod(day, interval) == 0;
+            if (state.activeDay != Long.MIN_VALUE) {
+                long sunrise = state.activeDay * TICKS_PER_DAY + SUNRISE_TICK;
+                if (state.endsAtWorldTime > sunrise) {
+                    state.endsAtWorldTime = sunrise;
+                    saveState();
+                }
+            }
 
             if (eventDay && dayTime >= 6_000L && dayTime < 13_000L && state.warnedDay != day) {
                 state.warnedDay = day;
