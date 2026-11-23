@@ -63,7 +63,7 @@ public final class CoreHarness {
                 java.util.List.of(new MetropolisFlag.SpawnPoint(2,51,2),new MetropolisFlag.SpawnPoint(18,62,18)));
         var parsed=MetropolisFlag.parse(indoor.format());
         check(parsed.interiorPoints().size()==2 && parsed.interiorPointsProvided(),"v2 interior points round-trip");
-        var noIndoor=MetropolisFlag.parse("BUILD\\tworld-a\\t431\\tno-room\\tHIGHRISE\\t0\\t40\\t0\\t15\\t90\\t15\\t");
+        var noIndoor=MetropolisFlag.parse("BUILD\tworld-a\t431\tno-room\tHIGHRISE\t0\t40\t0\t15\t90\t15\t");
         check(PopulationPlan.inChunk(noIndoor,new PopulationRoller.Range(3,3),0,0,10).isEmpty(),"v2 empty interior list never falls back to outdoor placement");
         var insideA=PopulationPlan.inChunk(indoor,new PopulationRoller.Range(2,2),0,0,10);
         var insideB=PopulationPlan.inChunk(indoor,new PopulationRoller.Range(2,2),1,1,10);
