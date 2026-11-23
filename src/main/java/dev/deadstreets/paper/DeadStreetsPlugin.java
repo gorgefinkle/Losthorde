@@ -32,6 +32,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerBedEnterEvent;
 import org.bukkit.event.block.Action;
 import org.bukkit.block.data.Openable;
 import org.bukkit.entity.Entity;
@@ -221,6 +222,13 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     @EventHandler public void onQuit(PlayerQuitEvent event) { hordes.forgetPlayer(event.getPlayer().getUniqueId());observation.forget(event.getPlayer().getUniqueId()); }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void onTeleport(PlayerTeleportEvent event) {
         observeTeleport(event.getPlayer(),event.getTo());
+    }
+    @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true) public void onBloodMoonBedEnter(PlayerBedEnterEvent event) {
+        if (bloodMoon != null && bloodMoon.active(event.getPlayer().getWorld())) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage(ChatColor.DARK_RED + "[Dead Streets] " + ChatColor.RED
+                    + "You cannot sleep through a Blood Moon. Hold the shelter.");
+        }
     }
     @EventHandler public void onJoin(PlayerJoinEvent event) {
         observeTeleport(event.getPlayer(),event.getPlayer().getLocation());
