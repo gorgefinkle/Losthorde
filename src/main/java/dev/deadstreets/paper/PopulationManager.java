@@ -227,7 +227,7 @@ final class PopulationManager {
                 for(int y=minY;y<=maxY;y++) {
                     Block feet=world.getBlockAt(x,y,z),head=world.getBlockAt(x,y+1,z),floor=world.getBlockAt(x,y-1,z);
                     if(!feet.isPassable()||!head.isPassable()||feet.isLiquid()||head.isLiquid()||!floor.getType().isSolid())continue;
-                    boolean roof=false;for(int dy=2;dy<=8&&y+dy<world.getMaxHeight();dy++)if(world.getBlockAt(x,y+dy,z).getType().isSolid()){roof=true;break;}
+                    boolean roof=false;for(int dy=2;dy<=Math.min(8,flag.maxY()-y);dy++)if(world.getBlockAt(x,y+dy,z).getType().isSolid()){roof=true;break;}
                     if(roof)return new Location(world,x+.5,y,z+.5);
                 }
             }
@@ -237,7 +237,7 @@ final class PopulationManager {
             if(!world.isChunkLoaded(c.x()>>4,c.z()>>4))return null;
             Block feet=world.getBlockAt(c.x(),c.y(),c.z()),head=world.getBlockAt(c.x(),c.y()+1,c.z()),floor=world.getBlockAt(c.x(),c.y()-1,c.z());
             if(!feet.isPassable()||!head.isPassable()||feet.isLiquid()||head.isLiquid()||!floor.getType().isSolid())return null;
-            boolean roof=false;for(int dy=2;dy<=8&&c.y()+dy<world.getMaxHeight();dy++)if(world.getBlockAt(c.x(),c.y()+dy,c.z()).getType().isSolid()){roof=true;break;}
+            boolean roof=false;for(int dy=2;dy<=Math.min(8,flag.maxY()-c.y());dy++)if(world.getBlockAt(c.x(),c.y()+dy,c.z()).getType().isSolid()){roof=true;break;}
             return roof?new Location(world,c.x()+.5,c.y(),c.z()+.5):null;
         }
         int minY=Math.max(world.getMinHeight()+2,flag.minY()+1),maxY=Math.min(world.getMaxHeight()-2,flag.maxY()-1);if(maxY<minY)return null;
