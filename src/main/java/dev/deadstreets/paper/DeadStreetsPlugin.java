@@ -317,16 +317,16 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             case HIGH -> ChatColor.GOLD;
             case EXTREME -> ChatColor.RED;
         };
-        String title = color + "HORDE APPROACHING";
         String eta=etaSeconds<0?"ETA Unknown":("ETA ~"+(etaSeconds>=60?(etaSeconds/60)+"m "+(etaSeconds%60)+"s":etaSeconds+"s"));
-        String subtitle = ChatColor.WHITE + "From the " + direction + " | " + eta
-            + " | Est. Population: " + rating.approximatePopulation()
+        String alert = color + "[Dead Streets] HORDE APPROACHING"
+            + ChatColor.GRAY + " | From " + ChatColor.WHITE + direction
+            + ChatColor.GRAY + " | " + eta
+            + ChatColor.GRAY + " | Est. population: " + ChatColor.WHITE + rating.approximatePopulation()
             + ChatColor.GRAY + " | Temperament: " + ChatColor.WHITE + rating.temperament().label()
-            + ChatColor.GRAY + " | " + color + rating.level().name();
-        player.sendTitle(title, subtitle,
-            getConfig().getInt("warnings.fade-in-ticks",10),
-            getConfig().getInt("warnings.stay-ticks",70),
-            getConfig().getInt("warnings.fade-out-ticks",15));
+            + ChatColor.GRAY + " | Threat: " + color + rating.level().name();
+        // Chat is deliberately used instead of the shared title/action-bar/scoreboard HUD.
+        // This avoids replacing another plugin's transient overlay (including LOSTLootz).
+        player.sendMessage(alert);
         if (getConfig().getBoolean("warnings.play-sound",true))
             player.playSound(player.getLocation(), Sound.ENTITY_ZOMBIE_AMBIENT,
                 SoundCategory.HOSTILE, 0.75f, 0.60f);
