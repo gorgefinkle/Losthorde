@@ -112,9 +112,9 @@ final class VisualManager implements Listener {
         MotionDisplay display = model.spawn(motion, zombie.getLocation());
         display.follow(zombie, new Vector(0, 0, 0), 2);
         float width = switch (type) {
-            case "hulk_brute" -> 1.55f;
-            case "popper_drowned" -> 1.35f;
-            case "crawler_lowprofile" -> 1.55f;
+            case "hulk_brute" -> 1.8f;
+            case "popper_drowned" -> 1.0f;
+            case "crawler_lowprofile" -> 1.3f;
             default -> 0.95f;
         };
         float height = switch (type) {
@@ -135,7 +135,7 @@ final class VisualManager implements Listener {
         if (!leftClick || visual.dying || !attacker.isOnline() || attacker.getGameMode() == GameMode.SPECTATOR) return;
         Zombie zombie = visual.zombie;
         if (!zombie.isValid() || zombie.isDead() || attacker.getWorld() != zombie.getWorld()) return;
-        if (attacker.getLocation().distanceSquared(zombie.getLocation()) > 20.25 || !attacker.hasLineOfSight(zombie)) return;
+        if (attacker.getLocation().distanceSquared(zombie.getLocation()) > 16.0 || !attacker.hasLineOfSight(zombie)) return;
         int now = Bukkit.getCurrentTick();
         HitKey key = new HitKey(attacker.getUniqueId(), zombie.getUniqueId());
         int previous = lastHitTick.getOrDefault(key, Integer.MIN_VALUE / 2);
@@ -173,7 +173,7 @@ final class VisualManager implements Listener {
     void hideFrom(Player player) {
         for (Active visual : active.values()) {
             if (visual.zombie.getWorld() != player.getWorld()) continue;
-            if (visual.hiddenPlayers.add(player.getUniqueId())) player.hideEntity(plugin, visual.zombie);
+            visual.hiddenPlayers.add(player.getUniqueId());\n            player.hideEntity(plugin, visual.zombie);
         }
     }
 
