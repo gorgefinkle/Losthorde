@@ -11,6 +11,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.Chunk;
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
@@ -80,12 +82,49 @@ final class VisualManager implements Listener {
                 models.put(name, model);
                 plugin.getLogger().info("Loaded " + name + ": " + model.parts().size() + " parts, animations=" + model.animations());
             }
+            if (Boolean.getBoolean("deadstreets.model-smoke")) selfTest();
         } catch (IOException | RuntimeException failure) {
             plugin.getLogger().severe("Could not load required Dead Streets infected models: " + failure.getMessage());
             throw new IllegalStateException("Dead Streets model initialization failed", failure);
         }
         Bukkit.getPluginManager().registerEvents(this, plugin);
         task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 2L);
+    }
+
+
+    /** Full API smoke test, enabled only with -Ddeadstreets.model-smoke=true. */
+    private void selfTest() {
+        if (Bukkit.getWorlds().isEmpty()) throw new IllegalStateException("No loaded world for model self-test");
+        World world = Bukkit.getWorlds().getFirst();
+        Location base = world.getSpawnLocation().clone().add(0, 1, 0);
+        int index = 0;
+        for (Map.Entry<String, ImportedModel> entry : models.entrySet()) {
+            Location at = base.clone().add(index * 0.7, 0, 0);
+            Zombie dummy = world.spawn(at, Zombie.class, zombie -> {
+                zombie.setAI(false);
+                zombie.setSilent(true);
+                zombie.setInvulnerable(true);
+            });
+            MotionDisplay display = null;
+            try {
+                display = entry.getValue().spawn(motion, at);
+                display.follow(dummy, new Vector(0, 0, 0), 2);
+                display.hitbox(1.0f, 1.8f);
+                display.onClick(click -> { });
+                for (String animation : entry.getValue().animations()) {
+                    entry.getValue().play(display, animation, 0);
+                }
+                entry.getValue().play(display, "idle", 0);
+            } catch (RuntimeException failure) {
+                throw new IllegalStateException("DisplayMotion spawn/animation self-test failed for " + entry.getKey(), failure);
+            } finally {
+                if (display != null && !display.isRemoved()) display.remove();
+                dummy.remove();
+            }
+            index++;
+        }
+        plugin.getLogger().info("DisplayMotion model runtime self-test passed for " + models.size()
+                + " models and every animation, follow target, and hitbox.");
     }
 
     void attachSoon(Zombie zombie) {
