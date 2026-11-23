@@ -1,6 +1,6 @@
 # Dead Streets R08 — active development checkpoint
 
-**Not ready for installation or player testing.** The current branch contains substantial implementation, but no successful Java 25 harness run, Paper 26.2 Maven package build, or connected-client acceptance test is available.
+**Not ready for player acceptance testing.** The current branch now passes the repository's Java 25 core harness and Paper 26.2 Maven package workflow, but runtime and integration acceptance remain incomplete.
 
 ## Implemented in Dead Streets source/config
 
@@ -13,7 +13,8 @@
 - `/deadstreets horde tp [uuid]`: diagnostic teleport to an active horde, using an already-generated chunk only and searching for safe ground.
 - Scraggler assignment to a configurable subset of managed walkers. Scragglers receive local wander goals, investigate a fraction of recent sprint/door/block-break/explosion sounds, persist as normal entities, and can join nearby hordes without being respawned or teleported.
 - Optional Metropolis BUILD population consumer with deterministic per-building rolls, interior-candidate validation, visibility checks, a durable write-ahead admission journal, bounded chunk retries, and a global walker budget.
-- The consumer now accepts the agreed schema-v1 per-world JSONL file at `deadstreets-build-flags-v1/<world-uuid>/buildings.jsonl`, including required world UUID and `worldSeed`, and retains compatibility with earlier regional TSV shards.
+- The consumer now accepts the agreed schema-v1 per-world JSONL file at `deadstreets-build-flags-v1/<world-uuid>/buildings.jsonl`, including required world UUID and `worldSeed`, and retains compatibility with earlier regional TSV shards. It reads the durable sidecar from the sibling `plugins/Metropolis` data folder; Metropolis does not need to be installed or enabled when Dead Streets consumes an already-exported file.
+- Proximity-spawner checkpoints now include queued-but-not-yet-created wave counts and are written when a wave is queued or admitted, reducing restart loss/duplication windows.
 - The export contract is documented in `docs/DEAD_STREETS_POPULATION_EXPORT.md`. Metropolis implementation is explicitly out of scope for this branch; no Metropolis source or branches are being modified.
 
 ## Deliberately disabled / gated
@@ -24,12 +25,12 @@
 
 ## Build and test evidence
 
-1. A local JDK 21 mirror of the pure-core logic previously passed 335 focused assertions (254 core, 12 arrival, 23 lifecycle, 46 observation). This is a smoke check only, not the repository's Java 25 run.
-2. Paper 26.2 Maven packaging has not completed successfully.
-3. Recent GitHub Actions attempts fail before any workflow step executes. The latest job reports `runner_id: 0`, an empty runner name, and `steps: []`; GitHub provides no job logs. This indicates the job was never assigned a runner, so it is **not evidence of a source compile error and not a successful build**.
-4. The earlier local exporter-to-parser stub smoke was not a real Metropolis/Paper world integration test. The current JSONL parser change has not yet been verified by a successful Java 25 Maven build.
-5. Connected-client no-visible-pop-in, multi-player horde behavior, physical pathfinding/combat, spawner mode transitions, long-run MSPT, restart persistence, and power-loss recovery remain unverified.
+1. GitHub Actions run [#85](https://github.com/gorgefinkle/Losthorde/actions/runs/45253550447) completed successfully for commit `2bbf5fd`: Java 25 core test harness passed and Paper 26.2 Maven package build passed.
+2. This verifies compilation, packaging, and the existing pure-core harness only. It does not verify live Paper entity behavior or all gameplay paths.
+3. The JSONL parser/consumer compiles, but there has not yet been a real Metropolis exporter-to-consumer test against a generated Paper world.
+4. Connected-client no-visible-pop-in, multiplayer horde behavior, physical pathfinding/combat, spawner mode transitions, long-run MSPT, restart persistence, and power-loss recovery remain unverified.
+5. Scraggler persistence currently relies on ordinary Paper entity persistence plus PDC identity; there is no separate durable virtual scraggler ledger proving exact no-duplication semantics across abnormal shutdowns.
 
 ## Next acceptance gate
 
-Do not ask for an in-game test yet. First obtain a successful Java 25 core harness run and Paper 26.2 package build, verify the JSONL parser/consumer, and run the real exporter-to-consumer test on a disposable generated world. Only after those gates should the package be handed over for player testing.
+Do not ask for an in-game test yet. Next verify the JSONL parser/consumer with a real exporter-produced file, run the real exporter-to-consumer test on a disposable generated world, and continue the runtime audits for horde movement, visibility, spawner transitions, and persistence. Only after those gates should the package be handed over for player testing.
