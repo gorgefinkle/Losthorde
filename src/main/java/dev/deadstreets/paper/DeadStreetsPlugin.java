@@ -125,15 +125,25 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     NamespacedKey scragglerTag() { return scragglerTag; }
     boolean tryJoinHorde(Zombie zombie) { return hordes!=null && hordes.absorbScraggler(zombie); }
     NamespacedKey hordeMemberTag() { return hordeMemberTag; }
-    public void markWalker(Zombie zombie) {
+    public void markWalker(Zombie zombie) { markWalker(zombie, false); }
+
+    /** Horde materialization is a distinct eligible source for rare special infected. */
+    void markHordeWalker(Zombie zombie) { markWalker(zombie, true); }
+
+    private void markWalker(Zombie zombie, boolean hordeSpawn) {
         zombie.getPersistentDataContainer().set(walkerTag, PersistentDataType.BYTE, (byte) 1);
         zombie.setPersistent(true);
         zombie.setRemoveWhenFarAway(false);
         double chance=Math.max(0.0,Math.min(1.0,getConfig().getDouble("scragglers.assignment-chance",0.12)));
         if(chance>0 && ThreadLocalRandom.current().nextDouble()<chance)
             zombie.getPersistentDataContainer().set(scragglerTag,PersistentDataType.BYTE,(byte)1);
-        if (crawlers != null) crawlers.assign(zombie);
-        if (hulks != null && (crawlers == null || !crawlers.isCrawler(zombie))) hulks.assign(zombie);
+        // Specials are intentionally restricted to scragglers and physical horde members.
+        boolean eligibleSpecial = hordeSpawn
+                || zombie.getPersistentDataContainer().has(scragglerTag, PersistentDataType.BYTE);
+        if (eligibleSpecial) {
+            if (crawlers != null) crawlers.assign(zombie);
+            if (hulks != null && (crawlers == null || !crawlers.isCrawler(zombie))) hulks.assign(zombie);
+        }
         if (getConfig().getBoolean("zombies.never-burn-in-daylight",true)) zombie.setShouldBurnInDay(false);
     }
     private boolean isOurs(Zombie zombie) {return isManagedWalker(zombie);}
