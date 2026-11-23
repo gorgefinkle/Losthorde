@@ -51,6 +51,14 @@ final class BloodMoonManager {
         worlds.clear();
     }
 
+    boolean shouldBlockSleep(World world) {
+        long fullTime = world.getFullTime();
+        long day = Math.floorDiv(fullTime, TICKS_PER_DAY);
+        long dayTime = Math.floorMod(fullTime, TICKS_PER_DAY);
+        int interval = Math.max(2, Math.min(30, plugin.getConfig().getInt("blood-moon.every-days", 7)));
+        return Math.floorMod(day, interval) == 0 && dayTime >= 12_542L;
+    }
+
     boolean active(World world) {
         WorldEvent state = worlds.get(world.getUID());
         return state != null && state.activeDay == Math.floorDiv(world.getFullTime(), TICKS_PER_DAY);
