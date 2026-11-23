@@ -1,4 +1,4 @@
-# Dead Streets R06: experimental migrating hordes, persistent walker spawners, opt-in Metropolis flags.
+# Dead Streets R08: persistent scragglers, larger migrating hordes, building populations, vanilla mob policy.
 spawners:
   enabled: true
   activation-radius: 16
@@ -21,6 +21,20 @@ zombies:
   make-all-zombies-persistent: true
   # Durable global admission cap for NEW Dead Streets walkers, including offloaded chunks.
   max-total-managed-walkers: 1800
+vanilla-mobs:
+  # Chance that each natural spawn is allowed through. 0.0 = disabled, 1.0 = vanilla rate.
+  natural-spawn-chance:
+    skeletons: 0.05
+    creepers: 0.05
+    witches: 0.05
+    spiders: 0.10
+    animals: 0.10
+    villagers: 0.20
+    ambient: 0.05
+vanilla-spawners:
+  # ALLOW_ALL leaves every vanilla spawner untouched. CONVERT_TO_ZOMBIES converts
+  # every loaded/newly placed spawner to zombies while preserving its other settings.
+  mode: ALLOW_ALL
 warnings:
   play-sound: true
   fade-in-ticks: 10
@@ -57,18 +71,26 @@ population:
 
 # R05 migrating hordes — EXPERIMENTAL. Enable only in a backup test world.
 hordes:
-  enabled: false
+  enabled: true
   ambient-creation: true
-  ambient-every-seconds: 420
+  ambient-every-seconds: 180
   max-groups-per-world: 12
   # Virtual-only portions retire after prolonged unobserved absence, no physical removals.
   virtual-retire-after-seconds: 1800
-  min-population: 24
-  max-population: 100
-  virtual-speed-blocks-per-second: 0.75
-  max-materializations-per-second: 8
-  max-materializations-per-chunk: 4
+  min-population: 40
+  max-population: 180
+  virtual-speed-blocks-per-second: 1.0
+  max-materializations-per-second: 12
+  max-materializations-per-chunk: 6
   warning-distance: 150
+  scragglers:
+    enabled: true
+    ambient-every-seconds: 45
+    max-groups-per-world: 48
+    min-population: 1
+    max-population: 3
+    wander-radius: 220
+    activation-distance: 128
   warning-reset-seconds: 240
   # Local pathfinder steering toward the horde migration heading (not player homing).
   max-navigation-goals-per-4s: 24
