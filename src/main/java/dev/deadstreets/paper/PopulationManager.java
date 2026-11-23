@@ -207,28 +207,19 @@ final class PopulationManager {
             }
     }
 
-    private Location findSafeStandingLocation(World world, MetropolisFlag flag, PopulationPlan.Candidate c) {
-        int minY=Math.max(world.getMinHeight()+2,flag.minY()+1);
-        int maxY=Math.min(world.getMaxHeight()-2,flag.maxY()-1);
-        if(maxY<minY) return null;
-        long noise=c.salt();
-        int minX=Math.max(flag.minX(),c.chunkX()*16),maxX=Math.min(flag.maxX(),c.chunkX()*16+15);
-        int minZ=Math.max(flag.minZ(),c.chunkZ()*16),maxZ=Math.min(flag.maxZ(),c.chunkZ()*16+15);
-        for(int attempt=0;attempt<24;attempt++) {
-            noise=PopulationPlan.mix64(noise + attempt + 0x9e3779b97f4a7c15L);
-            int x=attempt==0?c.x():minX+(int)Math.floorMod(noise,(long)maxX-minX+1);
-            int z=attempt==0?c.z():minZ+(int)Math.floorMod(PopulationPlan.mix64(noise),(long)maxZ-minZ+1);
-            int ySpan=maxY-minY+1;
-            int yStart=minY+(int)Math.floorMod(noise>>>1,(long)ySpan);
-            for(int yStep=0;yStep<ySpan;yStep++) {
-                int y=minY+(yStart-minY+yStep)%ySpan;
-                Block feet=world.getBlockAt(x,y,z),head=world.getBlockAt(x,y+1,z),floor=world.getBlockAt(x,y-1,z);
-                if(feet.isPassable() && head.isPassable() && !feet.isLiquid() && !head.isLiquid() && floor.getType().isSolid()) {
-                    return new Location(world,x+.5,y,z+.5);
-                }
-            }
+    private Location findSafeStandingLocation(World world,MetropolisFlag flag,PopulationPlan.Candidate c) {
+        if(c.y()>=0) {
+            if(!world.isChunkLoaded(c.x()>>4,c.z()>>4))return null;
+            Block feet=world.getBlockAt(c.x(),c.y(),c.z()),head=world.getBlockAt(c.x(),c.y()+1,c.z()),floor=world.getBlockAt(c.x(),c.y()-1,c.z());
+            if(!feet.isPassable()||!head.isPassable()||feet.isLiquid()||head.isLiquid()||!floor.getType().isSolid())return null;
+            boolean roof=false;for(int dy=2;dy<=8&&c.y()+dy<world.getMaxHeight();dy++)if(world.getBlockAt(c.x(),c.y()+dy,c.z()).getType().isSolid()){roof=true;break;}
+            return roof?new Location(world,c.x()+.5,c.y(),c.z()+.5):null;
         }
-        return null;
+        int minY=Math.max(world.getMinHeight()+2,flag.minY()+1),maxY=Math.min(world.getMaxHeight()-2,flag.maxY()-1);if(maxY<minY)return null;
+        long noise=c.salt();int minX=Math.max(flag.minX(),c.chunkX()*16),maxX=Math.min(flag.maxX(),c.chunkX()*16+15),minZ=Math.max(flag.minZ(),c.chunkZ()*16),maxZ=Math.min(flag.maxZ(),c.chunkZ()*16+15);
+        for(int attempt=0;attempt<24;attempt++){noise=PopulationPlan.mix64(noise+attempt+0x9e3779b97f4a7c15L);int x=attempt==0?c.x():minX+(int)Math.floorMod(noise,(long)maxX-minX+1),z=attempt==0?c.z():minZ+(int)Math.floorMod(PopulationPlan.mix64(noise),(long)maxZ-minZ+1);int span=maxY-minY+1,yStart=minY+(int)Math.floorMod(noise>>>1,(long)span);
+            for(int step=0;step<span;step++){int y=minY+(yStart-minY+step)%span;Block feet=world.getBlockAt(x,y,z),head=world.getBlockAt(x,y+1,z),floor=world.getBlockAt(x,y-1,z);if(feet.isPassable()&&head.isPassable()&&!feet.isLiquid()&&!head.isLiquid()&&floor.getType().isSolid())return new Location(world,x+.5,y,z+.5);}
+        }return null;
     }
 
     private List<MetropolisFlag> read(Path path) {
