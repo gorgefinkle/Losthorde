@@ -255,6 +255,9 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         sender.sendMessage(ChatColor.RED+"Usage: /deadstreets [status|flags|horde status|horde spawn <population> <temperament>|testwarning <population> <temperament>]");
         return true;
     }
+    public void showWarning(Player player, DangerRating rating) {
+        showWarning(player, rating, "Unknown");
+    }
     public void showWarning(Player player, DangerRating rating, String direction) {
         ChatColor color = switch(rating.level()) {
             case LOW -> ChatColor.GREEN;
