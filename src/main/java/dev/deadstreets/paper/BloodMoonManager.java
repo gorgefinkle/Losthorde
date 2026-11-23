@@ -114,7 +114,9 @@ final class BloodMoonManager {
                 begin(world, state, day, now);
             }
 
-            if (state.activeDay == day) {
+            boolean withinBloodMoon = state.activeDay == day
+                    || (state.activeDay == day - 1 && state.endsAtWorldTime > fullTime);
+            if (withinBloodMoon) {
                 if (state.endsAtWorldTime > 0 && fullTime >= state.endsAtWorldTime) {
                     end(world, state);
                     continue;
@@ -132,7 +134,7 @@ final class BloodMoonManager {
                     }
                 }
                 if (state.wavesSent >= maxWaves && dayTime < 13_000) end(world, state);
-            } else if (state.activeDay != Long.MIN_VALUE && day != state.activeDay) {
+            } else if (state.activeDay != Long.MIN_VALUE && fullTime >= state.endsAtWorldTime) {
                 end(world, state);
             }
         }
