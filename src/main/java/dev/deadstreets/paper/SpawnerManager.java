@@ -183,14 +183,15 @@ public final class SpawnerManager {
             boolean playerNear=isPlayerNear(players.get(world.getUID()),center,radius);
             int nearby=playerNear?countZombies(center,Math.max(2,plugin.getConfig().getInt("spawners.nearby-cap-radius",12))):0;
             var result=m.cycle.tick(now,playerNear,nearby + m.pendingWave,rules,random);
-            if(result.spawnCount()>0) m.pendingWave = Math.min(rules.nearbyCap(), m.pendingWave+result.spawnCount());
-            if(!result.active()) {m.pendingWave=0;removeDisplay(m);}
+            if(result.spawnCount()>0) { m.pendingWave = Math.min(rules.nearbyCap(), m.pendingWave+result.spawnCount()); checkpoint(m); }
+            if(!result.active()) { if(m.pendingWave!=0) {m.pendingWave=0;checkpoint(m);} removeDisplay(m); }
             if(result.active() && m.pendingWave>0 && newZombieBudget>0) {
                 int available = Math.max(0,rules.nearbyCap() - nearby);
                 int allowed = Math.min(newZombieBudget, Math.min(available,m.pendingWave));
                 int created = spawnWave(center,allowed);
                 newZombieBudget -= created;
                 m.pendingWave -= created;
+                checkpoint(m);
             }
             if(!result.active()) removeDisplay(m);
             else if(plugin.getConfig().getBoolean("spawners.show-countdown",true)) updateDisplay(m,center,result);
