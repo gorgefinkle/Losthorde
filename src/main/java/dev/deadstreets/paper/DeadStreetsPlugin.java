@@ -69,6 +69,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     ObservationGuard observation() { return observation; }
     WalkerBudget budget() { return walkerBudget; }
     boolean isManagedWalker(Zombie z) {return z.getPersistentDataContainer().has(walkerTag, PersistentDataType.BYTE);}
+    boolean isCrawler(Zombie z) { return crawlers != null && crawlers.isCrawler(z); }
     void recordObservers(World w,long now) {
         int tick = Bukkit.getCurrentTick();
         if(observerTickByWorld.getOrDefault(w.getUID(),-1)==tick)return;
