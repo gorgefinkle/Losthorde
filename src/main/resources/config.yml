@@ -73,6 +73,9 @@ population:
     cached-regions: 64
     max-region-file-bytes: 6291456
     max-region-records: 12000
+    # The current per-world JSONL export is cached and bounded independently of legacy region TSV files.
+    max-world-file-bytes: 134217728
+    max-world-records: 200000
     # Once-per-30s retries when Metropolis finishes a build after chunk loading.
     max-late-retries: 2048
     late-retry-seconds: 30

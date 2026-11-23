@@ -153,67 +153,70 @@ final class PopulationManager {
         World w=chunk.getWorld();
         int cx=chunk.getX(),cz=chunk.getZ();
         var unique=new HashSet<String>();
+        List<MetropolisFlag> flags=new ArrayList<>();
+        Path root=metropolis.getDataFolder().toPath().resolve("deadstreets-build-flags-v1")
+                .resolve(w.getUID().toString());
         for(int rx=Math.floorDiv(cx,32)-1;rx<=Math.floorDiv(cx,32)+1;rx++)
-            for(int rz=Math.floorDiv(cz,32)-1;rz<=Math.floorDiv(cz,32)+1;rz++) {
-                Path file=metropolis.getDataFolder().toPath().resolve("deadstreets-build-flags-v1")
-                    .resolve(w.getUID().toString()).resolve(rx+"."+rz+".tsv");
-                for(MetropolisFlag flag:read(file)) {
-                    if(!flag.worldId().equals(w.getUID().toString()) || flag.worldSeed()!=w.getSeed()) {invalidFlags++;continue;}
-                    if(!unique.add(flag.buildId())) continue;
-                    if(Math.floorDiv(flag.minX(),16)>cx || Math.floorDiv(flag.maxX(),16)<cx
-                            || Math.floorDiv(flag.minZ(),16)>cz || Math.floorDiv(flag.maxZ(),16)<cz) continue;
-                    String path="population.ranges."+flag.districtType();
-                    if(!plugin.getConfig().isConfigurationSection(path)) continue;
-                    int lo=plugin.getConfig().getInt(path+".min",0);
-                    int hi=plugin.getConfig().getInt(path+".max",0);
-                    int maxBuild=Math.max(1,Math.min(256,plugin.getConfig().getInt("population.activation.max-per-build",64)));
-                    if(lo<0 || hi<lo || hi>maxBuild) {invalidFlags++;continue;}
-                    List<PopulationPlan.Candidate> assigned;
-                    try {assigned=PopulationPlan.inChunk(flag,new PopulationRoller.Range(lo,hi),cx,cz,maxBuild);}
-                    catch(IllegalArgumentException bad) {invalidFlags++;continue;}
-                    if(assigned.isEmpty()) continue;
-                    NamespacedKey key=new NamespacedKey(plugin, PopulationPlan.activationKey(flag));
-                    // Backwards compatibility: R03's initial test build used a BYTE completion key.
-                    if(chunk.getPersistentDataContainer().has(key,PersistentDataType.BYTE)) continue;
-                    Integer checkpoint=chunk.getPersistentDataContainer().get(key,PersistentDataType.INTEGER);
-                    String journalKey=PopulationJournal.key(flag,chunk);
-                    int cursor=Math.max(checkpoint==null?0:checkpoint,journal.cursor(journalKey));
-                    HashSet<String> usedInteriorLocations=new HashSet<>();
-                    if(cursor>=assigned.size())continue;
-                    // Progress is recorded BEFORE each attempted spawn. This permits large builds
-                    // to use a strict global spawn budget without either duplicating earlier
-                    // ordinals or blocking forever when a build exceeds the per-tick budget.
-                    while(cursor<assigned.size() && remainingBudget>0) {
-                        var candidate=assigned.get(cursor++);
-                        // An invalid location consumes the attempt without quota admission.
-                        Location at=findSafeStandingLocation(w,flag,candidate,usedInteriorLocations);
-                        if(at!=null)usedInteriorLocations.add(locationKey(at.getBlockX(),at.getBlockY(),at.getBlockZ()));
-                        if(at==null) {
-                            if(!journal.write(journalKey,cursor))return;
-                            chunk.getPersistentDataContainer().set(key,PersistentDataType.INTEGER,cursor);
-                            skippedLocations++;remainingBudget--;continue;
-                        }
-                        if(!plugin.isUnobserved(chunk)) {cursor--;deferredObserved++;break;}
-                        if(!plugin.budget().reserve()) {cursor--;break;}
-                        // Independent durable log survives any interleaving of chunk and
-                        // entity saves. Never spawn unless the ordinal is committed.
+            for(int rz=Math.floorDiv(cz,32)-1;rz<=Math.floorDiv(cz,32)+1;rz++)
+                flags.addAll(read(root.resolve(rx+"."+rz+".tsv")));
+        // Current handoff format: one versioned JSONL file per world. Legacy regional TSV
+        // shards remain readable so existing test worlds and early exporters keep working.
+        flags.addAll(readJsonl(root.resolve("buildings.jsonl")));
+        for(MetropolisFlag flag:flags) {
+                if(!flag.worldId().equals(w.getUID().toString()) || flag.worldSeed()!=w.getSeed()) {invalidFlags++;continue;}
+                if(!unique.add(flag.buildId())) continue;
+                if(Math.floorDiv(flag.minX(),16)>cx || Math.floorDiv(flag.maxX(),16)<cx
+                        || Math.floorDiv(flag.minZ(),16)>cz || Math.floorDiv(flag.maxZ(),16)<cz) continue;
+                String path="population.ranges."+flag.districtType();
+                if(!plugin.getConfig().isConfigurationSection(path)) continue;
+                int lo=plugin.getConfig().getInt(path+".min",0);
+                int hi=plugin.getConfig().getInt(path+".max",0);
+                int maxBuild=Math.max(1,Math.min(256,plugin.getConfig().getInt("population.activation.max-per-build",64)));
+                if(lo<0 || hi<lo || hi>maxBuild) {invalidFlags++;continue;}
+                List<PopulationPlan.Candidate> assigned;
+                try {assigned=PopulationPlan.inChunk(flag,new PopulationRoller.Range(lo,hi),cx,cz,maxBuild);}
+                catch(IllegalArgumentException bad) {invalidFlags++;continue;}
+                if(assigned.isEmpty()) continue;
+                NamespacedKey key=new NamespacedKey(plugin, PopulationPlan.activationKey(flag));
+                // Backwards compatibility: R03's initial test build used a BYTE completion key.
+                if(chunk.getPersistentDataContainer().has(key,PersistentDataType.BYTE)) continue;
+                Integer checkpoint=chunk.getPersistentDataContainer().get(key,PersistentDataType.INTEGER);
+                String journalKey=PopulationJournal.key(flag,chunk);
+                int cursor=Math.max(checkpoint==null?0:checkpoint,journal.cursor(journalKey));
+                HashSet<String> usedInteriorLocations=new HashSet<>();
+                if(cursor>=assigned.size())continue;
+                // Progress is recorded BEFORE each attempted spawn. This permits large builds
+                // to use a strict global spawn budget without either duplicating earlier
+                // ordinals or blocking forever when a build exceeds the per-tick budget.
+                while(cursor<assigned.size() && remainingBudget>0) {
+                    var candidate=assigned.get(cursor++);
+                    // An invalid location consumes the attempt without quota admission.
+                    Location at=findSafeStandingLocation(w,flag,candidate,usedInteriorLocations);
+                    if(at!=null)usedInteriorLocations.add(locationKey(at.getBlockX(),at.getBlockY(),at.getBlockZ()));
+                    if(at==null) {
                         if(!journal.write(journalKey,cursor))return;
                         chunk.getPersistentDataContainer().set(key,PersistentDataType.INTEGER,cursor);
-                        remainingBudget--;
-                        try {
-                            Zombie zombie=w.spawn(at,Zombie.class,z->{plugin.markWalker(z);plugin.budget().tag(z);});
-                            createdZombies++;
-                        } catch(RuntimeException ex) {
-                            skippedLocations++;
-                            plugin.getLogger().warning("Population admission consumed, entity creation uncertain for " + flag.buildId()+": "+ex.getMessage());
-                        }
+                        skippedLocations++;remainingBudget--;continue;
                     }
-                    if(cursor==assigned.size()) processedSlices++;
-                    else if(plugin.budget().reserved()<plugin.budget().maximum())enqueue(chunk);
+                    if(!plugin.isUnobserved(chunk)) {cursor--;deferredObserved++;break;}
+                    if(!plugin.budget().reserve()) {cursor--;break;}
+                    // Independent durable log survives any interleaving of chunk and
+                    // entity saves. Never spawn unless the ordinal is committed.
+                    if(!journal.write(journalKey,cursor))return;
+                    chunk.getPersistentDataContainer().set(key,PersistentDataType.INTEGER,cursor);
+                    remainingBudget--;
+                    try {
+                        Zombie zombie=w.spawn(at,Zombie.class,z->{plugin.markWalker(z);plugin.budget().tag(z);});
+                        createdZombies++;
+                    } catch(RuntimeException ex) {
+                        skippedLocations++;
+                        plugin.getLogger().warning("Population admission consumed, entity creation uncertain for " + flag.buildId()+": "+ex.getMessage());
+                    }
                 }
-            }
+                if(cursor==assigned.size()) processedSlices++;
+                else if(plugin.budget().reserved()<plugin.budget().maximum())enqueue(chunk);
+        }
     }
-
     private Location findSafeStandingLocation(World world,MetropolisFlag flag,PopulationPlan.Candidate c,Set<String> used) {
         if(flag.interiorPointsProvided() && c.y()==-1) {
             if(!world.isChunkLoaded(c.x()>>4,c.z()>>4))return null;
@@ -249,6 +252,39 @@ final class PopulationManager {
     }
 
     private static String locationKey(int x,int y,int z){return x+":"+y+":"+z;}
+
+    private List<MetropolisFlag> readJsonl(Path path) {
+        long now=System.currentTimeMillis();
+        Snapshot prev=cache.get(path);
+        if(prev!=null && now-prev.checkedMillis()<3000L)return prev.flags();
+        long size=-1,stamp=-1;
+        try {
+            if(Files.isRegularFile(path)){size=Files.size(path);stamp=Files.getLastModifiedTime(path).toMillis();}
+        } catch(IOException e){return List.of();}
+        if(prev!=null && prev.size()==size && prev.mtime()==stamp){
+            cache.put(path,new Snapshot(size,stamp,now,prev.flags()));return prev.flags();
+        }
+        List<MetropolisFlag> records=new ArrayList<>();
+        long maxBytes=Math.max(1024*1024L,plugin.getConfig().getLong("population.activation.max-world-file-bytes",134217728L));
+        if(size>0 && size<=maxBytes){
+            int maxRows=Math.max(100,Math.min(500000,plugin.getConfig().getInt("population.activation.max-world-records",200000)));
+            HashSet<String> seen=new HashSet<>();
+            try(BufferedReader lines=Files.newBufferedReader(path,StandardCharsets.UTF_8)){
+                for(int row=0;row<maxRows;row++){
+                    String raw=lines.readLine();if(raw==null)break;
+                    try{MetropolisFlag flag=MetropolisFlagJson.parse(raw);if(seen.add(flag.buildId()))records.add(flag);}
+                    catch(RuntimeException malformed){invalidFlags++;}
+                }
+            }catch(IOException e){plugin.getLogger().warning("Could not read Metropolis JSONL population flags: "+path+" "+e);}
+        } else if(size>maxBytes) {
+            plugin.getLogger().warning("Metropolis JSONL sidecar exceeds configured safety limit ("+size+" bytes): "+path);
+        }
+        List<MetropolisFlag> safe=List.copyOf(records);
+        cache.put(path,new Snapshot(size,stamp,now,safe));
+        int maxCache=Math.max(8,Math.min(512,plugin.getConfig().getInt("population.activation.cached-regions",64)));
+        while(cache.size()>maxCache)cache.remove(cache.keySet().iterator().next());
+        return safe;
+    }
 
     private List<MetropolisFlag> read(Path path) {
         long now=System.currentTimeMillis();
