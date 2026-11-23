@@ -71,10 +71,20 @@ public final class SpawnerManager {
     void onChunkLoad(Chunk chunk) {
         if (!plugin.getConfig().getBoolean("spawners.enabled",true)) return;
         for (BlockState tile : chunk.getTileEntities()) {
-            if (tile instanceof CreatureSpawner cs && cs.getSpawnedType()==EntityType.ZOMBIE) register(tile.getBlock());
+            if (tile instanceof CreatureSpawner) prepareSpawner(tile.getBlock());
         }
     }
-    void onBlockPlaced(Block block) { if(block.getType()==Material.SPAWNER) register(block); }
+    void onBlockPlaced(Block block) { if(block.getType()==Material.SPAWNER) prepareSpawner(block); }
+    private void prepareSpawner(Block block) {
+        if (block.getType()!=Material.SPAWNER) return;
+        String mode=plugin.getConfig().getString("vanilla-spawners.mode","ALLOW_ALL");
+        if ("CONVERT_TO_ZOMBIES".equalsIgnoreCase(mode) && block.getState() instanceof CreatureSpawner spawner
+                && spawner.getSpawnedType()!=EntityType.ZOMBIE) {
+            spawner.setSpawnedType(EntityType.ZOMBIE);
+            spawner.update(true,false);
+        }
+        if (block.getState() instanceof CreatureSpawner spawner && spawner.getSpawnedType()==EntityType.ZOMBIE) register(block);
+    }
     private void register(Block block) {
         var id = id(block);
         if (tracked.containsKey(id)) return;
