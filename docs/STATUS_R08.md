@@ -32,6 +32,7 @@
 3. The JSONL parser/consumer compiles, but there has not yet been a real Metropolis exporter-to-consumer test against a generated Paper world.
 4. Connected-client no-visible-pop-in, multiplayer horde behavior, physical pathfinding/combat, spawner mode transitions, long-run MSPT, restart persistence, and power-loss recovery remain unverified.
 5. Scraggler persistence currently relies on ordinary Paper entity persistence plus PDC identity; there is no separate durable virtual scraggler ledger proving exact no-duplication semantics across abnormal shutdowns.
+6. Latest Blood Moon display/scheduling verification: [Actions run 45259029906](https://github.com/gorgefinkle/Losthorde/actions/runs/45259029906) passed the Java 25 core harness and Paper 26.2 Maven package build for commit `dbd9e81`. This verifies compilation and current tests, not in-game scoreboard/title coexistence or client rendering.
 
 ## Next acceptance gate
 
