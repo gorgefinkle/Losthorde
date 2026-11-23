@@ -59,6 +59,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     private SpawnerManager spawners;
     private PopulationManager population;
     private HordeManager hordes;
+    private BloodMoonManager bloodMoon;
     private WalkerBudget walkerBudget;
     private final ObservationGuard observation = new ObservationGuard();
     private final Map<UUID,Integer> observerTickByWorld = new HashMap<>();
@@ -95,6 +96,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         spawners = new SpawnerManager(this);
         population = new PopulationManager(this);
         hordes = new HordeManager(this);
+        bloodMoon = new BloodMoonManager(this, hordes);
         scragglers = new ScragglerManager(this);
         Bukkit.getPluginManager().registerEvents(this, this);
         Objects.requireNonNull(getCommand("deadstreets"), "deadstreets command").setExecutor(this);
@@ -102,12 +104,14 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         refreshLoadedZombies();
         population.start();
         hordes.start();
+        bloodMoon.start();
         scragglers.start();
         getLogger().info("Dead Streets R08: persistent populations, migrating hordes, scragglers and apocalypse spawn policy.");
     }
     @Override public void onDisable() {
         if (spawners != null) spawners.stop();
         if (population != null) population.stop();
+        if (bloodMoon != null) bloodMoon.stop();
         if (hordes != null) hordes.stop();
         if (scragglers != null) scragglers.stop();
         if (walkerBudget != null) walkerBudget.stop();
@@ -253,7 +257,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0 || args[0].equalsIgnoreCase("status")) {
             sender.sendMessage(ChatColor.GRAY +  "Dead Streets R08 | managed spawners: " + spawners.size()
-                + " | quota="+walkerBudget.reserved()+"/"+walkerBudget.maximum()+" denied="+walkerBudget.denied()+" | " + hordes.status() + " | " + scragglers.status() + " | Metropolis: " + (population.enabled()?population.status():"activation disabled"));
+                + " | quota="+walkerBudget.reserved()+"/"+walkerBudget.maximum()+" denied="+walkerBudget.denied()+" | " + hordes.status() + " | " + scragglers.status() + " | " + bloodMoon.status() + " | Metropolis: " + (population.enabled()?population.status():"activation disabled"));
             return true;
         }
         if (args.length >= 2 && args[0].equalsIgnoreCase("horde")) {
