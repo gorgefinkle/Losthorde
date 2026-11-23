@@ -91,7 +91,7 @@ final class HulkManager {
         }
         if (destination == null) {
             if (!force) plugin.budget().rollback();
-            return "No safe spawn position found in already-loaded nearby chunks.");
+            return "No safe spawn position found in already-loaded nearby chunks.";
         }
         try {
             Location at = destination;
@@ -101,7 +101,7 @@ final class HulkManager {
                 if (!force) plugin.budget().tag(created);
                 plugin.visuals().attachSoon(created);
             });
-            return (force ? "DEV FORCE: spawned uncounted test " : "Spawned test Hulk " + zombie.getUniqueId() + " at three-block target scale.";
+            return (force ? "DEV FORCE: spawned uncounted test Hulk " : "Spawned test Hulk ") + zombie.getUniqueId() + " at three-block target scale.";
         } catch (RuntimeException failure) {
             if (!force) plugin.budget().rollback();
             return "Test Hulk spawn failed: " + failure.getMessage();
