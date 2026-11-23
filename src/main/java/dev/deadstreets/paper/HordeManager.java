@@ -35,13 +35,12 @@ import java.util.SplittableRandom;
 import java.util.UUID;
 
 /**
- * R04 conservative horde lifecycle. Virtual groups never load chunks. Walkers are only
+ * R08 shared horde lifecycle. Virtual groups never generate terrain. Walkers are only
  * materialized in loaded chunks which no player is currently watching; once physical,
  * they remain ordinary persistent entities, including across chunk unloads.
  *
- * R04 does not virtualize existing physical entities. That deliberate restriction
- * avoids unsafe removal/duplication in front of players, at the cost of limited
- * long-range movement once a whole horde has materialized.
+ * Physical walkers remain ordinary persistent entities; the virtual remainder keeps migrating
+ * independently until it is fully materialized or safely retired.
  */
 final class HordeManager {
     private final DeadStreetsPlugin plugin;
