@@ -243,7 +243,7 @@ final class PopulationManager {
         int minY=Math.max(world.getMinHeight()+2,flag.minY()+1),maxY=Math.min(world.getMaxHeight()-2,flag.maxY()-1);if(maxY<minY)return null;
         long noise=c.salt();int minX=Math.max(flag.minX(),c.chunkX()*16),maxX=Math.min(flag.maxX(),c.chunkX()*16+15),minZ=Math.max(flag.minZ(),c.chunkZ()*16),maxZ=Math.min(flag.maxZ(),c.chunkZ()*16+15);
         for(int attempt=0;attempt<24;attempt++){noise=PopulationPlan.mix64(noise+attempt+0x9e3779b97f4a7c15L);int x=attempt==0?c.x():minX+(int)Math.floorMod(noise,(long)maxX-minX+1),z=attempt==0?c.z():minZ+(int)Math.floorMod(PopulationPlan.mix64(noise),(long)maxZ-minZ+1);int span=maxY-minY+1,yStart=minY+(int)Math.floorMod(noise>>>1,(long)span);
-            for(int step=0;step<span;step++){int y=minY+(yStart-minY+step)%span;Block feet=world.getBlockAt(x,y,z),head=world.getBlockAt(x,y+1,z),floor=world.getBlockAt(x,y-1,z);if(feet.isPassable()&&head.isPassable()&&!feet.isLiquid()&&!head.isLiquid()&&floor.getType().isSolid())return new Location(world,x+.5,y,z+.5);}
+            for(int step=0;step<span;step++){int y=minY+(yStart-minY+step)%span;Block feet=world.getBlockAt(x,y,z),head=world.getBlockAt(x,y+1,z),floor=world.getBlockAt(x,y-1,z);if(feet.isPassable()&&head.isPassable()&&!feet.isLiquid()&&!head.isLiquid()&&floor.getType().isSolid()&&!used.contains(locationKey(x,y,z)))return new Location(world,x+.5,y,z+.5);}
         }return null;
     }
 
