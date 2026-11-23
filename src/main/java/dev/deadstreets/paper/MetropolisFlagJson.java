@@ -66,6 +66,7 @@ final class MetropolisFlagJson {
         JsonElement value=object.get(key);
         if(value==null||!value.isJsonPrimitive()||!value.getAsJsonPrimitive().isNumber())
             throw new IllegalArgumentException("Missing number "+key);
-        return value.getAsLong();
+        try { return Long.parseLong(value.getAsString()); }
+        catch(NumberFormatException malformed) { throw new IllegalArgumentException("Expected an integer "+key,malformed); }
     }
 }
