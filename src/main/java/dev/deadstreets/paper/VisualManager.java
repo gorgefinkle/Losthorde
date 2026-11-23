@@ -173,7 +173,8 @@ final class VisualManager implements Listener {
     void hideFrom(Player player) {
         for (Active visual : active.values()) {
             if (visual.zombie.getWorld() != player.getWorld()) continue;
-            visual.hiddenPlayers.add(player.getUniqueId());\n            player.hideEntity(plugin, visual.zombie);
+            visual.hiddenPlayers.add(player.getUniqueId());
+            player.hideEntity(plugin, visual.zombie);
         }
     }
 
@@ -192,7 +193,8 @@ final class VisualManager implements Listener {
 
     private void hideFromViewers(Active visual) {
         for (Player player : visual.zombie.getWorld().getPlayers()) {
-            if (visual.hiddenPlayers.add(player.getUniqueId())) player.hideEntity(plugin, visual.zombie);
+            visual.hiddenPlayers.add(player.getUniqueId());
+            player.hideEntity(plugin, visual.zombie);
         }
     }
 
