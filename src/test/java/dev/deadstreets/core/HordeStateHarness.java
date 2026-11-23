@@ -27,7 +27,7 @@ public final class HordeStateHarness {
         check(restored.pending()==18 && restored.population()==20);
         double anchor=restored.x();
         restored.advance(10_005_000L,1.0);
-        check(restored.x()==anchor); // materialized walkers stay physically behind; virtual anchor cannot drift
+        check(restored.x()>anchor); // virtual remainder keeps migrating after partial materialization
         restored.died();
         check(restored.population()==19);
         check(HordeState.restore(restored.save()).pending()==18);
