@@ -1,16 +1,16 @@
 name: DeadStreets
-version: R09
+version: R11
 main: dev.deadstreets.paper.DeadStreetsPlugin
 api-version: '26.2'
 author: Dead Streets Project
-description: Persistent walkers, scragglers, migrating hordes, vanilla spawn policy and Metropolis population flags
+description: Persistent walkers, special infected models, migrating hordes, vanilla spawn policy and Metropolis population flags
 load: POSTWORLD
-softdepend: [Metropolis]
+depend: [DisplayMotion]\nsoftdepend: [Metropolis]
 commands:
   deadstreets:
     description: Dead Streets admin testing and diagnostics
     aliases: [ds]
-    usage: /ds [status|spawn <hulk|crawler>|flags|bloodmoon display <bossbar|scoreboard>|bloodmoon status|horde status|horde spawn <population> <temperament>|horde tp [uuid]|testwarning <population> <temperament>]
+    usage: /ds [status|spawn <hulk|crawler|runner|popper>|flags|bloodmoon display <bossbar|scoreboard>|bloodmoon status|horde status|horde spawn <population> <temperament>|horde tp [uuid]|testwarning <population> <temperament>]
     permission: deadstreets.admin
 permissions:
   deadstreets.admin:
