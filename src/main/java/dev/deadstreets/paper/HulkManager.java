@@ -103,7 +103,7 @@ final class HulkManager {
             });
             return "Spawned test Hulk " + zombie.getUniqueId() + " nearby. Render scale and collision scale are linked.";
         } catch (RuntimeException failure) {
-            plugin.budget().releaseReservation();
+            plugin.budget().rollback();
             return "Test Hulk spawn failed: " + failure.getMessage();
         }
     }
