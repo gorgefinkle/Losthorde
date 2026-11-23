@@ -5,7 +5,8 @@ api-version: '26.2'
 author: Dead Streets Project
 description: Persistent walkers, special infected models, migrating hordes, vanilla spawn policy and Metropolis population flags
 load: POSTWORLD
-depend: [DisplayMotion]\nsoftdepend: [Metropolis]
+depend: [DisplayMotion]
+softdepend: [Metropolis]
 commands:
   deadstreets:
     description: Dead Streets admin testing and diagnostics
