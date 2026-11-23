@@ -317,15 +317,15 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
                 return true;
             }
         }
-        if (args.length == 1 && args[0].equalsIgnoreCase("crawler")) {
+        if (args.length == 2 && args[0].equalsIgnoreCase("spawn")) {
             if (!(sender instanceof Player player)) { sender.sendMessage("Run this command in game."); return true; }
-            String result = crawlers.spawnTest(player);
-            sender.sendMessage((result.startsWith("Spawned") ? ChatColor.GREEN : ChatColor.RED) + result);
-            return true;
-        }
-        if (args.length == 1 && args[0].equalsIgnoreCase("hulk")) {
-            if (!(sender instanceof Player player)) { sender.sendMessage("Run this command in game."); return true; }
-            String result = hulks.spawnTest(player);
+            String result;
+            if (args[1].equalsIgnoreCase("crawler")) result = crawlers.spawnTest(player);
+            else if (args[1].equalsIgnoreCase("hulk")) result = hulks.spawnTest(player);
+            else {
+                sender.sendMessage(ChatColor.RED + "Use /ds spawn <hulk|crawler>");
+                return true;
+            }
             sender.sendMessage((result.startsWith("Spawned") ? ChatColor.GREEN : ChatColor.RED) + result);
             return true;
         }
@@ -344,7 +344,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             } catch (IllegalArgumentException ex) { sender.sendMessage(ChatColor.RED+"Use /deadstreets testwarning <1..1000000> <docile|restless|agitated|frenzied>"); }
             return true;
         }
-        sender.sendMessage(ChatColor.RED+"Usage: /deadstreets [status|hulk|crawler|flags|bloodmoon display <bossbar|scoreboard>|bloodmoon status|horde status|horde spawn <population> <temperament>|horde tp [uuid]|testwarning <population> <temperament>]");
+        sender.sendMessage(ChatColor.RED+"Usage: /ds [status|spawn <hulk|crawler>|flags|bloodmoon display <bossbar|scoreboard>|bloodmoon status|horde status|horde spawn <population> <temperament>|horde tp [uuid]|testwarning <population> <temperament>]");
         return true;
     }
     public void showTitleNotice(Player player, String title, String subtitle) {
