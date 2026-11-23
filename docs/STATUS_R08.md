@@ -25,7 +25,7 @@
 1. The repository's Java 25 core harness has not been run successfully. A local JDK 21 mirror of the pure-core logic passed 335 focused assertions (254 core, 12 arrival, 23 lifecycle, 46 observation); this is a useful smoke check, not the repository's Java 25 run.
 2. Paper 26.2 Maven packaging has not completed successfully.
 3. The GitHub Actions jobs returned failure before any steps were reported (no runner steps/logs); this is not evidence of a source compile failure, but it is also not a successful build.
-4. The Metropolis exporter and Dead Streets consumer have not been exercised together in a freshly generated world.
+4. A local exporter-to-parser smoke using Bukkit/Metropolis API stubs passed: it wrote one idempotent BUILD record with 16 candidate columns and the Dead Streets parser read it. This is not a real plugin/world integration test; the two plugins have not been exercised together in a freshly generated world.
 5. Connected-client no-visible-pop-in, multi-player horde behavior, physical pathfinding/combat, spawner mode transitions, long-run MSPT, restart persistence, and power-loss recovery remain unverified.
 
 ## Next acceptance gate
