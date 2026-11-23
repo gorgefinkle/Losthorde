@@ -93,7 +93,7 @@ hordes:
   max-navigation-goals-per-4s: 24
   # Bounded preparation of ALREADY GENERATED chunks, including travel corridors.
   # Being loaded NEVER authorizes zombie creation inside observed areas.
-  # Unverified with real players: retain overall hordes.enabled=false until tested.
+  # Experimental migration: set hordes.enabled=false to disable the system.
   prefetch:
     enabled: true
     max-tickets: 8
