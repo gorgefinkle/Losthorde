@@ -1,5 +1,5 @@
 name: DeadStreets
-version: R08
+version: R09
 main: dev.deadstreets.paper.DeadStreetsPlugin
 api-version: '26.2'
 author: Dead Streets Project
@@ -9,7 +9,8 @@ softdepend: [Metropolis]
 commands:
   deadstreets:
     description: Dead Streets admin testing and diagnostics
-    usage: /deadstreets [status|flags|bloodmoon display <bossbar|scoreboard>|bloodmoon status|horde status|horde spawn <population> <temperament>|horde tp [uuid]|testwarning <population> <temperament>]
+    aliases: [ds]
+    usage: /ds [status|spawn <hulk|crawler>|flags|bloodmoon display <bossbar|scoreboard>|bloodmoon status|horde status|horde spawn <population> <temperament>|horde tp [uuid]|testwarning <population> <temperament>]
     permission: deadstreets.admin
 permissions:
   deadstreets.admin:
