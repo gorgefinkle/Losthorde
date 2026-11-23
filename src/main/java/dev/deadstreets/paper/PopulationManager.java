@@ -217,11 +217,19 @@ final class PopulationManager {
         if(flag.interiorPointsProvided() && c.y()==-1) {
             if(!world.isChunkLoaded(c.x()>>4,c.z()>>4))return null;
             int minY=Math.max(world.getMinHeight()+2,flag.minY()+1),maxY=Math.min(world.getMaxHeight()-2,flag.maxY()-1);
-            for(int y=minY;y<=maxY;y++) {
-                Block feet=world.getBlockAt(c.x(),y,c.z()),head=world.getBlockAt(c.x(),y+1,c.z()),floor=world.getBlockAt(c.x(),y-1,c.z());
-                if(!feet.isPassable()||!head.isPassable()||feet.isLiquid()||head.isLiquid()||!floor.getType().isSolid())continue;
-                boolean roof=false;for(int dy=2;dy<=8&&y+dy<world.getMaxHeight();dy++)if(world.getBlockAt(c.x(),y+dy,c.z()).getType().isSolid()){roof=true;break;}
-                if(roof)return new Location(world,c.x()+.5,y,c.z()+.5);
+            // The exporter stores sampled columns, not block snapshots. Search a tiny
+            // local radius to move off a wall/column while staying inside this BUILD.
+            for(int radius=0;radius<=3;radius++)for(int dx=-radius;dx<=radius;dx++)for(int dz=-radius;dz<=radius;dz++) {
+                if(Math.max(Math.abs(dx),Math.abs(dz))!=radius)continue;
+                int x=c.x()+dx,z=c.z()+dz;
+                if(x<flag.minX()||x>flag.maxX()||z<flag.minZ()||z>flag.maxZ()
+                        ||(x>>4)!=c.chunkX()||(z>>4)!=c.chunkZ())continue;
+                for(int y=minY;y<=maxY;y++) {
+                    Block feet=world.getBlockAt(x,y,z),head=world.getBlockAt(x,y+1,z),floor=world.getBlockAt(x,y-1,z);
+                    if(!feet.isPassable()||!head.isPassable()||feet.isLiquid()||head.isLiquid()||!floor.getType().isSolid())continue;
+                    boolean roof=false;for(int dy=2;dy<=8&&y+dy<world.getMaxHeight();dy++)if(world.getBlockAt(x,y+dy,z).getType().isSolid()){roof=true;break;}
+                    if(roof)return new Location(world,x+.5,y,z+.5);
+                }
             }
             return null;
         }
