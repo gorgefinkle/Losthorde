@@ -28,6 +28,7 @@ final class ScragglerManager {
     private BukkitTask task;
     private int cursor;
     private long goals;
+    private long joins;
     private long skipped;
     ScragglerManager(DeadStreetsPlugin plugin){this.plugin=plugin;}
     void start(){
@@ -59,7 +60,7 @@ final class ScragglerManager {
             var pdc=zombie.getPersistentDataContainer();
             if(!pdc.has(plugin.scragglerTag(),PersistentDataType.BYTE)
                     || pdc.has(plugin.hordeMemberTag(),PersistentDataType.STRING))continue;
-            if(plugin.tryJoinHorde(zombie))continue;
+            if(plugin.tryJoinHorde(zombie)){joins++;continue;}
             if(now<nextWander.getOrDefault(zombie.getUniqueId(),0L))continue;
             nextWander.put(zombie.getUniqueId(),now+random.nextLong(12_000L,35_001L));
             if(zombie.getTarget()!=null||zombie.isDead())continue;
@@ -86,5 +87,5 @@ final class ScragglerManager {
         }
         return null;
     }
-    String status(){return "wander-goals="+goals+", no-local-route="+skipped+", tracked="+nextWander.size();}
+    String status(){return "wander-goals="+goals+", joined-hordes="+joins+", no-local-route="+skipped+", tracked="+nextWander.size();}
 }
