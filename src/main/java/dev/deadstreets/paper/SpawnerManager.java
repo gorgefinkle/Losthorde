@@ -6,6 +6,7 @@ import org.bukkit.Chunk;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -17,6 +18,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.entity.Zombie;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,6 +49,7 @@ public final class SpawnerManager {
         Managed(SpawnerId id, SpawnerCycle cycle) { this.id=id; this.cycle=cycle; }
     }
     private final DeadStreetsPlugin plugin;
+    private final NamespacedKey originalTypeKey;
     private final Map<SpawnerId,Managed> tracked = new HashMap<>();
     private final Map<String,String> checkpoints = new HashMap<>();
     private final SplittableRandom random = new SplittableRandom();
@@ -55,7 +58,7 @@ public final class SpawnerManager {
     private int scanCursor;
     private record ScanKey(UUID world,int cx,int cz) {}
     private final Map<ScanKey,Long> recentlyScanned = new HashMap<>();
-    SpawnerManager(DeadStreetsPlugin plugin) { this.plugin=plugin; }
+    SpawnerManager(DeadStreetsPlugin plugin) { this.plugin=plugin;this.originalTypeKey=new NamespacedKey(plugin,"vanilla_spawner_original_type"); }
     int size() { return tracked.size(); }
     void start() {
         readCheckpoints();
@@ -75,16 +78,33 @@ public final class SpawnerManager {
     }
     void onBlockPlaced(Block block) { if(block.getType()==Material.SPAWNER) prepareSpawner(block); }
     private void prepareSpawner(Block block) {
-        if (block.getType()!=Material.SPAWNER) return;
+        if (block.getType()!=Material.SPAWNER || !(block.getState() instanceof CreatureSpawner spawner)) return;
         String mode=plugin.getConfig().getString("vanilla-spawners.mode","ALLOW_ALL");
-        if (!"CONVERT_TO_ZOMBIES".equalsIgnoreCase(mode)) return;
-        if (block.getState() instanceof CreatureSpawner spawner
-                && spawner.getSpawnedType()!=EntityType.ZOMBIE) {
-            spawner.setSpawnedType(EntityType.ZOMBIE);
-            spawner.update(true,false);
+        var data=spawner.getPersistentDataContainer();
+        if ("CONVERT_TO_ZOMBIES".equalsIgnoreCase(mode)) {
+            // Preserve the original mob type once so switching back to ALLOW_ALL is reversible.
+            if(!data.has(originalTypeKey,PersistentDataType.STRING))
+                data.set(originalTypeKey,PersistentDataType.STRING,spawner.getSpawnedType().name());
+            if(spawner.getSpawnedType()!=EntityType.ZOMBIE) {
+                spawner.setSpawnedType(EntityType.ZOMBIE);
+                spawner.update(true,false);
+            }
+            if(plugin.getConfig().getBoolean("spawners.enabled",true))register(block);
+        } else {
+            String original=data.get(originalTypeKey,PersistentDataType.STRING);
+            if(original!=null) {
+                try {
+                    EntityType restored=EntityType.valueOf(original);
+                    if(spawner.getSpawnedType()!=restored)spawner.setSpawnedType(restored);
+                    data.remove(originalTypeKey);
+                    spawner.update(true,false);
+                } catch(IllegalArgumentException badType) {
+                    plugin.getLogger().warning("Cannot restore vanilla spawner type '"+original+"' at "+block.getLocation());
+                }
+            }
+            Managed managed=tracked.remove(id(block));
+            if(managed!=null)removeDisplay(managed);
         }
-        if (plugin.getConfig().getBoolean("spawners.enabled",true)
-                && block.getState() instanceof CreatureSpawner spawner && spawner.getSpawnedType()==EntityType.ZOMBIE) register(block);
     }
     private void register(Block block) {
         var id = id(block);
