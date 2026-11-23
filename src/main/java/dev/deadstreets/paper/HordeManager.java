@@ -208,23 +208,26 @@ final class HordeManager {
                     }
             }
             for(Player p:w.getPlayers()) {
-                double dx=p.getLocation().getX()-h.x(),dz=p.getLocation().getZ()-h.z();
+                double sourceX=h.x(),sourceZ=h.z();
+                double dx=p.getLocation().getX()-sourceX,dz=p.getLocation().getZ()-sourceZ;
                 double dist=Math.sqrt(dx*dx+dz*dz);
-                // Once physical walkers walk away from their original anchor, report their
-                // actual proximity, not only the parked virtual horde position.
+                // Use the nearest live member when it has moved closer than the virtual anchor.
                 var tracked=loadedPhysical.get(h.id());
                 if(tracked!=null) for(UUID member:tracked) {
                     Entity live=Bukkit.getEntity(member);
                     if(live instanceof Zombie zombie && zombie.isValid()
                             && zombie.getWorld().getUID().equals(w.getUID())) {
                         Location loc=zombie.getLocation();
-                        dist=Math.min(dist,Math.hypot(p.getLocation().getX()-loc.getX(),
-                                p.getLocation().getZ()-loc.getZ()));
+                        double physicalDist=Math.hypot(p.getLocation().getX()-loc.getX(),
+                                p.getLocation().getZ()-loc.getZ());
+                        if(physicalDist<dist) {
+                            dist=physicalDist;sourceX=loc.getX();sourceZ=loc.getZ();
+                        }
                     }
                 }
                 // Shared horde, one alert per nearby player. Gate also ensures closing distance.
                 if(h.population()>0 && alertGate.observe(p.getUniqueId(),h.id(),dist,now)) {
-                    plugin.showWarning(p,DangerRating.calculate(h.population(),h.temperament()), approachDirection(p.getLocation().getX(),p.getLocation().getZ(),h.x(),h.z()));
+                    plugin.showWarning(p,DangerRating.calculate(h.population(),h.temperament()), approachDirection(p.getLocation().getX(),p.getLocation().getZ(),sourceX,sourceZ));
                     warningsSent++;
                 }
             }
