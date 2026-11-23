@@ -51,6 +51,11 @@ final class BloodMoonManager {
         worlds.clear();
     }
 
+    boolean active(World world) {
+        WorldEvent state = worlds.get(world.getUID());
+        return state != null && state.activeDay == Math.floorDiv(world.getFullTime(), TICKS_PER_DAY);
+    }
+
     String status() {
         int active = 0;
         int waves = 0;
@@ -93,9 +98,13 @@ final class BloodMoonManager {
             if (state.activeDay == day) {
                 updateBar(world, state, maxWaves);
                 if (state.wavesSent < maxWaves && now >= state.nextWaveAt) {
-                    sendWave(world, state);
-                    state.wavesSent++;
-                    state.nextWaveAt = now + waveInterval;
+                    int created = sendWave(world, state);
+                    if (created > 0) {
+                        state.wavesSent++;
+                        state.nextWaveAt = now + waveInterval;
+                    } else {
+                        state.nextWaveAt = now + 15_000L;
+                    }
                 }
                 if (state.wavesSent >= maxWaves && dayTime < 13_000) end(world, state);
             } else if (state.activeDay != Long.MIN_VALUE && day != state.activeDay) {
@@ -121,8 +130,8 @@ final class BloodMoonManager {
         }
     }
 
-    private void sendWave(World world, WorldEvent state) {
-        if (world.getPlayers().isEmpty()) return;
+    private int sendWave(World world, WorldEvent state) {
+        if (world.getPlayers().isEmpty()) return 0;
         int groups = Math.max(1, Math.min(4, plugin.getConfig().getInt("blood-moon.groups-per-wave", 2)));
         int min = Math.max(30, Math.min(500, plugin.getConfig().getInt("blood-moon.group-min-population", 100)));
         int max = Math.max(min, Math.min(500, plugin.getConfig().getInt("blood-moon.group-max-population", 180)));
@@ -149,6 +158,7 @@ final class BloodMoonManager {
                     + "Blood Moon wave " + wave + " of " + plugin.getConfig().getInt("blood-moon.waves", 3)
                     + " is moving in.");
         }
+        return created;
     }
 
     private void updateBar(World world, WorldEvent state, int maxWaves) {
