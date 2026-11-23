@@ -73,7 +73,7 @@ final class PopulationManager {
 
     void onChunkLoad(Chunk chunk) {
         if (!enabled()) return;
-        if (!Bukkit.isPrimaryThread()) { enqueue(chunk); return; }
+        if (!Bukkit.isPrimaryThread()) { Bukkit.getScheduler().runTask(plugin,() -> { if(chunk.isLoaded()) enqueue(chunk); }); return; }
         // Try before client receives a newly loaded chunk. No observer may already see it.
         if (chunk.isEntitiesLoaded() && plugin.isUnobserved(chunk)) activate(chunk, true);
         else enqueue(chunk);
