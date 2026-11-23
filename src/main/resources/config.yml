@@ -1,4 +1,4 @@
-# Dead Streets R08: persistent scragglers, migrating hordes, Blood Moon events, building populations and vanilla mob policy.
+# Dead Streets R11: persistent scragglers, migrating hordes, Blood Moon events, building populations and vanilla mob policy.
 blood-moon:
   enabled: true
   # Every N in-game days, the selected night becomes a Blood Moon.
