@@ -247,7 +247,7 @@ final class BloodMoonManager {
                 return;
             }
         }
-        try { player.addResourcePack(MOON_PACK_ID, url, sha1, "Optional Dead Streets Blood Moon moon texture. Other server packs are preserved.", false); }
+        try { player.addResourcePack(MOON_PACK_ID, url, sha1, Component.text("Optional Dead Streets Blood Moon moon texture. Other server packs are preserved."), false); }
         catch (RuntimeException failure) {
             moonPackPlayers.remove(player.getUniqueId());
             plugin.getLogger().warning("Could not request Blood Moon texture pack for " + player.getName() + ": " + failure.getMessage());
