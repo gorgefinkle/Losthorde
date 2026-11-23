@@ -26,35 +26,39 @@ final class MetropolisFlagProbe {
         }
         int rx = Math.floorDiv(player.getLocation().getBlockX() >> 4, 32);
         int rz = Math.floorDiv(player.getLocation().getBlockZ() >> 4, 32);
-        Path file = metro.getDataFolder().toPath().resolve("deadstreets-build-flags-v1")
-                .resolve(player.getWorld().getUID().toString()).resolve(rx + "." + rz + ".tsv");
-        if (!Files.isRegularFile(file)) {
-            player.sendMessage(ChatColor.YELLOW + "No Metropolis build flags for current 32x32-chunk region (" + rx + "," + rz + ").");
+        Path directory = metro.getDataFolder().toPath().resolve("deadstreets-build-flags-v1")
+                .resolve(player.getWorld().getUID().toString());
+        int valid = 0, duplicates = 0, bad = 0, eligible = 0, estimate = 0, interiorCandidates = 0;
+        boolean foundAny=false;
+        HashSet<String> ids = new HashSet<>(); // bounded to a 3x3 region window for this admin probe
+        try {
+            for(int dx=-1;dx<=1;dx++)for(int dz=-1;dz<=1;dz++) {
+                Path file=directory.resolve((rx+dx)+"."+(rz+dz)+".tsv");
+                if(!Files.isRegularFile(file)||Files.size(file)>4*1024*1024L)continue;
+                foundAny=true;
+                try (BufferedReader in = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+                    for(int rows=0;rows<12000;rows++) {
+                        String line=in.readLine();if(line==null)break;
+                        try {
+                            MetropolisFlag flag=MetropolisFlag.parse(line);
+                            if(!flag.worldId().equals(player.getWorld().getUID().toString())||flag.worldSeed()!=player.getWorld().getSeed()){bad++;continue;}
+                            if(!ids.add(flag.buildId())){duplicates++;continue;}
+                            valid++;interiorCandidates+=flag.interiorPoints().size();
+                            String root="population.ranges."+flag.districtType();
+                            if(!ds.getConfig().contains(root))continue;
+                            int lo=ds.getConfig().getInt(root+".min",0),hi=ds.getConfig().getInt(root+".max",0);
+                            if(lo<0||hi<lo){bad++;continue;}
+                            estimate+=flag.deterministicPopulation(new PopulationRoller.Range(lo,hi));eligible++;
+                        } catch(RuntimeException badRow){bad++;}
+                    }
+                }
+            }
+        } catch(IOException e) {
+            player.sendMessage(ChatColor.RED+"Error reading Metropolis flags: "+e.getMessage());
             return;
         }
-        int valid = 0, duplicates = 0, bad = 0, eligible = 0, estimate = 0, interiorCandidates = 0;
-        HashSet<String> ids = new HashSet<>(); // bounded to ONE region for this admin probe
-        try (BufferedReader in = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-            for (String line; (line = in.readLine()) != null;) {
-                try {
-                    MetropolisFlag flag = MetropolisFlag.parse(line);
-                    if (!flag.worldId().equals(player.getWorld().getUID().toString()) || flag.worldSeed() != player.getWorld().getSeed()) {
-                        bad++; continue;
-                    }
-                    if (!ids.add(flag.buildId())) { duplicates++; continue; }
-                    valid++;
-                    interiorCandidates += flag.interiorPoints().size();
-                    String root = "population.ranges." + flag.districtType();
-                    if (!ds.getConfig().contains(root)) continue;
-                    int lo = ds.getConfig().getInt(root + ".min", 0);
-                    int hi = ds.getConfig().getInt(root + ".max", 0);
-                    if (lo < 0 || hi < lo) { bad++; continue; }
-                    estimate += flag.deterministicPopulation(new PopulationRoller.Range(lo, hi));
-                    eligible++;
-                } catch (RuntimeException badRow) { bad++; }
-            }
-        } catch (IOException e) {
-            player.sendMessage(ChatColor.RED + "Error reading Metropolis flags: " + e.getMessage());
+        if(!foundAny) {
+            player.sendMessage(ChatColor.YELLOW+"No Metropolis build flags in the surrounding 3x3 region window ("+rx+","+rz+").");
             return;
         }
         player.sendMessage(ChatColor.AQUA + "Dead Streets / Metropolis marker probe: region " + rx + "," + rz);
