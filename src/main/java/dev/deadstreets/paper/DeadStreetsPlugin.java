@@ -401,18 +401,23 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
                 return true;
             }
         }
-        if (args.length == 2 && args[0].equalsIgnoreCase("spawn")) {
+        if ((args.length == 2 || args.length == 3) && args[0].equalsIgnoreCase("spawn")) {
             if (!(sender instanceof Player player)) { sender.sendMessage("Run this command in game."); return true; }
-            String result;
-            if (args[1].equalsIgnoreCase("crawler")) result = crawlers.spawnTest(player);
-            else if (args[1].equalsIgnoreCase("hulk")) result = hulks.spawnTest(player);
-            else if (args[1].equalsIgnoreCase("runner")) result = runners.spawnTest(player);
-            else if (args[1].equalsIgnoreCase("popper")) result = poppers.spawnTest(player);
-            else {
-                sender.sendMessage(ChatColor.RED + "Use /ds spawn <hulk|crawler|runner|popper>");
+            boolean force = args.length == 3 && (args[2].equalsIgnoreCase("-f") || args[2].equalsIgnoreCase("--force"));
+            if (args.length == 3 && !force) {
+                sender.sendMessage(ChatColor.RED + "Use /ds spawn <hulk|crawler|runner|popper> [-f]");
                 return true;
             }
-            sender.sendMessage((result.startsWith("Spawned") ? ChatColor.GREEN : ChatColor.RED) + result);
+            String result;
+            if (args[1].equalsIgnoreCase("crawler")) result = crawlers.spawnTest(player, force);
+            else if (args[1].equalsIgnoreCase("hulk")) result = hulks.spawnTest(player, force);
+            else if (args[1].equalsIgnoreCase("runner")) result = runners.spawnTest(player, force);
+            else if (args[1].equalsIgnoreCase("popper")) result = poppers.spawnTest(player, force);
+            else {
+                sender.sendMessage(ChatColor.RED + "Use /ds spawn <hulk|crawler|runner|popper> [-f]");
+                return true;
+            }
+            sender.sendMessage((result.startsWith("Spawned") || result.startsWith("DEV FORCE")) ? ChatColor.GREEN + result : ChatColor.RED + result);
             return true;
         }
         if (args.length == 1 && args[0].equalsIgnoreCase("flags")) {
