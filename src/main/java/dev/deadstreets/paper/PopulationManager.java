@@ -208,6 +208,17 @@ final class PopulationManager {
     }
 
     private Location findSafeStandingLocation(World world,MetropolisFlag flag,PopulationPlan.Candidate c) {
+        if(flag.interiorPointsProvided() && c.y()==-1) {
+            if(!world.isChunkLoaded(c.x()>>4,c.z()>>4))return null;
+            int minY=Math.max(world.getMinHeight()+2,flag.minY()+1),maxY=Math.min(world.getMaxHeight()-2,flag.maxY()-1);
+            for(int y=minY;y<=maxY;y++) {
+                Block feet=world.getBlockAt(c.x(),y,c.z()),head=world.getBlockAt(c.x(),y+1,c.z()),floor=world.getBlockAt(c.x(),y-1,c.z());
+                if(!feet.isPassable()||!head.isPassable()||feet.isLiquid()||head.isLiquid()||!floor.getType().isSolid())continue;
+                boolean roof=false;for(int dy=2;dy<=8&&y+dy<world.getMaxHeight();dy++)if(world.getBlockAt(c.x(),y+dy,c.z()).getType().isSolid()){roof=true;break;}
+                if(roof)return new Location(world,c.x()+.5,y,c.z()+.5);
+            }
+            return null;
+        }
         if(c.y()>=0) {
             if(!world.isChunkLoaded(c.x()>>4,c.z()>>4))return null;
             Block feet=world.getBlockAt(c.x(),c.y(),c.z()),head=world.getBlockAt(c.x(),c.y()+1,c.z()),floor=world.getBlockAt(c.x(),c.y()-1,c.z());

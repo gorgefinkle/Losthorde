@@ -8,7 +8,7 @@ public record MetropolisFlag(String worldId,long worldSeed,String buildId,String
   if(worldId==null||worldId.isBlank()||buildId==null||buildId.isBlank()||districtType==null||districtType.isBlank()||minX>maxX||minY>maxY||minZ>maxZ) throw new IllegalArgumentException("Invalid Metropolis flag");
   interiorPoints=interiorPoints==null?List.of():List.copyOf(interiorPoints);
   if(interiorPoints.size()>64)throw new IllegalArgumentException("Too many interior points");
-  for(SpawnPoint p:interiorPoints)if(p.x()<minX||p.x()>maxX||p.y()<minY||p.y()>maxY||p.z()<minZ||p.z()>maxZ)throw new IllegalArgumentException("Interior point outside BUILD");
+  for(SpawnPoint p:interiorPoints)if(p.x()<minX||p.x()>maxX||(p.y()!=-1&&(p.y()<minY||p.y()>maxY))||p.z()<minZ||p.z()>maxZ)throw new IllegalArgumentException("Interior point outside BUILD");
  }
  public MetropolisFlag(String worldId,long worldSeed,String buildId,String districtType,int minX,int minY,int minZ,int maxX,int maxY,int maxZ){this(worldId,worldSeed,buildId,districtType,minX,minY,minZ,maxX,maxY,maxZ,List.of(),false);}
  public MetropolisFlag(String worldId,long worldSeed,String buildId,String districtType,int minX,int minY,int minZ,int maxX,int maxY,int maxZ,List<SpawnPoint> points){this(worldId,worldSeed,buildId,districtType,minX,minY,minZ,maxX,maxY,maxZ,points,true);}

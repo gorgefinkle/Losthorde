@@ -60,7 +60,7 @@ public final class CoreHarness {
         check(PopulationPlan.inChunk(multi,new PopulationRoller.Range(0,0),-1,-1,256).isEmpty(),"empty flag cannot generate zombies");
         check(PopulationPlan.activationKey(multi).equals(PopulationPlan.activationKey(multi)),"persistent marker key stable");
         var indoor=new MetropolisFlag("world-a",431L,"indoor-build","HIGHRISE",0,40,0,31,90,31,
-                java.util.List.of(new MetropolisFlag.SpawnPoint(2,51,2),new MetropolisFlag.SpawnPoint(18,62,18)));
+                java.util.List.of(new MetropolisFlag.SpawnPoint(2,-1,2),new MetropolisFlag.SpawnPoint(18,-1,18)));
         var parsed=MetropolisFlag.parse(indoor.format());
         check(parsed.interiorPoints().size()==2 && parsed.interiorPointsProvided(),"v2 interior points round-trip");
         var noIndoor=MetropolisFlag.parse("BUILD\tworld-a\t431\tno-room\tHIGHRISE\t0\t40\t0\t15\t90\t15\t");
@@ -68,7 +68,7 @@ public final class CoreHarness {
         var insideA=PopulationPlan.inChunk(indoor,new PopulationRoller.Range(2,2),0,0,10);
         var insideB=PopulationPlan.inChunk(indoor,new PopulationRoller.Range(2,2),1,1,10);
         check(insideA.size()+insideB.size()==2,"interior points assigned to their owning chunks");
-        check(insideA.stream().noneMatch(cnd->cnd.y()<0)&&insideB.stream().noneMatch(cnd->cnd.y()<0),"explicit interior Y retained");
+        check(insideA.stream().allMatch(cnd->cnd.y()==-1)&&insideB.stream().allMatch(cnd->cnd.y()==-1),"interior candidate columns retain runtime floor-resolution sentinel");
 
         try {PopulationPlan.inChunk(multi,generous,0,0,10);throw new AssertionError("missing limit");}
         catch(IllegalArgumentException expected){assertions++;}
