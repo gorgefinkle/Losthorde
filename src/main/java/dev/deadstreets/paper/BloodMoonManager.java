@@ -50,7 +50,7 @@ final class BloodMoonManager {
     private static final class WorldEvent {
         long warnedDay = Long.MIN_VALUE;
         long activeDay = Long.MIN_VALUE;
-        long nextWaveAt;
+        long nextWaveAtWorldTime;
         long startsAtWorldTime;
         long endsAtWorldTime;
         int wavesSent;
@@ -152,11 +152,10 @@ final class BloodMoonManager {
 
     private void tick() {
         if (!plugin.getConfig().getBoolean("blood-moon.enabled", true)) return;
-        long now = System.currentTimeMillis();
         int interval = intervalDays();
         int maxWaves = Math.max(1, Math.min(8, plugin.getConfig().getInt("blood-moon.waves", 3)));
-        long waveInterval = Math.max(30, Math.min(300,
-                plugin.getConfig().getLong("blood-moon.wave-interval-seconds", 90))) * 1000L;
+        long waveIntervalTicks = Math.max(30, Math.min(300,
+                plugin.getConfig().getLong("blood-moon.wave-interval-seconds", 90))) * 20L;
 
         for (World world : Bukkit.getWorlds()) {
             WorldEvent state = worlds.computeIfAbsent(world.getUID(), ignored -> new WorldEvent());
@@ -183,7 +182,7 @@ final class BloodMoonManager {
 
             if (eventDay && dayTime >= 13_000L && dayTime < SUNRISE_TICK
                     && state.activeDay != day) {
-                begin(world, state, day, now);
+                begin(world, state, day);
             }
 
             boolean withinBloodMoon = state.activeDay == day
@@ -193,15 +192,15 @@ final class BloodMoonManager {
                     end(world, state);
                     continue;
                 }
-                updateDisplay(world, state, maxWaves, now);
-                if (state.wavesSent < maxWaves && now >= state.nextWaveAt) {
+                updateDisplay(world, state, maxWaves);
+                if (state.wavesSent < maxWaves && fullTime >= state.nextWaveAtWorldTime) {
                     int created = sendWave(world, state);
                     if (created > 0) {
                         state.wavesSent++;
-                        state.nextWaveAt = now + waveInterval;
+                        state.nextWaveAtWorldTime = fullTime + waveIntervalTicks;
                         saveState();
                     } else {
-                        state.nextWaveAt = now + 15_000L;
+                        state.nextWaveAtWorldTime = fullTime + 300L;
                         saveState();
                     }
                 }
@@ -213,10 +212,10 @@ final class BloodMoonManager {
         }
     }
 
-    private void begin(World world, WorldEvent state, long day, long now) {
+    private void begin(World world, WorldEvent state, long day) {
         state.activeDay = day;
         state.wavesSent = 0;
-        state.nextWaveAt = now;
+        state.nextWaveAtWorldTime = world.getFullTime();
         state.startsAtWorldTime = world.getFullTime();
         long sunrise = day * TICKS_PER_DAY + SUNRISE_TICK;
         state.endsAtWorldTime = Math.min(world.getFullTime() + durationTicks(), sunrise);
@@ -271,10 +270,10 @@ final class BloodMoonManager {
         return minutes * 60L * 20L;
     }
 
-    private void updateDisplay(World world, WorldEvent state, int maxWaves, long now) {
+    private void updateDisplay(World world, WorldEvent state, int maxWaves) {
         if (displayMode() == DisplayMode.SCOREBOARD) {
             removeBossBar(state);
-            updateScoreboard(world, state, maxWaves, now);
+            updateScoreboard(world, state, maxWaves);
         } else {
             removeScoreboard(state);
             updateBossBar(world, state, maxWaves);
@@ -303,7 +302,7 @@ final class BloodMoonManager {
         state.bar.setProgress(Math.max(0.0, Math.min(1.0, (double) remainingTicks / total)));
     }
 
-    private void updateScoreboard(World world, WorldEvent state, int maxWaves, long now) {
+    private void updateScoreboard(World world, WorldEvent state, int maxWaves) {
         if (state.scoreboard == null || state.objective == null) {
             ScoreboardManager manager = Bukkit.getScoreboardManager();
             if (manager == null) {
@@ -349,7 +348,8 @@ final class BloodMoonManager {
 
         long remainingTicks = Math.max(0L, state.endsAtWorldTime - world.getFullTime());
         long remainingSeconds = (remainingTicks + 19L) / 20L;
-        long nextWaveSeconds = Math.max(0L, (state.nextWaveAt - now + 999L) / 1000L);
+        long nextWaveTicks = Math.max(0L, state.nextWaveAtWorldTime - world.getFullTime());
+        long nextWaveSeconds = (nextWaveTicks + 19L) / 20L;
         String nextWave = state.wavesSent >= maxWaves ? "ALL WAVES SENT" : formatDuration(nextWaveSeconds);
         int wavesRemaining = Math.max(0, maxWaves - state.wavesSent);
 
@@ -376,14 +376,13 @@ final class BloodMoonManager {
     }
 
     private void refreshActiveDisplays() {
-        long now = System.currentTimeMillis();
         int maxWaves = Math.max(1, Math.min(8, plugin.getConfig().getInt("blood-moon.waves", 3)));
         for (Map.Entry<UUID, WorldEvent> entry : worlds.entrySet()) {
             World world = Bukkit.getWorld(entry.getKey());
             WorldEvent state = entry.getValue();
             if (world == null || state.activeDay == Long.MIN_VALUE
                     || world.getFullTime() >= state.endsAtWorldTime) continue;
-            updateDisplay(world, state, maxWaves, now);
+            updateDisplay(world, state, maxWaves);
         }
     }
 
@@ -429,18 +428,21 @@ final class BloodMoonManager {
         state.startsAtWorldTime = 0L;
         state.endsAtWorldTime = 0L;
         state.wavesSent = 0;
-        state.nextWaveAt = 0L;
+        state.nextWaveAtWorldTime = 0L;
         saveState();
     }
 
     private Path stateFile() {
-        return plugin.getDataFolder().toPath().resolve("blood-moon-state-v2.txt");
+        return plugin.getDataFolder().toPath().resolve("blood-moon-state-v3.txt");
     }
 
     private void loadState() {
         Path current = stateFile();
-        Path legacy = plugin.getDataFolder().toPath().resolve("blood-moon-state-v1.txt");
-        Path file = Files.isRegularFile(current) ? current : legacy;
+        Path legacyV2 = plugin.getDataFolder().toPath().resolve("blood-moon-state-v2.txt");
+        Path legacyV1 = plugin.getDataFolder().toPath().resolve("blood-moon-state-v1.txt");
+        boolean usesWorldClock = Files.isRegularFile(current);
+        Path file = usesWorldClock ? current
+                : (Files.isRegularFile(legacyV2) ? legacyV2 : legacyV1);
         if (!Files.isRegularFile(file)) return;
         try {
             int count = 0;
@@ -454,7 +456,15 @@ final class BloodMoonManager {
                     WorldEvent state = worlds.computeIfAbsent(id, ignored -> new WorldEvent());
                     state.warnedDay = Long.parseLong(p[1]);
                     state.activeDay = Long.parseLong(p[2]);
-                    state.nextWaveAt = Long.parseLong(p[3]);
+                    long savedNextWave = Long.parseLong(p[3]);
+                    if (usesWorldClock) {
+                        state.nextWaveAtWorldTime = savedNextWave;
+                    } else {
+                        World savedWorld = Bukkit.getWorld(id);
+                        long currentWorldTime = savedWorld == null ? 0L : savedWorld.getFullTime();
+                        long remainingMillis = Math.max(0L, savedNextWave - System.currentTimeMillis());
+                        state.nextWaveAtWorldTime = currentWorldTime + (remainingMillis + 49L) / 50L;
+                    }
                     if (p.length == 7) {
                         state.startsAtWorldTime = Long.parseLong(p[4]);
                         state.endsAtWorldTime = Long.parseLong(p[5]);
@@ -478,13 +488,13 @@ final class BloodMoonManager {
         try {
             Path file = stateFile();
             Files.createDirectories(file.getParent());
-            Path tmp = file.resolveSibling("blood-moon-state-v2.txt.tmp");
+            Path tmp = file.resolveSibling("blood-moon-state-v3.txt.tmp");
             List<String> lines = new ArrayList<>();
-            lines.add("# world UUID | warned day | active day | next wave epoch ms | start world tick | end world tick | waves sent");
+            lines.add("# world UUID | warned day | active day | next wave world tick | start world tick | end world tick | waves sent");
             for (Map.Entry<UUID, WorldEvent> entry : worlds.entrySet()) {
                 WorldEvent state = entry.getValue();
                 lines.add(entry.getKey() + "|" + state.warnedDay + "|" + state.activeDay + "|"
-                        + state.nextWaveAt + "|" + state.startsAtWorldTime + "|"
+                        + state.nextWaveAtWorldTime + "|" + state.startsAtWorldTime + "|"
                         + state.endsAtWorldTime + "|" + state.wavesSent);
             }
             Files.write(tmp, lines, StandardCharsets.UTF_8);
