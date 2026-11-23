@@ -227,7 +227,10 @@ final class HordeManager {
                 }
                 // Shared horde, one alert per nearby player. Gate also ensures closing distance.
                 if(h.population()>0 && alertGate.observe(p.getUniqueId(),h.id(),dist,now)) {
-                    plugin.showWarning(p,DangerRating.calculate(h.population(),h.temperament()), CompassDirection.from(p.getLocation().getX(),p.getLocation().getZ(),sourceX,sourceZ));
+                    double speed=Math.max(0.25,plugin.getConfig().getDouble("hordes.virtual-speed-blocks-per-second",1.0));
+                    int eta=(int)Math.min(3600,Math.ceil(dist/speed));
+                    plugin.showWarning(p,DangerRating.calculate(h.population(),h.temperament()),
+                            CompassDirection.from(p.getLocation().getX(),p.getLocation().getZ(),sourceX,sourceZ),eta);
                     warningsSent++;
                 }
             }

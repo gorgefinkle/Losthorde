@@ -291,9 +291,12 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         return true;
     }
     public void showWarning(Player player, DangerRating rating) {
-        showWarning(player, rating, "Unknown");
+        showWarning(player,rating,"Unknown",-1);
     }
-    public void showWarning(Player player, DangerRating rating, String direction) {
+    public void showWarning(Player player,DangerRating rating,String direction) {
+        showWarning(player,rating,direction,-1);
+    }
+    public void showWarning(Player player,DangerRating rating,String direction,int etaSeconds) {
         ChatColor color = switch(rating.level()) {
             case LOW -> ChatColor.GREEN;
             case MODERATE -> ChatColor.YELLOW;
@@ -301,7 +304,9 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             case EXTREME -> ChatColor.RED;
         };
         String title = color + "HORDE APPROACHING";
-        String subtitle = ChatColor.WHITE + "From the " + direction + " | Est. Population: " + rating.approximatePopulation()
+        String eta=etaSeconds<0?"ETA Unknown":("ETA ~"+(etaSeconds>=60?(etaSeconds/60)+"m "+(etaSeconds%60)+"s":etaSeconds+"s"));
+        String subtitle = ChatColor.WHITE + "From the " + direction + " | " + eta
+            + " | Est. Population: " + rating.approximatePopulation()
             + ChatColor.GRAY + " | Temperament: " + ChatColor.WHITE + rating.temperament().label()
             + ChatColor.GRAY + " | " + color + rating.level().name();
         player.sendTitle(title, subtitle,
