@@ -63,6 +63,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     private BloodMoonManager bloodMoon;
     private WalkerBudget walkerBudget;
     private HulkManager hulks;
+    private CrawlerManager crawlers;
     private final ObservationGuard observation = new ObservationGuard();
     private final Map<UUID,Integer> observerTickByWorld = new HashMap<>();
     ObservationGuard observation() { return observation; }
@@ -95,6 +96,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         hordeMemberTag = new NamespacedKey(this, "horde_id");
         walkerBudget = new WalkerBudget(this);
         hulks = new HulkManager(this);
+        crawlers = new CrawlerManager(this);
         walkerBudget.load();
         spawners = new SpawnerManager(this);
         population = new PopulationManager(this);
@@ -129,7 +131,8 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         double chance=Math.max(0.0,Math.min(1.0,getConfig().getDouble("scragglers.assignment-chance",0.12)));
         if(chance>0 && ThreadLocalRandom.current().nextDouble()<chance)
             zombie.getPersistentDataContainer().set(scragglerTag,PersistentDataType.BYTE,(byte)1);
-        if (hulks != null) hulks.assign(zombie);
+        if (crawlers != null) crawlers.assign(zombie);
+        if (hulks != null && (crawlers == null || !crawlers.isCrawler(zombie))) hulks.assign(zombie);
         if (getConfig().getBoolean("zombies.never-burn-in-daylight",true)) zombie.setShouldBurnInDay(false);
     }
     private boolean isOurs(Zombie zombie) {return isManagedWalker(zombie);}
@@ -197,6 +200,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     private void refreshExistingZombies(org.bukkit.Chunk chunk) {
         for (Entity entity : chunk.getEntities()) {
             if (!(entity instanceof Zombie z)) continue;
+            if (crawlers != null) crawlers.refresh(z);
             if (hulks != null) hulks.refresh(z);
             if (getConfig().getBoolean("zombies.never-burn-in-daylight",true)) z.setShouldBurnInDay(false);
             if (getConfig().getBoolean("zombies.make-all-zombies-persistent",true)) {
@@ -272,7 +276,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     }
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0 || args[0].equalsIgnoreCase("status")) {
-            sender.sendMessage(ChatColor.GRAY +  "Dead Streets R08 | managed spawners: " + spawners.size()
+            sender.sendMessage(ChatColor.GRAY +  "Dead Streets R09 special-infected prototype | managed spawners: " + spawners.size()
                 + " | quota="+walkerBudget.reserved()+"/"+walkerBudget.maximum()+" denied="+walkerBudget.denied()+" | " + hordes.status() + " | " + scragglers.status() + " | " + bloodMoon.status() + " | Metropolis: " + (population.enabled()?population.status():"activation disabled"));
             return true;
         }
@@ -312,6 +316,12 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
                 return true;
             }
         }
+        if (args.length == 1 && args[0].equalsIgnoreCase("crawler")) {
+            if (!(sender instanceof Player player)) { sender.sendMessage("Run this command in game."); return true; }
+            String result = crawlers.spawnTest(player);
+            sender.sendMessage((result.startsWith("Spawned") ? ChatColor.GREEN : ChatColor.RED) + result);
+            return true;
+        }
         if (args.length == 1 && args[0].equalsIgnoreCase("hulk")) {
             if (!(sender instanceof Player player)) { sender.sendMessage("Run this command in game."); return true; }
             String result = hulks.spawnTest(player);
@@ -333,7 +343,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             } catch (IllegalArgumentException ex) { sender.sendMessage(ChatColor.RED+"Use /deadstreets testwarning <1..1000000> <docile|restless|agitated|frenzied>"); }
             return true;
         }
-        sender.sendMessage(ChatColor.RED+"Usage: /deadstreets [status|hulk|flags|bloodmoon display <bossbar|scoreboard>|bloodmoon status|horde status|horde spawn <population> <temperament>|horde tp [uuid]|testwarning <population> <temperament>]");
+        sender.sendMessage(ChatColor.RED+"Usage: /deadstreets [status|hulk|crawler|flags|bloodmoon display <bossbar|scoreboard>|bloodmoon status|horde status|horde spawn <population> <temperament>|horde tp [uuid]|testwarning <population> <temperament>]");
         return true;
     }
     public void showTitleNotice(Player player, String title, String subtitle) {

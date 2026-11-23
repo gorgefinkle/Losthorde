@@ -29,7 +29,7 @@ final class HulkManager {
     boolean enabled() { return plugin.getConfig().getBoolean("special-infected.hulk.enabled", true); }
 
     void assign(Zombie zombie) {
-        if (!enabled() || isHulk(zombie)) return;
+        if (!enabled() || isHulk(zombie) || plugin.isCrawler(zombie)) return;
         double chance = clamp(plugin.getConfig().getDouble("special-infected.hulk.spawn-chance", 0.035), 0, 1);
         if (ThreadLocalRandom.current().nextDouble() < chance) apply(zombie);
     }
