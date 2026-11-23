@@ -102,9 +102,6 @@ final class BloodMoonManager {
                 state.warnedDay = day;
                 saveState();
                 for (Player player : world.getPlayers()) {
-                    player.sendTitle(ChatColor.RED + "BLOOD MOON APPROACHING",
-                            ChatColor.DARK_RED + "Get inside. Nightfall is coming.",
-                            10, 100, 30);
                     player.sendMessage(ChatColor.DARK_RED + "[Dead Streets] " + ChatColor.RED
                             + "A Blood Moon is approaching. Find shelter and secure your entrances.");
                 }
@@ -150,9 +147,6 @@ final class BloodMoonManager {
         state.bar.setProgress(1.0);
         for (Player player : world.getPlayers()) {
             state.bar.addPlayer(player);
-            player.sendTitle(ChatColor.DARK_RED + "BLOOD MOON",
-                    ChatColor.RED + "Stay inside. The dead are coming.",
-                    10, 80, 20);
             player.sendMessage(ChatColor.DARK_RED + "[Dead Streets] " + ChatColor.RED
                     + "The Blood Moon has begun. Lock down and survive the waves.");
         }
@@ -179,9 +173,6 @@ final class BloodMoonManager {
         }
         int wave = state.wavesSent + 1;
         for (Player player : world.getPlayers()) {
-            player.sendTitle(ChatColor.RED + "HORDE WAVE " + wave,
-                    ChatColor.DARK_RED + (created == 0 ? "No safe approach found" : created + " large groups detected"),
-                    5, 65, 15);
             player.sendMessage(ChatColor.DARK_RED + "[Dead Streets] " + ChatColor.RED
                     + (created == 0 ? "The next Blood Moon wave is searching for a safe approach."
                     : "Blood Moon wave " + wave + " of " + plugin.getConfig().getInt("blood-moon.waves", 3)
