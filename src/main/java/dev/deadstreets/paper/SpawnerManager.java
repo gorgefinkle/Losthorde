@@ -78,7 +78,8 @@ public final class SpawnerManager {
     private void prepareSpawner(Block block) {
         if (block.getType()!=Material.SPAWNER) return;
         String mode=plugin.getConfig().getString("vanilla-spawners.mode","ALLOW_ALL");
-        if ("CONVERT_TO_ZOMBIES".equalsIgnoreCase(mode) && block.getState() instanceof CreatureSpawner spawner
+        if (!"CONVERT_TO_ZOMBIES".equalsIgnoreCase(mode)) return;
+        if (block.getState() instanceof CreatureSpawner spawner
                 && spawner.getSpawnedType()!=EntityType.ZOMBIE) {
             spawner.setSpawnedType(EntityType.ZOMBIE);
             spawner.update(true,false);
