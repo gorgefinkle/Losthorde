@@ -57,6 +57,38 @@ final class MetropolisFlagProbe {
             player.sendMessage(ChatColor.RED+"Error reading Metropolis flags: "+e.getMessage());
             return;
         }
+        // Also inspect the current per-world JSONL contract. Legacy region TSV files above
+        // remain supported for old exporter builds and saved test worlds.
+        Path jsonl=directory.resolve("buildings.jsonl");
+        if(Files.isRegularFile(jsonl)) {
+            try {
+                long size=Files.size(jsonl);
+                if(size<=Math.max(1024*1024L,ds.getConfig().getLong("population.activation.max-world-file-bytes",134217728L))) {
+                    foundAny=true;
+                    try(BufferedReader in=Files.newBufferedReader(jsonl,StandardCharsets.UTF_8)) {
+                        for(int rows=0;rows<Math.max(100,Math.min(500000,ds.getConfig().getInt("population.activation.max-world-records",200000)));rows++) {
+                            String line=in.readLine();if(line==null)break;
+                            try {
+                                MetropolisFlag flag=MetropolisFlagJson.parse(line);
+                                if(!flag.worldId().equals(player.getWorld().getUID().toString())||flag.worldSeed()!=player.getWorld().getSeed()){bad++;continue;}
+                                if(!ids.add(flag.buildId())){duplicates++;continue;}
+                                valid++;interiorCandidates+=flag.interiorPoints().size();
+                                String root="population.ranges."+flag.districtType();
+                                if(!ds.getConfig().contains(root))continue;
+                                int lo=ds.getConfig().getInt(root+".min",0),hi=ds.getConfig().getInt(root+".max",0);
+                                if(lo<0||hi<lo){bad++;continue;}
+                                estimate+=flag.deterministicPopulation(new PopulationRoller.Range(lo,hi));eligible++;
+                            } catch(RuntimeException malformed){bad++;}
+                        }
+                    }
+                } else {
+                    player.sendMessage(ChatColor.RED+"Metropolis JSONL sidecar exceeds configured safety limit: "+size+" bytes.");
+                }
+            } catch(IOException e) {
+                player.sendMessage(ChatColor.RED+"Error reading Metropolis JSONL flags: "+e.getMessage());
+                return;
+            }
+        }
         if(!foundAny) {
             player.sendMessage(ChatColor.YELLOW+"No Metropolis build flags in the surrounding 3x3 region window ("+rx+","+rz+").");
             return;
