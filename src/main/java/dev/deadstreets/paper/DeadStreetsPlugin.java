@@ -129,11 +129,13 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         if (!allowNaturalMob(event)) { event.setCancelled(true); return; }
         if (!(event.getEntity() instanceof Zombie zombie)) return;
         // Vanilla spawner behavior is governed by vanilla-spawners.mode. In CONVERT_TO_ZOMBIES,
-        // the spawner block itself is changed to ZOMBIE; never cancel its resulting spawn here.
+        // the spawner block itself is changed to ZOMBIE. When the proximity controller is enabled,
+        // it owns the wave timing and cancels the vanilla SPAWNER event to prevent double waves.
         if (event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.NATURAL && getConfig().getBoolean("zombies.stop-natural-zombie-spawns",false)) {
             event.setCancelled(true); return;
         }
         if(event.getSpawnReason()==CreatureSpawnEvent.SpawnReason.SPAWNER
+                && getConfig().getBoolean("spawners.enabled",true)
                 && "CONVERT_TO_ZOMBIES".equalsIgnoreCase(getConfig().getString("vanilla-spawners.mode","ALLOW_ALL"))) {
             event.setCancelled(true);
             return;
