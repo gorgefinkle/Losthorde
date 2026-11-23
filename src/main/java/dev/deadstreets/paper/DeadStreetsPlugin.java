@@ -255,7 +255,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         sender.sendMessage(ChatColor.RED+"Usage: /deadstreets [status|flags|horde status|horde spawn <population> <temperament>|testwarning <population> <temperament>]");
         return true;
     }
-    public void showWarning(Player player, DangerRating rating) {
+    public void showWarning(Player player, DangerRating rating, String direction) {
         ChatColor color = switch(rating.level()) {
             case LOW -> ChatColor.GREEN;
             case MODERATE -> ChatColor.YELLOW;
@@ -263,7 +263,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             case EXTREME -> ChatColor.RED;
         };
         String title = color + "HORDE APPROACHING";
-        String subtitle = ChatColor.WHITE + "Est. Population: " + rating.approximatePopulation()
+        String subtitle = ChatColor.WHITE + "From the " + direction + " | Est. Population: " + rating.approximatePopulation()
             + ChatColor.GRAY + " | Temperament: " + ChatColor.WHITE + rating.temperament().label()
             + ChatColor.GRAY + " | " + color + rating.level().name();
         player.sendTitle(title, subtitle,

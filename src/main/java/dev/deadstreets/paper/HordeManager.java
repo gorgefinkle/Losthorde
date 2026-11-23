@@ -224,7 +224,7 @@ final class HordeManager {
                 }
                 // Shared horde, one alert per nearby player. Gate also ensures closing distance.
                 if(h.population()>0 && alertGate.observe(p.getUniqueId(),h.id(),dist,now)) {
-                    plugin.showWarning(p,DangerRating.calculate(h.population(),h.temperament()));
+                    plugin.showWarning(p,DangerRating.calculate(h.population(),h.temperament()), approachDirection(p.getLocation().getX(),p.getLocation().getZ(),h.x(),h.z()));
                     warningsSent++;
                 }
             }
@@ -235,6 +235,20 @@ final class HordeManager {
     }
     // Only virtual groups consume ambient migration slots. Fully-materialized
     // groups remain tracked for deaths/warnings but no longer block new migrations.
+    private static String approachDirection(double playerX,double playerZ,double sourceX,double sourceZ) {
+        double angle=Math.atan2(sourceX-playerX, sourceZ-playerZ);
+        int sector=(int)Math.floor((angle+Math.PI/8.0)/(Math.PI/4.0));
+        return switch(Math.floorMod(sector,8)) {
+            case 0 -> "North";
+            case 1 -> "North-East";
+            case 2 -> "East";
+            case 3 -> "South-East";
+            case 4 -> "South";
+            case 5 -> "South-West";
+            case 6 -> "West";
+            default -> "North-West";
+        };
+    }
     private int countWorld(World w) {int n=0;for(HordeState h:hordes.values())
         if(h.worldId().equals(w.getUID()) && h.pending()>0)n++;return n;}
     private boolean nearSomePlayer(World w,double x,double z,double radius) {
