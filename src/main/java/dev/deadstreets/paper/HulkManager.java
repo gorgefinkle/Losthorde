@@ -11,9 +11,8 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Hulk gameplay subtype. Native SCALE changes both rendered and collision dimensions.
- * The default 1.53846 scale targets a 3-block zombie; vanilla server APIs do not expose
- * per-bone model reshaping, so this deliberately does not fake broader anatomy with armor.
+ * Hulk gameplay subtype. Native SCALE sets the server collision dimensions to three blocks;
+ * DisplayMotion supplies the broad, asymmetrical visual anatomy and articulated animations.
  */
 final class HulkManager {
     private static final double THREE_BLOCK_SCALE = 1.53846;
