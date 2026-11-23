@@ -35,6 +35,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.block.Action;
 import org.bukkit.block.data.Openable;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.persistence.PersistentDataType;
@@ -47,6 +48,7 @@ import java.util.UUID;
 import org.bukkit.World;
 import org.bukkit.Chunk;
 import java.util.Objects;
+import java.util.concurrent.ThreadLocalRandom;
 
 /** Dead Streets: Paper zombie gameplay, persistent populations, opt-in experimental hordes. */
 public final class DeadStreetsPlugin extends JavaPlugin implements Listener, CommandExecutor {
@@ -110,11 +112,10 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     }
     private boolean isOurs(Zombie zombie) {return isManagedWalker(zombie);}
     @EventHandler public void onSpawn(CreatureSpawnEvent event) {
+        if (!allowNaturalMob(event)) return;
         if (!(event.getEntity() instanceof Zombie zombie)) return;
-        if (event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.SPAWNER && getConfig().getBoolean("zombies.stop-vanilla-zombie-spawners",true)) {
-            event.setCancelled(true);
-            return;
-        }
+        // Vanilla spawner behavior is governed by vanilla-spawners.mode. In CONVERT_TO_ZOMBIES,
+        // the spawner block itself is changed to ZOMBIE; never cancel its resulting spawn here.
         if (event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.NATURAL && getConfig().getBoolean("zombies.stop-natural-zombie-spawns",false)) {
             event.setCancelled(true); return;
         }
@@ -127,6 +128,21 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             zombie.setPersistent(true);
             zombie.setRemoveWhenFarAway(false);
         }
+    }
+    private boolean allowNaturalMob(CreatureSpawnEvent event) {
+        if (event.getSpawnReason() != CreatureSpawnEvent.SpawnReason.NATURAL) return true;
+        EntityType type=event.getEntityType();
+        String key=null;
+        if (type==EntityType.SKELETON || type==EntityType.STRAY || type==EntityType.BOGGED) key="skeletons";
+        else if (type==EntityType.CREEPER) key="creepers";
+        else if (type==EntityType.WITCH) key="witches";
+        else if (type==EntityType.SPIDER || type==EntityType.CAVE_SPIDER) key="spiders";
+        else if (type==EntityType.VILLAGER || type==EntityType.WANDERING_TRADER) key="villagers";
+        else if (type==EntityType.BAT || type==EntityType.GLOW_SQUID) key="ambient";
+        else if (event.getEntity() instanceof org.bukkit.entity.Animals) key="animals";
+        if (key==null) return true;
+        double chance=Math.max(0.0,Math.min(1.0,getConfig().getDouble("vanilla-mobs.natural-spawn-chance."+key,0.15)));
+        return chance>=1.0 || (chance>0.0 && ThreadLocalRandom.current().nextDouble()<chance);
     }
     @EventHandler public void onCombust(EntityCombustEvent event) {
         // Only stop ignition from ambient/daylight causes; lava and entity-ignition remain valid.
