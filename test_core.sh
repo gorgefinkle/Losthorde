@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Keep Dead Streets out of shared HUD channels so companion plugins can own
 # titles, action bars, and scoreboards without last-writer-wins interference.
-if grep -R -nE '\\.sendTitle\\(|\\.sendActionBar\\(|\\.setScoreboard\\(|getNewScoreboard\\(' src/main/java/dev/deadstreets/paper; then
+if grep -R -nE '\.sendTitle\(|\.sendActionBar\(|\.setScoreboard\(|getNewScoreboard\(' src/main/java/dev/deadstreets/paper; then
   echo "Shared HUD API use is prohibited; use chat, a dedicated BossBar, or tagged world-space displays."
   exit 1
 fi
