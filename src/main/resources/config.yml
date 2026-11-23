@@ -24,7 +24,7 @@ zombies:
   never-burn-in-daylight: true
   make-all-zombies-persistent: true
   # Durable global admission cap for NEW Dead Streets walkers, including offloaded chunks.
-  max-total-managed-walkers: 1800
+  max-total-managed-walkers: 3000
 vanilla-mobs:
   # Chance that each natural spawn is allowed through. 0.0 = disabled, 1.0 = vanilla rate.
   natural-spawn-chance:

@@ -78,6 +78,14 @@ public final class CoreHarness {
         check(direction(0,0,-10,10).equals("South-West"),"south-west sector");
         check(direction(0,0,-10,0).equals("West"),"west sector");
         check(direction(0,0,-10,-10).equals("North-West"),"north-west sector");
+        var joined=new HordeState(java.util.UUID.randomUUID(),java.util.UUID.randomUUID(),10,Temperament.RESTLESS,0,0,0,1000);
+        joined.absorbPhysicalMember();
+        check(joined.population()==11&&joined.pending()==10,"scraggler joins as physical member without pending spawn");
+        joined.died();
+        check(joined.population()==10&&joined.pending()==10,"joined physical member death updates shared population");
+        var joinedCopy=HordeState.restore(joined.save());
+        check(joinedCopy.population()==10&&joinedCopy.pending()==10,"joined horde population persists");
+
 
         try {PopulationPlan.inChunk(multi,generous,0,0,10);throw new AssertionError("missing limit");}
         catch(IllegalArgumentException expected){assertions++;}
