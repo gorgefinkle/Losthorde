@@ -175,14 +175,18 @@ final class BloodMoonManager {
                     ChatColor.DARK_RED + (created == 0 ? "No safe approach found" : created + " large groups detected"),
                     5, 65, 15);
             player.sendMessage(ChatColor.DARK_RED + "[Dead Streets] " + ChatColor.RED
-                    + "Blood Moon wave " + wave + " of " + plugin.getConfig().getInt("blood-moon.waves", 3)
-                    + " is moving in.");
+                    + (created == 0 ? "The next Blood Moon wave is searching for a safe approach."
+                    : "Blood Moon wave " + wave + " of " + plugin.getConfig().getInt("blood-moon.waves", 3)
+                    + " is moving in."));
         }
         return created;
     }
 
     private void updateBar(World world, WorldEvent state, int maxWaves) {
-        if (state.bar == null) return;
+        if (state.bar == null) {
+            state.bar = Bukkit.createBossBar(ChatColor.DARK_RED + "BLOOD MOON  •  HORDES INBOUND",
+                    BarColor.RED, BarStyle.SEGMENTED_10);
+        }
         for (Player player : world.getPlayers()) if (!state.bar.getPlayers().contains(player)) state.bar.addPlayer(player);
         state.bar.setTitle(ChatColor.DARK_RED + "BLOOD MOON  •  WAVE " + Math.min(maxWaves, state.wavesSent)
                 + "/" + maxWaves);
