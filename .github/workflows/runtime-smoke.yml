@@ -29,7 +29,7 @@ jobs:
           mkdir -p plugins
           cp target/DeadStreets_R11.jar plugins/DeadStreets.jar
           cp DisplayMotion.jar plugins/DisplayMotion.jar
-          printf 'eula=true\n' > eula.txt
+          echo 'eula=true' > eula.txt
           cat > server.properties <<'EOF'
           online-mode=false
           server-port=25565
