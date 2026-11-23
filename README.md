@@ -2,13 +2,13 @@
 
 Experimental Paper 26.2 / Java 25 zombie population and migration plugin, with an optional file-based Metropolis BUILD population integration.
 
-**R11 is an active development checkpoint, not yet a test-ready release.** It adds DisplayMotion-rendered special infected, original editable Blockbench models, the Popper death burst, and a stricter non-zombie hostile spawn policy. The Paper build and connected-client rendering/combat still need verification. Do not install it in a valuable world.
+**R11 is an active development checkpoint, not yet a test-ready release.** It adds DisplayMotion-rendered special infected, original editable Blockbench models, the Popper death burst, and a stricter non-zombie hostile spawn policy. The Paper 26.2 + DisplayMotion 0.4.0 headless smoke test now loads all four models and exercises model spawn, follow, hitbox registration, click callbacks, and every animation clip. Connected-client appearance and real melee feel still need in-game verification. Do not install it in a valuable world.
 
 ## Required server dependency
 
-Dead Streets R11 requires **DisplayMotion 0.4.0**. Install `DisplayMotion-0.4.0.jar` in the server's `plugins` folder alongside Dead Streets. DisplayMotion includes PacketEvents; do not install a separate PacketEvents jar just for this integration. Dead Streets intentionally has no vanilla-model fallback if DisplayMotion is missing.
+Dead Streets R11 requires **[DisplayMotion 0.4.0](https://github.com/Jan1k1/displaymotion/releases/tag/v0.4.0)**. Install `DisplayMotion-0.4.0.jar` in the server's `plugins` folder alongside Dead Streets. DisplayMotion includes PacketEvents; do not install a separate PacketEvents jar just for this integration. Dead Streets intentionally has no vanilla-model fallback if DisplayMotion is missing.
 
-The four original, editable Blockbench models live in `src/main/resources/models/`: Husk Runner, Drowned Popper, low-profile Crawler, and three-block Hulk. DisplayMotion converts their solid-color geometry to vanilla blocks, so clients need no resource pack or mod and existing block texture packs can reskin those materials. The model renderer hides each special infected's vanilla body and uses a model hitbox to route melee hits back to the server-side zombie.
+The four original, editable Blockbench models live in `src/main/resources/models/` (see [docs/MODELS.md](docs/MODELS.md) for the editing and animation contract): Husk Runner, Drowned Popper, low-profile Crawler, and three-block Hulk. DisplayMotion converts their solid-color geometry to vanilla blocks, so clients need no resource pack or mod and existing block texture packs can reskin those materials. The model renderer hides each special infected's vanilla body and uses a model hitbox to route melee hits back to the server-side zombie.
 
 ## Current development scope
 
