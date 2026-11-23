@@ -2,6 +2,7 @@ package dev.deadstreets.paper;
 
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Pose;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
@@ -11,10 +12,8 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Crawler visual/behavior feasibility prototype.
- * Uses the native zombie model's swimming pose on land, held in that pose while alive.
- * This preserves vanilla textures and avoids client packs. It is intentionally a prototype:
- * whether the land-swim pose reads as a convincing ground crawl must be judged in-client.
+ * Low-profile crawler. Paper's fixed SWIMMING pose is used instead of the deprecated
+ * setSwimming flag, which the server explicitly resets on the next tick.
  */
 final class CrawlerManager {
     private final DeadStreetsPlugin plugin;
@@ -34,24 +33,28 @@ final class CrawlerManager {
     }
     void assign(Zombie zombie) {
         if (!enabled() || isCrawler(zombie)) return;
-        double chance = clamp(plugin.getConfig().getDouble("special-infected.crawler.spawn-chance", 0.035), 0, 1);
+        double chance = clamp(plugin.getConfig().getDouble("special-infected.crawler.spawn-chance", 0.02), 0, 1);
         if (ThreadLocalRandom.current().nextDouble() < chance) prepareTest(zombie);
         if (isCrawler(zombie)) apply(zombie);
     }
     void refresh(Zombie zombie) {
         if (!isCrawler(zombie)) return;
         applyAttributes(zombie);
-        zombie.setSwimming(true);
+        applyCrawlPose(zombie);
     }
     private void apply(Zombie zombie) {
         applyAttributes(zombie);
-        zombie.setSwimming(true);
+        applyCrawlPose(zombie);
+    }
+    private void applyCrawlPose(Zombie zombie) {
+        // fixed=true prevents vanilla mob AI from replacing the pose with STANDING.
+        zombie.setPose(Pose.SWIMMING, true);
     }
     private void applyAttributes(Zombie zombie) {
-        set(zombie, Attribute.SCALE, clamp(plugin.getConfig().getDouble("special-infected.crawler.scale", 0.78), 0.55, 1.0));
+        set(zombie, Attribute.SCALE, clamp(plugin.getConfig().getDouble("special-infected.crawler.scale", 0.62), 0.45, 0.85));
         set(zombie, Attribute.MAX_HEALTH, clamp(plugin.getConfig().getDouble("special-infected.crawler.max-health", 24.0), 10.0, 60.0));
-        set(zombie, Attribute.MOVEMENT_SPEED, clamp(plugin.getConfig().getDouble("special-infected.crawler.movement-speed", 0.23), 0.08, 0.35));
-        set(zombie, Attribute.ATTACK_DAMAGE, clamp(plugin.getConfig().getDouble("special-infected.crawler.attack-damage", 6.0), 2.0, 16.0));
+        set(zombie, Attribute.MOVEMENT_SPEED, clamp(plugin.getConfig().getDouble("special-infected.crawler.movement-speed", 0.20), 0.08, 0.35));
+        set(zombie, Attribute.ATTACK_DAMAGE, clamp(plugin.getConfig().getDouble("special-infected.crawler.attack-damage", 5.0), 2.0, 16.0));
         AttributeInstance maxHealth = zombie.getAttribute(Attribute.MAX_HEALTH);
         if (maxHealth != null && zombie.getHealth() > maxHealth.getValue()) zombie.setHealth(maxHealth.getValue());
         zombie.setPersistent(true);
@@ -64,7 +67,7 @@ final class CrawlerManager {
     }
 
     String spawnTest(Player player) {
-        if (!enabled()) return "Crawler prototype is disabled in config.";
+        if (!enabled()) return "Crawler is disabled in config.";
         if (!plugin.budget().reserve()) return "Walker budget is full; no test Crawler was spawned.";
         Location origin = player.getLocation();
         Location destination = null;
@@ -96,7 +99,7 @@ final class CrawlerManager {
                 plugin.budget().tag(created);
                 refresh(created);
             });
-            return "Spawned test Crawler " + zombie.getUniqueId() + " nearby. It uses the vanilla swimming pose on land.";
+            return "Spawned test Crawler " + zombie.getUniqueId() + " nearby using Paper's fixed low-profile pose.";
         } catch (RuntimeException failure) {
             plugin.budget().rollback();
             return "Test Crawler spawn failed: " + failure.getMessage();

@@ -134,7 +134,7 @@ special-infected:
   hulk:
     enabled: true
     spawn-chance: 0.02
-    scale: 1.60
+    scale: 1.53846
     max-health: 50.0
     movement-speed: 0.16
     attack-damage: 12.0
@@ -143,7 +143,7 @@ special-infected:
   crawler:
     enabled: true
     spawn-chance: 0.02
-    scale: 0.78
+    scale: 0.62
     max-health: 24.0
-    movement-speed: 0.23
-    attack-damage: 6.0
+    movement-speed: 0.20
+    attack-damage: 5.0

@@ -11,12 +11,12 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * First special-infected visual feasibility prototype.
- * Uses the vanilla zombie renderer and native SCALE attribute, so collision dimensions
- * scale with the rendered mob. No resource pack, custom texture, packet model, or client mod.
- * This proves a larger vanilla-textured infected silhouette; it does not reshape proportions.
+ * Hulk gameplay subtype. Native SCALE changes both rendered and collision dimensions.
+ * The default 1.53846 scale targets a 3-block zombie; vanilla server APIs do not expose
+ * per-bone model reshaping, so this deliberately does not fake broader anatomy with armor.
  */
 final class HulkManager {
+    private static final double THREE_BLOCK_SCALE = 1.53846;
     private final DeadStreetsPlugin plugin;
     private final NamespacedKey hulkKey;
     private long assigned;
@@ -30,7 +30,7 @@ final class HulkManager {
 
     void assign(Zombie zombie) {
         if (!enabled() || isHulk(zombie)) return;
-        double chance = clamp(plugin.getConfig().getDouble("special-infected.hulk.spawn-chance", 0.035), 0, 1);
+        double chance = clamp(plugin.getConfig().getDouble("special-infected.hulk.spawn-chance", 0.02), 0, 1);
         if (ThreadLocalRandom.current().nextDouble() < chance) apply(zombie);
     }
 
@@ -49,7 +49,7 @@ final class HulkManager {
     }
 
     private void applyAttributes(Zombie zombie) {
-        set(zombie, Attribute.SCALE, clamp(plugin.getConfig().getDouble("special-infected.hulk.scale", 1.60), 1.10, 2.0));
+        set(zombie, Attribute.SCALE, clamp(plugin.getConfig().getDouble("special-infected.hulk.scale", THREE_BLOCK_SCALE), 1.10, THREE_BLOCK_SCALE));
         set(zombie, Attribute.MAX_HEALTH, clamp(plugin.getConfig().getDouble("special-infected.hulk.max-health", 50.0), 20.0, 200.0));
         set(zombie, Attribute.MOVEMENT_SPEED, clamp(plugin.getConfig().getDouble("special-infected.hulk.movement-speed", 0.16), 0.05, 0.30));
         set(zombie, Attribute.ATTACK_DAMAGE, clamp(plugin.getConfig().getDouble("special-infected.hulk.attack-damage", 12.0), 4.0, 40.0));
@@ -69,7 +69,7 @@ final class HulkManager {
     }
 
     String spawnTest(Player player) {
-        if (!enabled()) return "Hulk prototype is disabled in config.";
+        if (!enabled()) return "Hulk is disabled in config.";
         if (!plugin.budget().reserve()) return "Walker budget is full; no test Hulk was spawned.";
         Location origin = player.getLocation();
         Location destination = null;
@@ -101,7 +101,7 @@ final class HulkManager {
                 if (!isHulk(created)) apply(created);
                 plugin.budget().tag(created);
             });
-            return "Spawned test Hulk " + zombie.getUniqueId() + " nearby. Render scale and collision scale are linked.";
+            return "Spawned test Hulk " + zombie.getUniqueId() + " at three-block target scale.";
         } catch (RuntimeException failure) {
             plugin.budget().rollback();
             return "Test Hulk spawn failed: " + failure.getMessage();
