@@ -86,8 +86,10 @@ final class BloodMoonManager {
         long day = Math.floorDiv(fullTime, TICKS_PER_DAY);
         long dayTime = Math.floorMod(fullTime, TICKS_PER_DAY);
         int interval = intervalDays();
-        return day > 0 && Math.floorMod(day, interval) == 0 && dayTime >= 12_542L
-                && dayTime < SUNRISE_TICK && active(world);
+        boolean scheduledNight = day > 0 && Math.floorMod(day, interval) == 0
+                && dayTime >= 12_542L && dayTime < SUNRISE_TICK;
+        // Block sleep before the event starts, then only while the event is actually active.
+        return scheduledNight && (dayTime <= 13_000L || active(world));
     }
 
     boolean active(World world) {
@@ -187,7 +189,7 @@ final class BloodMoonManager {
             boolean withinBloodMoon = state.activeDay == day
                     || (state.activeDay == day - 1 && state.endsAtWorldTime > fullTime);
             if (withinBloodMoon) {
-                if (state.endsAtWorldTime > 0 && fullTime >= state.endsAtWorldTime) {
+                if (state.endsAtWorldTime <= 0L || fullTime >= state.endsAtWorldTime) {
                     end(world, state);
                     continue;
                 }
