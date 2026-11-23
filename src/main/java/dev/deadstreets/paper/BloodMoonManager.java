@@ -133,7 +133,6 @@ final class BloodMoonManager {
                         saveState();
                     }
                 }
-                if (state.wavesSent >= maxWaves && dayTime < 13_000) end(world, state);
             } else if (state.activeDay != Long.MIN_VALUE && fullTime >= state.endsAtWorldTime) {
                 end(world, state);
             }
