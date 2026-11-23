@@ -36,10 +36,22 @@ jobs:
           simulation-distance=4
           spawn-protection=0
           EOF
-          set +e
-          timeout 240s java -Xms1G -Xmx1G -jar paper.jar --nogui > server-console.log 2>&1
-          SERVER_EXIT=$?
-          set -e
+          java -Xms1G -Xmx1G -jar paper.jar --nogui > server-console.log 2>&1 &
+          SERVER_PID=$!
+          READY=0
+          for attempt in $(seq 1 180); do
+            if grep -q 'Done (' logs/latest.log 2>/dev/null; then READY=1; break; fi
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [ "$READY" -ne 1 ]; then
+            cat server-console.log
+            kill "$SERVER_PID" 2>/dev/null || true
+            wait "$SERVER_PID" 2>/dev/null || true
+            exit 1
+          fi
+          kill -TERM "$SERVER_PID" 2>/dev/null || true
+          wait "$SERVER_PID" 2>/dev/null || true
           cat server-console.log
           test -f logs/latest.log
           grep -F 'Loaded runner_husk:' logs/latest.log
