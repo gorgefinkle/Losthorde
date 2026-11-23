@@ -67,7 +67,7 @@ population:
     enabled: false
     max-chunks-per-tick: 2
     max-queued-chunks: 8192
-    max-new-zombies-per-tick: 12
+    max-new-zombies-per-tick: 3
     max-per-build: 64
     cached-regions: 64
     max-region-file-bytes: 4194304
