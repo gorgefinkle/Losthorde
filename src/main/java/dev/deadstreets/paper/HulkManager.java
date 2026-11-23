@@ -91,7 +91,7 @@ final class HulkManager {
             }
         }
         if (destination == null) {
-            plugin.budget().releaseReservation();
+            plugin.budget().rollback();
             return "No safe spawn position found in already-loaded nearby chunks.";
         }
         try {
