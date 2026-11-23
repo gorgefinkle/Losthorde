@@ -22,7 +22,7 @@
 
 ## Known acceptance gaps
 
-1. Java 25 core harness has not been run successfully in this environment.
+1. The repository's Java 25 core harness has not been run successfully. A local JDK 21 mirror of the pure-core logic passed 335 focused assertions (254 core, 12 arrival, 23 lifecycle, 46 observation); this is a useful smoke check, not the repository's Java 25 run.
 2. Paper 26.2 Maven packaging has not completed successfully.
 3. The GitHub Actions jobs returned failure before any steps were reported (no runner steps/logs); this is not evidence of a source compile failure, but it is also not a successful build.
 4. The Metropolis exporter and Dead Streets consumer have not been exercised together in a freshly generated world.
