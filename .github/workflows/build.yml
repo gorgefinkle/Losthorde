@@ -62,6 +62,7 @@ jobs:
           grep -F 'Loaded crawler_lowprofile:' logs/latest.log
           grep -F 'Loaded hulk_brute:' logs/latest.log
           grep -F 'Dead Streets R11:' logs/latest.log
+          grep -F 'DisplayMotion model runtime self-test passed' logs/latest.log
       - name: Package full source
         run: |
           mkdir -p dist
