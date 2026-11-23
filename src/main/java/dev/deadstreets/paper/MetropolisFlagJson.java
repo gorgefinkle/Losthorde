@@ -30,12 +30,14 @@ final class MetropolisFlagJson {
         boolean provided=root.has("interiorCandidates")&&root.get("interiorCandidates").isJsonArray();
         if(provided){
             JsonArray candidates=root.getAsJsonArray("interiorCandidates");
+            java.util.HashSet<String> distinct=new java.util.HashSet<>();
             if(candidates.size()>64)throw new IllegalArgumentException("Too many interior candidates");
             for(JsonElement element:candidates){
                 if(!element.isJsonObject())throw new IllegalArgumentException("Malformed interior candidate");
                 JsonObject candidate=element.getAsJsonObject();
-                points.add(new MetropolisFlag.SpawnPoint(requiredInt(candidate,"x"),
-                        requiredInt(candidate,"y"),requiredInt(candidate,"z")));
+                int x=requiredInt(candidate,"x"),y=requiredInt(candidate,"y"),z=requiredInt(candidate,"z");
+                if(!distinct.add(x+":"+y+":"+z))throw new IllegalArgumentException("Duplicate interior candidate");
+                points.add(new MetropolisFlag.SpawnPoint(x,y,z));
             }
         }
         return new MetropolisFlag(worldId,worldSeed,buildingId,districtType,

@@ -71,6 +71,9 @@ final class MetropolisFlagProbe {
                             try {
                                 MetropolisFlag flag=MetropolisFlagJson.parse(line);
                                 if(!flag.worldId().equals(player.getWorld().getUID().toString())||flag.worldSeed()!=player.getWorld().getSeed()){bad++;continue;}
+                                int minChunkX=(rx-1)*32,maxChunkX=(rx+2)*32-1,minChunkZ=(rz-1)*32,maxChunkZ=(rz+2)*32-1;
+                                if(Math.floorDiv(flag.maxX(),16)<minChunkX||Math.floorDiv(flag.minX(),16)>maxChunkX
+                                        ||Math.floorDiv(flag.maxZ(),16)<minChunkZ||Math.floorDiv(flag.minZ(),16)>maxChunkZ)continue;
                                 if(!ids.add(flag.buildId())){duplicates++;continue;}
                                 valid++;interiorCandidates+=flag.interiorPoints().size();
                                 String root="population.ranges."+flag.districtType();
