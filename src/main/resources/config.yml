@@ -5,9 +5,12 @@ blood-moon:
   every-days: 7
   # Daytime warning appears before nightfall; waves begin after 13000 ticks.
   waves: 3
-  # How long the Blood Moon remains active after nightfall, in real minutes
-  # measured against world time (pauses if the world time is stopped).
+  # How long the Blood Moon remains active after nightfall, in real minutes.
+  # The event is always capped at sunrise, so the moon is never red in daytime.
   duration-minutes: 10
+  # Runtime switch: BOSSBAR or SCOREBOARD. Command:
+  # /deadstreets bloodmoon display <bossbar|scoreboard>
+  display-mode: BOSSBAR
   wave-interval-seconds: 90
   groups-per-wave: 2
   group-min-population: 100
