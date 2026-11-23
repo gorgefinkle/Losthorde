@@ -67,9 +67,9 @@ final class HulkManager {
         if (instance != null) instance.setBaseValue(value);
     }
 
-    String spawnTest(Player player) {
+    String spawnTest(Player player, boolean force) {
         if (!enabled()) return "Hulk is disabled in config.";
-        if (!plugin.budget().reserve()) return "Walker budget is full; no test Hulk was spawned.";
+        if (!plugin.budget().reserve(force)) return plugin.budget().denialReason() + " No test Hulk was spawned.";
         Location origin = player.getLocation();
         Location destination = null;
         for (int radius = 2; radius <= 4 && destination == null; radius++) {
@@ -90,20 +90,20 @@ final class HulkManager {
             }
         }
         if (destination == null) {
-            plugin.budget().rollback();
-            return "No safe spawn position found in already-loaded nearby chunks.";
+            if (!force) plugin.budget().rollback();
+            return "No safe spawn position found in already-loaded nearby chunks.");
         }
         try {
             Location at = destination;
             Zombie zombie = at.getWorld().spawn(at, Zombie.class, created -> {
                 plugin.markTestWalker(created);
                 if (!isHulk(created)) apply(created);
-                plugin.budget().tag(created);
+                if (!force) plugin.budget().tag(created);
                 plugin.visuals().attachSoon(created);
             });
-            return "Spawned test Hulk " + zombie.getUniqueId() + " at three-block target scale.";
+            return (force ? "DEV FORCE: spawned uncounted test " : "Spawned test Hulk " + zombie.getUniqueId() + " at three-block target scale.";
         } catch (RuntimeException failure) {
-            plugin.budget().rollback();
+            if (!force) plugin.budget().rollback();
             return "Test Hulk spawn failed: " + failure.getMessage();
         }
     }
