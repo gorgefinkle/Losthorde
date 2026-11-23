@@ -485,7 +485,7 @@ final class HordeManager {
                 if(!save())return made;
                 try {
                     Zombie zombie=w.spawn(new Location(w,x+0.5,y,z+0.5),Zombie.class,created -> {
-                        plugin.markWalker(created);
+                        plugin.markHordeWalker(created);
                         plugin.budget().tag(created);
                         created.getPersistentDataContainer().set(hordeTag,PersistentDataType.STRING,h.id().toString());
                     });
