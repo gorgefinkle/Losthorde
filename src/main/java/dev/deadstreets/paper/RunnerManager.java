@@ -80,7 +80,7 @@ final class RunnerManager {
         }
         if (destination == null) {
             if (!force) plugin.budget().rollback();
-            return "No safe spawn position found in already-loaded nearby chunks.");
+            return "No safe spawn position found in already-loaded nearby chunks.";
         }
         try {
             Zombie zombie = destination.getWorld().spawn(destination, Zombie.class, created -> {
@@ -89,7 +89,7 @@ final class RunnerManager {
                 if (!force) plugin.budget().tag(created);
                 plugin.visuals().attachSoon(created);
             });
-            return (force ? "DEV FORCE: spawned uncounted test " : "Spawned test Runner " + zombie.getUniqueId() + " nearby.";
+            return (force ? "DEV FORCE: spawned uncounted test Runner " : "Spawned test Runner ") + zombie.getUniqueId() + " nearby.";
         } catch (RuntimeException failure) {
             if (!force) plugin.budget().rollback();
             return "Test Runner spawn failed: " + failure.getMessage();
