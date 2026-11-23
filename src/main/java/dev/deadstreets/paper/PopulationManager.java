@@ -12,7 +12,6 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.io.BufferedReader;
@@ -141,8 +140,10 @@ final class PopulationManager {
         }
     }
     private void activate(Chunk chunk, boolean fromChunkLoad) {
-        Plugin metropolis=Bukkit.getPluginManager().getPlugin("Metropolis");
-        if(metropolis==null || !metropolis.isEnabled() || !chunk.isEntitiesLoaded()) return;
+        // The exporter is deliberately independent of this plugin. Dead Streets reads
+        // the durable sidecar from the sibling Metropolis data folder even when the
+        // Metropolis plugin is absent or disabled after world generation.
+        if(!chunk.isEntitiesLoaded()) return;
         if(!plugin.isUnobserved(chunk)) {deferredObserved++;scheduleLateRetry(new ChunkRef(chunk.getWorld().getUID(),chunk.getX(),chunk.getZ()),System.currentTimeMillis());return;}
         resetBudget();
         if(remainingBudget<=0) {enqueue(chunk);return;}
@@ -154,8 +155,8 @@ final class PopulationManager {
         int cx=chunk.getX(),cz=chunk.getZ();
         var unique=new HashSet<String>();
         List<MetropolisFlag> flags=new ArrayList<>();
-        Path root=metropolis.getDataFolder().toPath().resolve("deadstreets-build-flags-v1")
-                .resolve(w.getUID().toString());
+        Path metropolisData=plugin.getDataFolder().toPath().getParent().resolve("Metropolis");
+        Path root=metropolisData.resolve("deadstreets-build-flags-v1").resolve(w.getUID().toString());
         for(int rx=Math.floorDiv(cx,32)-1;rx<=Math.floorDiv(cx,32)+1;rx++)
             for(int rz=Math.floorDiv(cz,32)-1;rz<=Math.floorDiv(cz,32)+1;rz++)
                 flags.addAll(read(root.resolve(rx+"."+rz+".tsv")));
