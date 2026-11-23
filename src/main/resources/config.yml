@@ -3,6 +3,7 @@ scragglers:
   enabled: true
   assignment-chance: 0.12
   max-chunks-per-cycle: 32
+  max-wander-goals-per-tick: 16
 
 spawners:
   # Custom 30–60s proximity waves for converted spawners. Off leaves converted vanilla zombie spawners operating normally.

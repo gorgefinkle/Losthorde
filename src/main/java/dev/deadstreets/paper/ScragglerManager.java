@@ -31,6 +31,8 @@ final class ScragglerManager {
     private final ArrayDeque<Noise> noises=new ArrayDeque<>();
     private BukkitTask task;
     private int cursor;
+    private int goalBudgetTick=-1;
+    private int remainingGoalBudget;
     private long goals;
     private long joins;
     private long skipped;
@@ -78,9 +80,20 @@ final class ScragglerManager {
             if(zombie.getTarget()!=null||zombie.isDead())continue;
             Location destination=chooseDestination(zombie);
             if(destination==null){skipped++;continue;}
+            if(!claimGoalBudget())continue;
             try{zombie.getPathfinder().moveTo(destination,0.82);goals++;}
             catch(RuntimeException failure){skipped++;}
         }
+    }
+    private boolean claimGoalBudget(){
+        int tick=Bukkit.getCurrentTick();
+        if(tick!=goalBudgetTick){
+            goalBudgetTick=tick;
+            remainingGoalBudget=Math.max(1,Math.min(128,plugin.getConfig().getInt("scragglers.max-wander-goals-per-tick",16)));
+        }
+        if(remainingGoalBudget<=0)return false;
+        remainingGoalBudget--;
+        return true;
     }
     private Location chooseDestination(Zombie zombie){
         World world=zombie.getWorld();Location origin=zombie.getLocation();long now=System.currentTimeMillis();
