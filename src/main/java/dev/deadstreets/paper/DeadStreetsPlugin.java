@@ -131,7 +131,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         // Vanilla spawner behavior is governed by vanilla-spawners.mode. In CONVERT_TO_ZOMBIES,
         // the spawner block itself is changed to ZOMBIE. When the proximity controller is enabled,
         // it owns the wave timing and cancels the vanilla SPAWNER event to prevent double waves.
-        if (event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.NATURAL) {
+        if (event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.NATURAL || event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.CHUNK_GEN) {
             if(getConfig().getBoolean("zombies.stop-natural-zombie-spawns",false)) {
                 event.setCancelled(true);return;
             }
@@ -156,7 +156,8 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         }
     }
     private boolean allowNaturalMob(CreatureSpawnEvent event) {
-        if (event.getSpawnReason() != CreatureSpawnEvent.SpawnReason.NATURAL) return true;
+        if (event.getSpawnReason() != CreatureSpawnEvent.SpawnReason.NATURAL
+                && event.getSpawnReason() != CreatureSpawnEvent.SpawnReason.CHUNK_GEN) return true;
         EntityType type=event.getEntityType();
         String key=null;
         if (type==EntityType.SKELETON || type==EntityType.STRAY || type==EntityType.BOGGED) key="skeletons";
