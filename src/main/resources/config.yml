@@ -11,6 +11,11 @@ blood-moon:
   # Runtime switch: BOSSBAR or SCOREBOARD. Command:
   # /deadstreets bloodmoon display <bossbar|scoreboard>
   display-mode: BOSSBAR
+  # Optional additive client pack; only Dead Streets' own UUID is removed at event end.
+  moon-pack:
+    enabled: true
+    url: "https://cdn.modrinth.com/data/p9sqIz3S/versions/M6uWxUGK/BloodMoon%20-%20Texture%281.21.9-1.21.11%29.zip"
+    sha1: ""
   wave-interval-seconds: 90
   groups-per-wave: 2
   group-min-population: 100
