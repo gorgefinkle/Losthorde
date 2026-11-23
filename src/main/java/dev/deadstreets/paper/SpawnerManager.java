@@ -50,6 +50,7 @@ public final class SpawnerManager {
     }
     private final DeadStreetsPlugin plugin;
     private final NamespacedKey originalTypeKey;
+    private final NamespacedKey countdownDisplayKey;
     private final Map<SpawnerId,Managed> tracked = new HashMap<>();
     private final Map<String,String> checkpoints = new HashMap<>();
     private final SplittableRandom random = new SplittableRandom();
@@ -58,7 +59,11 @@ public final class SpawnerManager {
     private int scanCursor;
     private record ScanKey(UUID world,int cx,int cz) {}
     private final Map<ScanKey,Long> recentlyScanned = new HashMap<>();
-    SpawnerManager(DeadStreetsPlugin plugin) { this.plugin=plugin;this.originalTypeKey=new NamespacedKey(plugin,"vanilla_spawner_original_type"); }
+    SpawnerManager(DeadStreetsPlugin plugin) {
+        this.plugin=plugin;
+        this.originalTypeKey=new NamespacedKey(plugin,"vanilla_spawner_original_type");
+        this.countdownDisplayKey=new NamespacedKey(plugin,"spawner_countdown_display");
+    }
     int size() { return tracked.size(); }
     void start() {
         readCheckpoints();
@@ -283,7 +288,9 @@ public final class SpawnerManager {
     private void updateDisplay(Managed m,Location center,SpawnerCycle.Result state) {
         if(m.countdown==null || !m.countdown.isValid()) {
             m.countdown=center.getWorld().spawn(center.clone().add(0,1.35,0),TextDisplay.class);
-            m.countdown.setPersistent(false);m.countdown.setBillboard(Display.Billboard.CENTER);
+            m.countdown.setPersistent(false);
+            m.countdown.getPersistentDataContainer().set(countdownDisplayKey,PersistentDataType.BYTE,(byte)1);
+            m.countdown.setBillboard(Display.Billboard.CENTER);
             m.countdown.setShadowed(true);
         }
         long seconds=state.remainingSeconds();
