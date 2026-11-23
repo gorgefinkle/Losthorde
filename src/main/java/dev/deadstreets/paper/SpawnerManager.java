@@ -69,7 +69,6 @@ public final class SpawnerManager {
         writeCheckpoints();
     }
     void onChunkLoad(Chunk chunk) {
-        if (!plugin.getConfig().getBoolean("spawners.enabled",true)) return;
         for (BlockState tile : chunk.getTileEntities()) {
             if (tile instanceof CreatureSpawner) prepareSpawner(tile.getBlock());
         }
@@ -84,7 +83,8 @@ public final class SpawnerManager {
             spawner.setSpawnedType(EntityType.ZOMBIE);
             spawner.update(true,false);
         }
-        if (block.getState() instanceof CreatureSpawner spawner && spawner.getSpawnedType()==EntityType.ZOMBIE) register(block);
+        if (plugin.getConfig().getBoolean("spawners.enabled",true)
+                && block.getState() instanceof CreatureSpawner spawner && spawner.getSpawnedType()==EntityType.ZOMBIE) register(block);
     }
     private void register(Block block) {
         var id = id(block);
