@@ -219,7 +219,11 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             walkerBudget.onDeath(zombie);
         }
     }
-    @EventHandler public void onQuit(PlayerQuitEvent event) { hordes.forgetPlayer(event.getPlayer().getUniqueId());observation.forget(event.getPlayer().getUniqueId()); }
+    @EventHandler public void onQuit(PlayerQuitEvent event) {
+        hordes.forgetPlayer(event.getPlayer().getUniqueId());
+        observation.forget(event.getPlayer().getUniqueId());
+        if (bloodMoon != null) bloodMoon.onPlayerQuit(event.getPlayer());
+    }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void onTeleport(PlayerTeleportEvent event) {
         observeTeleport(event.getPlayer(),event.getTo());
     }
@@ -268,6 +272,24 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
                 + " | quota="+walkerBudget.reserved()+"/"+walkerBudget.maximum()+" denied="+walkerBudget.denied()+" | " + hordes.status() + " | " + scragglers.status() + " | " + bloodMoon.status() + " | Metropolis: " + (population.enabled()?population.status():"activation disabled"));
             return true;
         }
+        if (args.length >= 2 && args[0].equalsIgnoreCase("bloodmoon")) {
+            if (args[1].equalsIgnoreCase("display")) {
+                if (args.length == 2) {
+                    sender.sendMessage(ChatColor.RED + "Blood Moon display: " + bloodMoon.displayModeName()
+                            + " | Use /deadstreets bloodmoon display <bossbar|scoreboard>");
+                } else if (args.length == 3 && bloodMoon.setDisplayMode(args[2])) {
+                    sender.sendMessage(ChatColor.RED + "Blood Moon display switched to "
+                            + bloodMoon.displayModeName() + ".");
+                } else {
+                    sender.sendMessage(ChatColor.RED + "Use /deadstreets bloodmoon display <bossbar|scoreboard>");
+                }
+                return true;
+            }
+            if (args[1].equalsIgnoreCase("status")) {
+                sender.sendMessage(ChatColor.GRAY + bloodMoon.status());
+                return true;
+            }
+        }
         if (args.length >= 2 && args[0].equalsIgnoreCase("horde")) {
             if (args[1].equalsIgnoreCase("status")) {sender.sendMessage(ChatColor.GRAY+hordes.status());return true;}
             if(args[1].equalsIgnoreCase("tp") && sender instanceof Player player) {
@@ -301,34 +323,42 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             } catch (IllegalArgumentException ex) { sender.sendMessage(ChatColor.RED+"Use /deadstreets testwarning <1..1000000> <docile|restless|agitated|frenzied>"); }
             return true;
         }
-        sender.sendMessage(ChatColor.RED+"Usage: /deadstreets [status|flags|horde status|horde spawn <population> <temperament>|horde tp [uuid]|testwarning <population> <temperament>]");
+        sender.sendMessage(ChatColor.RED+"Usage: /deadstreets [status|flags|bloodmoon display <bossbar|scoreboard>|bloodmoon status|horde status|horde spawn <population> <temperament>|horde tp [uuid]|testwarning <population> <temperament>]");
         return true;
     }
+    public void showTitleNotice(Player player, String title, String subtitle) {
+        player.sendTitle(title, subtitle,
+                getConfig().getInt("warnings.fade-in-ticks", 10),
+                getConfig().getInt("warnings.stay-ticks", 70),
+                getConfig().getInt("warnings.fade-out-ticks", 15));
+    }
+
     public void showWarning(Player player, DangerRating rating) {
-        showWarning(player,rating,"Unknown",-1);
+        showWarning(player, rating, "Unknown", -1);
     }
-    public void showWarning(Player player,DangerRating rating,String direction) {
-        showWarning(player,rating,direction,-1);
+
+    public void showWarning(Player player, DangerRating rating, String direction) {
+        showWarning(player, rating, direction, -1);
     }
-    public void showWarning(Player player,DangerRating rating,String direction,int etaSeconds) {
-        ChatColor color = switch(rating.level()) {
+
+    public void showWarning(Player player, DangerRating rating, String direction, int etaSeconds) {
+        ChatColor color = switch (rating.level()) {
             case LOW -> ChatColor.GREEN;
             case MODERATE -> ChatColor.YELLOW;
             case HIGH -> ChatColor.GOLD;
             case EXTREME -> ChatColor.RED;
         };
-        String eta=etaSeconds<0?"ETA Unknown":("ETA ~"+(etaSeconds>=60?(etaSeconds/60)+"m "+(etaSeconds%60)+"s":etaSeconds+"s"));
-        String alert = color + "[Dead Streets] HORDE APPROACHING"
-            + ChatColor.GRAY + " | From " + ChatColor.WHITE + direction
-            + ChatColor.GRAY + " | " + eta
-            + ChatColor.GRAY + " | Est. population: " + ChatColor.WHITE + rating.approximatePopulation()
-            + ChatColor.GRAY + " | Temperament: " + ChatColor.WHITE + rating.temperament().label()
-            + ChatColor.GRAY + " | Threat: " + color + rating.level().name();
-        // Chat is deliberately used instead of the shared title/action-bar/scoreboard HUD.
-        // This avoids replacing another plugin's transient overlay (including LOSTLootz).
-        player.sendMessage(alert);
-        if (getConfig().getBoolean("warnings.play-sound",true))
+        String eta = etaSeconds < 0 ? "ETA Unknown" : ("ETA ~"
+                + (etaSeconds >= 60 ? (etaSeconds / 60) + "m " + (etaSeconds % 60) + "s"
+                : etaSeconds + "s"));
+        String subtitle = ChatColor.WHITE + "From the " + direction + " | " + eta
+                + " | Est. Population: " + rating.approximatePopulation()
+                + ChatColor.GRAY + " | Temperament: " + ChatColor.WHITE + rating.temperament().label()
+                + ChatColor.GRAY + " | " + color + rating.level().name();
+        showTitleNotice(player, color + "HORDE APPROACHING", subtitle);
+        if (getConfig().getBoolean("warnings.play-sound", true)) {
             player.playSound(player.getLocation(), Sound.ENTITY_ZOMBIE_AMBIENT,
-                SoundCategory.HOSTILE, 0.75f, 0.60f);
+                    SoundCategory.HOSTILE, 0.75f, 0.60f);
+        }
     }
 }
