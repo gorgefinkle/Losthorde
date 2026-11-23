@@ -9,7 +9,7 @@ softdepend: [Metropolis]
 commands:
   deadstreets:
     description: Dead Streets admin testing and diagnostics
-    usage: /deadstreets [status|flags|horde status|horde spawn <population> <temperament>|horde tp [uuid]|testwarning <population> <temperament>]
+    usage: /deadstreets [status|flags|bloodmoon display <bossbar|scoreboard>|bloodmoon status|horde status|horde spawn <population> <temperament>|horde tp [uuid]|testwarning <population> <temperament>]
     permission: deadstreets.admin
 permissions:
   deadstreets.admin:
