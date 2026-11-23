@@ -103,7 +103,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         population.start();
         hordes.start();
         scragglers.start();
-        getLogger().info("R06: repaired experimental horde arrival, observation and durable quotas; opt-in.");
+        getLogger().info("Dead Streets R08: persistent populations, migrating hordes, scragglers and apocalypse spawn policy.");
     }
     @Override public void onDisable() {
         if (spawners != null) spawners.stop();
@@ -242,7 +242,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     }
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0 || args[0].equalsIgnoreCase("status")) {
-            sender.sendMessage(ChatColor.GRAY + "Dead Streets R06 | managed spawners: " + spawners.size()
+            sender.sendMessage(ChatColor.GRAY +  "Dead Streets R08 | managed spawners: " + spawners.size()
                 + " | quota="+walkerBudget.reserved()+"/"+walkerBudget.maximum()+" denied="+walkerBudget.denied()+" | " + hordes.status() + " | " + scragglers.status() + " | Metropolis: " + (population.enabled()?population.status():"activation disabled"));
             return true;
         }
