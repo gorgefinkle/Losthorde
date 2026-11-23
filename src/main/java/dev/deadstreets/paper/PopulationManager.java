@@ -123,8 +123,8 @@ final class PopulationManager {
             if (!plugin.isUnobserved(chunk)) { deferredObserved++; scheduleLateRetry(key,System.currentTimeMillis()); continue; }
             activate(chunk,false);
         }
-        // Entries declined because players saw the area are reconsidered on a future chunk load.
-        // No continuously repeated scanning of observed chunks.
+        // Observed chunks are retried at a bounded, low frequency until the guard clears.
+        // No tight-loop scanning of player-visible terrain.
     }
     private void scheduleLateRetry(ChunkRef ref,long now) {
         int retryCap=Math.max(128,Math.min(8192,plugin.getConfig().getInt("population.activation.max-late-retries",2048)));
@@ -148,9 +148,7 @@ final class PopulationManager {
         // The exporter may finish a BUILD after the first chunk-load callback. Retry
         // currently loaded chunks at low frequency while they remain unobserved.
         ChunkRef ref = new ChunkRef(chunk.getWorld().getUID(),chunk.getX(),chunk.getZ());
-        int retryCap=Math.max(128,Math.min(8192,plugin.getConfig().getInt("population.activation.max-late-retries",2048)));
-        if(lateRetry.size()<retryCap)lateRetry.put(ref,System.currentTimeMillis()+1000L*Math.max(3,Math.min(600,
-            plugin.getConfig().getInt("population.activation.late-retry-seconds",30))));
+        scheduleLateRetry(ref,System.currentTimeMillis());
         World w=chunk.getWorld();
         int cx=chunk.getX(),cz=chunk.getZ();
         var unique=new HashSet<String>();
