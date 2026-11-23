@@ -1,4 +1,15 @@
-# Dead Streets R08: persistent scragglers, larger migrating hordes, building populations, vanilla mob policy.
+# Dead Streets R08: persistent scragglers, migrating hordes, Blood Moon events, building populations and vanilla mob policy.
+blood-moon:
+  enabled: true
+  # Every N in-game days, the selected night becomes a Blood Moon.
+  every-days: 7
+  # Daytime warning appears before nightfall; waves begin after 13000 ticks.
+  waves: 3
+  wave-interval-seconds: 90
+  groups-per-wave: 2
+  group-min-population: 100
+  group-max-population: 180
+
 scragglers:
   enabled: true
   assignment-chance: 0.12
