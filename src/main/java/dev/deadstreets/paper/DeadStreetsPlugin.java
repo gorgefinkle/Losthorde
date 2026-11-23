@@ -152,7 +152,10 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         boolean eligibleSpecial = hordeSpawn
                 || zombie.getPersistentDataContainer().has(scragglerTag, PersistentDataType.BYTE);
         if (eligibleSpecial) {
-            boolean assigned = runners != null && runners.isRunner(zombie);
+            boolean assigned = (runners != null && runners.isRunner(zombie))
+                    || (poppers != null && poppers.isPopper(zombie))
+                    || (crawlers != null && crawlers.isCrawler(zombie))
+                    || (hulks != null && hulks.isHulk(zombie));
             if (!assigned && runners != null) { runners.assign(zombie); assigned = runners.isRunner(zombie); }
             if (!assigned && poppers != null) { poppers.assign(zombie); assigned = poppers.isPopper(zombie); }
             if (!assigned && crawlers != null) { crawlers.assign(zombie); assigned = crawlers.isCrawler(zombie); }
