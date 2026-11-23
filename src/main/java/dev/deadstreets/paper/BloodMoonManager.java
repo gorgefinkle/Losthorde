@@ -37,6 +37,7 @@ final class BloodMoonManager {
         long warnedDay = Long.MIN_VALUE;
         long activeDay = Long.MIN_VALUE;
         long nextWaveAt;
+        long endsAtWorldTime;
         int wavesSent;
         BossBar bar;
     }
@@ -114,6 +115,10 @@ final class BloodMoonManager {
             }
 
             if (state.activeDay == day) {
+                if (state.endsAtWorldTime > 0 && fullTime >= state.endsAtWorldTime) {
+                    end(world, state);
+                    continue;
+                }
                 updateBar(world, state, maxWaves);
                 if (state.wavesSent < maxWaves && now >= state.nextWaveAt) {
                     int created = sendWave(world, state);
@@ -137,6 +142,7 @@ final class BloodMoonManager {
         state.activeDay = day;
         state.wavesSent = 0;
         state.nextWaveAt = now;
+        state.endsAtWorldTime = world.getFullTime() + durationTicks();
         saveState();
         state.bar = Bukkit.createBossBar(ChatColor.DARK_RED + "BLOOD MOON  •  HORDES INBOUND",
                 BarColor.RED, BarStyle.SEGMENTED_10);
@@ -183,15 +189,25 @@ final class BloodMoonManager {
         return created;
     }
 
+    private long durationTicks() {
+        long minutes = Math.max(3, Math.min(30, plugin.getConfig().getLong("blood-moon.duration-minutes", 10)));
+        return minutes * 60L * 20L;
+    }
+
     private void updateBar(World world, WorldEvent state, int maxWaves) {
         if (state.bar == null) {
             state.bar = Bukkit.createBossBar(ChatColor.DARK_RED + "BLOOD MOON  •  HORDES INBOUND",
                     BarColor.RED, BarStyle.SEGMENTED_10);
         }
         for (Player player : world.getPlayers()) if (!state.bar.getPlayers().contains(player)) state.bar.addPlayer(player);
-        state.bar.setTitle(ChatColor.DARK_RED + "BLOOD MOON  •  WAVE " + Math.min(maxWaves, state.wavesSent)
-                + "/" + maxWaves);
-        state.bar.setProgress(Math.max(0.0, Math.min(1.0, 1.0 - (double) state.wavesSent / maxWaves)));
+        long remainingTicks = Math.max(0L, state.endsAtWorldTime - world.getFullTime());
+        long remainingSeconds = (remainingTicks + 19L) / 20L;
+        String remaining = String.format(java.util.Locale.ROOT, "%02d:%02d",
+                remainingSeconds / 60L, remainingSeconds % 60L);
+        state.bar.setTitle(ChatColor.DARK_RED + "BLOOD MOON  •  WAVE "
+                + Math.min(maxWaves, state.wavesSent) + "/" + maxWaves
+                + ChatColor.RED + "  •  ENDS IN " + remaining);
+        state.bar.setProgress(Math.max(0.0, Math.min(1.0, (double) remainingTicks / durationTicks())));
     }
 
     private void end(World world, WorldEvent state) {
@@ -205,6 +221,7 @@ final class BloodMoonManager {
             }
         }
         state.activeDay = Long.MIN_VALUE;
+        state.endsAtWorldTime = 0L;
         state.wavesSent = 0;
         saveState();
     }
@@ -220,14 +237,15 @@ final class BloodMoonManager {
                 if (line.isBlank() || line.startsWith("#")) continue;
                 if (++count > 10_000) throw new IOException("Blood Moon state exceeds record limit");
                 String[] p = line.split("\\|", -1);
-                if (p.length != 5) continue;
+                if (p.length != 6) continue;
                 try {
                     UUID id = UUID.fromString(p[0]);
                     WorldEvent state = worlds.computeIfAbsent(id, ignored -> new WorldEvent());
                     state.warnedDay = Long.parseLong(p[1]);
                     state.activeDay = Long.parseLong(p[2]);
                     state.nextWaveAt = Long.parseLong(p[3]);
-                    state.wavesSent = Math.max(0, Math.min(8, Integer.parseInt(p[4])));
+                    state.endsAtWorldTime = Long.parseLong(p[4]);
+                    state.wavesSent = Math.max(0, Math.min(8, Integer.parseInt(p[5])));
                 } catch (RuntimeException malformed) {
                     plugin.getLogger().warning("Ignoring malformed Blood Moon state record");
                 }
@@ -243,11 +261,11 @@ final class BloodMoonManager {
             Files.createDirectories(file.getParent());
             Path tmp = file.resolveSibling("blood-moon-state-v1.txt.tmp");
             List<String> lines = new ArrayList<>();
-            lines.add("# world UUID | warned day | active day | next wave epoch ms | waves sent");
+            lines.add("# world UUID | warned day | active day | next wave epoch ms | end world tick | waves sent");
             for (Map.Entry<UUID, WorldEvent> entry : worlds.entrySet()) {
                 WorldEvent state = entry.getValue();
                 lines.add(entry.getKey() + "|" + state.warnedDay + "|" + state.activeDay + "|"
-                        + state.nextWaveAt + "|" + state.wavesSent);
+                        + state.nextWaveAt + "|" + state.endsAtWorldTime + "|" + state.wavesSent);
             }
             Files.write(tmp, lines, StandardCharsets.UTF_8);
             try { Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE); }
