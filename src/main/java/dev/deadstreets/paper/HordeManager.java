@@ -85,9 +85,9 @@ final class HordeManager {
                 Math.max(10,plugin.getConfig().getLong("hordes.warning-reset-seconds",240))*1000L);
         for(World w:Bukkit.getWorlds()) for(Chunk c:w.getLoadedChunks()) onEntitiesLoad(c);
         long now=System.currentTimeMillis();
-        for(World w:Bukkit.getWorlds()) nextAmbient.put(w.getUID(),now + intervalMs());
+        for(World w:Bukkit.getWorlds()) nextAmbient.put(w.getUID(),now + Math.min(60_000L,intervalMs()));
         tickTask=Bukkit.getScheduler().runTaskTimer(plugin,this::tick,20,20);
-        plugin.getLogger().warning("R06 experimental migrating hordes ON: unobserved chunk activation only; use a backup world.");
+        plugin.getLogger().warning("R08 experimental migrating hordes ON: virtual population migrates independently; physical materialization remains visibility-guarded.");
     }
     void stop() {
         if(tickTask!=null) tickTask.cancel();
@@ -115,7 +115,7 @@ final class HordeManager {
         long now=System.currentTimeMillis();
         for(int attempt=0;attempt<40;attempt++) {
             double direction=random.nextDouble(0,Math.PI*2);
-            double distance=random.nextDouble(320,480);
+            double distance=random.nextDouble(280,360);
             double x=playerX+Math.cos(direction)*distance;
             double z=playerZ+Math.sin(direction)*distance;
             if(!candidateUnobserved(world,x,z)) continue;
@@ -169,7 +169,7 @@ final class HordeManager {
                 }
             }
         }
-        double speed=Math.max(0,Math.min(2.0,plugin.getConfig().getDouble("hordes.virtual-speed-blocks-per-second",0.75)));
+        double speed=Math.max(0,Math.min(2.0,plugin.getConfig().getDouble("hordes.virtual-speed-blocks-per-second",1.0)));
         long retireAfter=1000L*Math.max(600,plugin.getConfig().getLong("hordes.virtual-retire-after-seconds",1800));
         int budget=availableBudget();
         for(HordeState h:new ArrayList<>(hordes.values())) {
