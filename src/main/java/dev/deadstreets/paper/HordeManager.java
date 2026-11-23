@@ -497,10 +497,10 @@ final class HordeManager {
             if(!h.worldId().equals(world.getUID())||h.empty())continue;
             double dx=at.getX()-h.x(),dz=at.getZ()-h.z(),distance=dx*dx+dz*dz;
             HashSet<UUID> members=loadedPhysical.get(h.id());
-            if(members!=null)for(UUID id:members){Entity e=Bukkit.getEntity(id);if(e instanceof Zombie live&&live.isValid()){
+            if(members!=null){int inspected=0;for(UUID id:members){if(inspected++>=32)break;Entity e=Bukkit.getEntity(id);if(e instanceof Zombie live&&live.isValid()){
                 double pdx=at.getX()-live.getLocation().getX(),pdz=at.getZ()-live.getLocation().getZ();
                 distance=Math.min(distance,pdx*pdx+pdz*pdz);
-            }}
+            }}}
             if(distance<best){best=distance;nearest=h;}
         }
         if(nearest==null)return false;
