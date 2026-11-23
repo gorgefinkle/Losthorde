@@ -224,25 +224,25 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     @EventHandler public void onChunkUnload(ChunkUnloadEvent event) { spawners.onChunkUnload(event.getChunk()); population.onChunkUnload(event.getChunk()); }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void onBreak(BlockBreakEvent event) {
         spawners.onBreak(event.getBlock());
-        var at=event.getBlock().getLocation();hordes.sound(at.getWorld(),at.getX(),at.getZ(),0.75);
+        var at=event.getBlock().getLocation();hordes.sound(at.getWorld(),at.getX(),at.getZ(),0.75);scragglers.sound(at.getWorld(),at.getX(),at.getZ(),0.75);
     }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void onExplosion(EntityExplodeEvent event) {
-        var at=event.getLocation();hordes.sound(at.getWorld(),at.getX(),at.getZ(),2.5);
+        var at=event.getLocation();hordes.sound(at.getWorld(),at.getX(),at.getZ(),2.5);scragglers.sound(at.getWorld(),at.getX(),at.getZ(),2.5);
     }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void onBlockExplosion(BlockExplodeEvent event) {
-        var at=event.getBlock().getLocation();hordes.sound(at.getWorld(),at.getX(),at.getZ(),2.5);
+        var at=event.getBlock().getLocation();hordes.sound(at.getWorld(),at.getX(),at.getZ(),2.5);scragglers.sound(at.getWorld(),at.getX(),at.getZ(),2.5);
     }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void onInteract(PlayerInteractEvent event) {
         if(event.getAction()!=Action.RIGHT_CLICK_BLOCK || event.getClickedBlock()==null)return;
         if(event.getClickedBlock().getBlockData() instanceof Openable) {
-            var at=event.getClickedBlock().getLocation();hordes.sound(at.getWorld(),at.getX(),at.getZ(),0.65);
+            var at=event.getClickedBlock().getLocation();hordes.sound(at.getWorld(),at.getX(),at.getZ(),0.65);scragglers.sound(at.getWorld(),at.getX(),at.getZ(),0.65);
         }
     }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void onMovement(PlayerMoveEvent event) {
         if(!event.hasChangedBlock() || !event.getPlayer().isSprinting())return;
         long now=System.currentTimeMillis();
         if(hordes.sprintSoundDue(event.getPlayer().getUniqueId(),now)) {
-            var at=event.getTo();if(at!=null)hordes.sound(at.getWorld(),at.getX(),at.getZ(),0.50);
+            var at=event.getTo();if(at!=null){hordes.sound(at.getWorld(),at.getX(),at.getZ(),0.50);scragglers.sound(at.getWorld(),at.getX(),at.getZ(),0.50);}
         }
     }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void onPlace(BlockPlaceEvent event) {
