@@ -112,7 +112,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     }
     private boolean isOurs(Zombie zombie) {return isManagedWalker(zombie);}
     @EventHandler public void onSpawn(CreatureSpawnEvent event) {
-        if (!allowNaturalMob(event)) return;
+        if (!allowNaturalMob(event)) { event.setCancelled(true); return; }
         if (!(event.getEntity() instanceof Zombie zombie)) return;
         // Vanilla spawner behavior is governed by vanilla-spawners.mode. In CONVERT_TO_ZOMBIES,
         // the spawner block itself is changed to ZOMBIE; never cancel its resulting spawn here.
