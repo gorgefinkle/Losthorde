@@ -261,21 +261,35 @@ final class HordeManager {
             if(selected==null)return "No active horde exists in this world.";
         }
         final HordeState target=selected;
-        int cx=((int)Math.floor(target.x()))>>4,cz=((int)Math.floor(target.z()))>>4;
+        double targetX=target.x(),targetZ=target.z();
+        double anchorDistance=Math.hypot(player.getLocation().getX()-targetX,player.getLocation().getZ()-targetZ);
+        HashSet<UUID> members=loadedPhysical.get(target.id());
+        if(members!=null)for(UUID id:members) {
+            Entity entity=Bukkit.getEntity(id);
+            if(entity instanceof Zombie zombie&&zombie.isValid()&&zombie.getWorld().equals(player.getWorld())) {
+                Location at=zombie.getLocation();
+                if(Math.hypot(player.getLocation().getX()-at.getX(),player.getLocation().getZ()-at.getZ())<anchorDistance) {
+                    targetX=at.getX();targetZ=at.getZ();
+                    anchorDistance=Math.hypot(player.getLocation().getX()-targetX,player.getLocation().getZ()-targetZ);
+                }
+            }
+        }
+        final double destinationX=targetX,destinationZ=targetZ;
+        int cx=((int)Math.floor(destinationX))>>4,cz=((int)Math.floor(destinationZ))>>4;
         World world=player.getWorld();
         if(!world.isChunkLoaded(cx,cz)) {
             world.getChunkAtAsync(cx,cz,false,chunk -> Bukkit.getScheduler().runTask(plugin,() -> {
                 if(!player.isOnline())return;
                 if(chunk==null || !chunk.isLoaded()) { player.sendMessage(ChatColor.RED+"Horde area is not currently loaded; no terrain was generated."); return; }
-                Location safe=findHordeTeleportSpot(chunk,target.x(),target.z());
+                Location safe=findHordeTeleportSpot(chunk,destinationX,destinationZ);
                 if(safe==null) {player.sendMessage(ChatColor.RED+"No safe landing spot near this horde anchor.");return;}
-                player.teleport(safe);
+                if(!player.teleport(safe)){player.sendMessage(ChatColor.RED+"Teleport was cancelled.");return;}
                 player.sendMessage(ChatColor.YELLOW+"Teleported near horde "+target.id()+" (population "+target.population()+").");
             }));
         } else {
-            Location safe=findHordeTeleportSpot(world.getChunkAt(cx,cz),target.x(),target.z());
+            Location safe=findHordeTeleportSpot(world.getChunkAt(cx,cz),destinationX,destinationZ);
             if(safe==null)return "No safe landing spot near this horde anchor.";
-            player.teleport(safe);
+            if(!player.teleport(safe))return "Teleport was cancelled.";
             return "Teleported near horde "+target.id()+" (population "+target.population()+").";
         }
         return "Loading the horde's already-generated chunk; no new terrain will be generated.";
