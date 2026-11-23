@@ -29,6 +29,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -45,6 +47,9 @@ final class BloodMoonManager {
     private final DeadStreetsPlugin plugin;
     private final HordeManager hordes;
     private final Map<UUID, WorldEvent> worlds = new HashMap<>();
+    private static final UUID MOON_PACK_ID = UUID.fromString("7c95a6b4-1f2d-4c3b-9a10-6d5e2f8b4c71");
+    private static final String DEFAULT_MOON_PACK_URL = "https://cdn.modrinth.com/data/p9sqIz3S/versions/M6uWxUGK/BloodMoon%20-%20Texture%281.21.9-1.21.11%29.zip";
+    private final Set<UUID> moonPackPlayers = new HashSet<>();
     private BukkitTask task;
 
     private static final class WorldEvent {
@@ -76,6 +81,8 @@ final class BloodMoonManager {
 
     void stop() {
         if (task != null) task.cancel();
+        for (Player player : Bukkit.getOnlinePlayers()) removeMoonPack(player);
+        moonPackPlayers.clear();
         for (WorldEvent state : worlds.values()) clearDisplays(state);
         worlds.clear();
     }
@@ -127,6 +134,7 @@ final class BloodMoonManager {
     }
 
     void onPlayerQuit(Player player) {
+        moonPackPlayers.remove(player.getUniqueId());
         UUID id = player.getUniqueId();
         for (WorldEvent state : worlds.values()) {
             Scoreboard previous = state.previousScoreboards.remove(id);
@@ -151,7 +159,10 @@ final class BloodMoonManager {
     }
 
     private void tick() {
-        if (!plugin.getConfig().getBoolean("blood-moon.enabled", true)) return;
+        if (!plugin.getConfig().getBoolean("blood-moon.enabled", true)) {
+            for (Player player : Bukkit.getOnlinePlayers()) removeMoonPack(player);
+            return;
+        }
         int interval = intervalDays();
         int maxWaves = Math.max(1, Math.min(8, plugin.getConfig().getInt("blood-moon.waves", 3)));
         long waveIntervalTicks = Math.max(30, Math.min(300,
@@ -210,6 +221,42 @@ final class BloodMoonManager {
                 end(world, state);
             }
         }
+        syncMoonPackForOnlinePlayers();
+    }
+
+    private void syncMoonPackForOnlinePlayers() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            WorldEvent state = worlds.get(player.getWorld().getUID());
+            boolean shouldHave = state != null && state.activeDay != Long.MIN_VALUE && player.getWorld().getFullTime() < state.endsAtWorldTime;
+            if (shouldHave) applyMoonPack(player); else removeMoonPack(player);
+        }
+    }
+    private void applyMoonPack(Player player) {
+        if (!plugin.getConfig().getBoolean("blood-moon.moon-pack.enabled", true) || !moonPackPlayers.add(player.getUniqueId())) return;
+        String url = plugin.getConfig().getString("blood-moon.moon-pack.url", DEFAULT_MOON_PACK_URL);
+        if (url == null || url.isBlank()) { moonPackPlayers.remove(player.getUniqueId()); return; }
+        String hash = plugin.getConfig().getString("blood-moon.moon-pack.sha1", "");
+        byte[] sha1 = null;
+        if (hash != null && !hash.isBlank()) {
+            try {
+                if (!hash.matches("(?i)[0-9a-f]{40}")) throw new IllegalArgumentException("SHA-1 must be 40 hex characters");
+                sha1 = java.util.HexFormat.of().parseHex(hash);
+            } catch (IllegalArgumentException invalid) {
+                moonPackPlayers.remove(player.getUniqueId());
+                plugin.getLogger().warning("Invalid blood-moon.moon-pack.sha1: " + invalid.getMessage());
+                return;
+            }
+        }
+        try { player.addResourcePack(MOON_PACK_ID, url, sha1, "Optional Dead Streets Blood Moon moon texture. Other server packs are preserved.", false); }
+        catch (RuntimeException failure) {
+            moonPackPlayers.remove(player.getUniqueId());
+            plugin.getLogger().warning("Could not request Blood Moon texture pack for " + player.getName() + ": " + failure.getMessage());
+        }
+    }
+    private void removeMoonPack(Player player) {
+        if (!moonPackPlayers.remove(player.getUniqueId())) return;
+        try { player.removeResourcePack(MOON_PACK_ID); }
+        catch (RuntimeException failure) { plugin.getLogger().fine("Could not remove Blood Moon texture pack for " + player.getName() + ": " + failure.getMessage()); }
     }
 
     private void begin(World world, WorldEvent state, long day) {
