@@ -71,7 +71,7 @@ population:
     max-new-zombies-per-tick: 3
     max-per-build: 64
     cached-regions: 64
-    max-region-file-bytes: 4194304
+    max-region-file-bytes: 6291456
     max-region-records: 12000
     # Once-per-30s retries when Metropolis finishes a build after chunk loading.
     max-late-retries: 2048

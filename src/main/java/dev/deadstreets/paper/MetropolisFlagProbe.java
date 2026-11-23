@@ -34,7 +34,7 @@ final class MetropolisFlagProbe {
         try {
             for(int dx=-1;dx<=1;dx++)for(int dz=-1;dz<=1;dz++) {
                 Path file=directory.resolve((rx+dx)+"."+(rz+dz)+".tsv");
-                if(!Files.isRegularFile(file)||Files.size(file)>4*1024*1024L)continue;
+                if(!Files.isRegularFile(file)||Files.size(file)>6*1024*1024L)continue;
                 foundAny=true;
                 try (BufferedReader in = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
                     for(int rows=0;rows<12000;rows++) {
