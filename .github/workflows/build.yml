@@ -19,12 +19,12 @@ jobs:
       - name: Package full source
         run: |
           mkdir -p dist
-          cp target/DeadStreets_R08.jar dist/
-          git archive --format=zip --output=dist/DeadStreets_R08-source.zip HEAD
+          cp target/DeadStreets_R09.jar dist/
+          git archive --format=zip --output=dist/DeadStreets_R09-source.zip HEAD
       - name: Upload test build
         uses: actions/upload-artifact@v4
         with:
-          name: DeadStreets-R08-test-build
+          name: DeadStreets-R09-test-build
           path: dist/*
           if-no-files-found: error
           retention-days: 30
