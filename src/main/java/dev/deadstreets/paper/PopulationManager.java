@@ -177,6 +177,7 @@ final class PopulationManager {
                     Integer checkpoint=chunk.getPersistentDataContainer().get(key,PersistentDataType.INTEGER);
                     String journalKey=PopulationJournal.key(flag,chunk);
                     int cursor=Math.max(checkpoint==null?0:checkpoint,journal.cursor(journalKey));
+                    HashSet<String> usedInteriorLocations=new HashSet<>();
                     if(cursor>=assigned.size())continue;
                     // Progress is recorded BEFORE each attempted spawn. This permits large builds
                     // to use a strict global spawn budget without either duplicating earlier
@@ -184,7 +185,8 @@ final class PopulationManager {
                     while(cursor<assigned.size() && remainingBudget>0) {
                         var candidate=assigned.get(cursor++);
                         // An invalid location consumes the attempt without quota admission.
-                        Location at=findSafeStandingLocation(w,flag,candidate);
+                        Location at=findSafeStandingLocation(w,flag,candidate,usedInteriorLocations);
+                        if(at!=null)usedInteriorLocations.add(locationKey(at.getBlockX(),at.getBlockY(),at.getBlockZ()));
                         if(at==null) {
                             if(!journal.write(journalKey,cursor))return;
                             chunk.getPersistentDataContainer().set(key,PersistentDataType.INTEGER,cursor);
@@ -211,7 +213,7 @@ final class PopulationManager {
             }
     }
 
-    private Location findSafeStandingLocation(World world,MetropolisFlag flag,PopulationPlan.Candidate c) {
+    private Location findSafeStandingLocation(World world,MetropolisFlag flag,PopulationPlan.Candidate c,Set<String> used) {
         if(flag.interiorPointsProvided() && c.y()==-1) {
             if(!world.isChunkLoaded(c.x()>>4,c.z()>>4))return null;
             int minY=Math.max(world.getMinHeight()+2,flag.minY()+1),maxY=Math.min(world.getMaxHeight()-2,flag.maxY()-1);
@@ -226,7 +228,7 @@ final class PopulationManager {
                     Block feet=world.getBlockAt(x,y,z),head=world.getBlockAt(x,y+1,z),floor=world.getBlockAt(x,y-1,z);
                     if(!feet.isPassable()||!head.isPassable()||feet.isLiquid()||head.isLiquid()||!floor.getType().isSolid())continue;
                     boolean roof=false;for(int dy=2;dy<=Math.min(8,flag.maxY()-y);dy++)if(world.getBlockAt(x,y+dy,z).getType().isSolid()){roof=true;break;}
-                    if(roof)return new Location(world,x+.5,y,z+.5);
+                    if(roof&&!used.contains(locationKey(x,y,z)))return new Location(world,x+.5,y,z+.5);
                 }
             }
             return null;
@@ -236,7 +238,7 @@ final class PopulationManager {
             Block feet=world.getBlockAt(c.x(),c.y(),c.z()),head=world.getBlockAt(c.x(),c.y()+1,c.z()),floor=world.getBlockAt(c.x(),c.y()-1,c.z());
             if(!feet.isPassable()||!head.isPassable()||feet.isLiquid()||head.isLiquid()||!floor.getType().isSolid())return null;
             boolean roof=false;for(int dy=2;dy<=Math.min(8,flag.maxY()-c.y());dy++)if(world.getBlockAt(c.x(),c.y()+dy,c.z()).getType().isSolid()){roof=true;break;}
-            return roof?new Location(world,c.x()+.5,c.y(),c.z()+.5):null;
+            return roof&&!used.contains(locationKey(c.x(),c.y(),c.z()))?new Location(world,c.x()+.5,c.y(),c.z()+.5):null;
         }
         int minY=Math.max(world.getMinHeight()+2,flag.minY()+1),maxY=Math.min(world.getMaxHeight()-2,flag.maxY()-1);if(maxY<minY)return null;
         long noise=c.salt();int minX=Math.max(flag.minX(),c.chunkX()*16),maxX=Math.min(flag.maxX(),c.chunkX()*16+15),minZ=Math.max(flag.minZ(),c.chunkZ()*16),maxZ=Math.min(flag.maxZ(),c.chunkZ()*16+15);
@@ -244,6 +246,8 @@ final class PopulationManager {
             for(int step=0;step<span;step++){int y=minY+(yStart-minY+step)%span;Block feet=world.getBlockAt(x,y,z),head=world.getBlockAt(x,y+1,z),floor=world.getBlockAt(x,y-1,z);if(feet.isPassable()&&head.isPassable()&&!feet.isLiquid()&&!head.isLiquid()&&floor.getType().isSolid())return new Location(world,x+.5,y,z+.5);}
         }return null;
     }
+
+    private static String locationKey(int x,int y,int z){return x+":"+y+":"+z;}
 
     private List<MetropolisFlag> read(Path path) {
         long now=System.currentTimeMillis();
