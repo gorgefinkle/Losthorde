@@ -5,6 +5,7 @@ scragglers:
   max-chunks-per-cycle: 32
 
 spawners:
+  # Custom 30–60s proximity waves for converted spawners. Off leaves converted vanilla zombie spawners operating normally.
   enabled: true
   activation-radius: 16
   wave-min: 2
@@ -39,6 +40,7 @@ vanilla-mobs:
 vanilla-spawners:
   # ALLOW_ALL leaves every vanilla spawner untouched. CONVERT_TO_ZOMBIES converts
   # every loaded/newly placed spawner to zombies while preserving its other settings.
+  # Returning to ALLOW_ALL restores the original mob type for spawners converted by this version.
   mode: ALLOW_ALL
 warnings:
   play-sound: true
