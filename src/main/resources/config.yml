@@ -50,16 +50,18 @@ zombies:
   # Durable global admission cap for NEW Dead Streets walkers, including offloaded chunks.
   max-total-managed-walkers: 3000
 vanilla-mobs:
+  # Non-zombie hostile mobs are blocked for every spawn reason except COMMAND and SPAWNER_EGG.
+  block-non-zombie-hostiles: true
   # Chance that each natural spawn is allowed through. 0.0 = disabled, 1.0 = vanilla rate.
   natural-spawn-chance:
-    skeletons: 0.05
-    creepers: 0.05
-    witches: 0.05
-    spiders: 0.10
+    skeletons: 0.0
+    creepers: 0.0
+    witches: 0.0
+    spiders: 0.0
     animals: 0.10
     villagers: 0.20
     ambient: 0.05
-    other_hostiles: 0.02
+    other_hostiles: 0.0
     other_creatures: 0.05
 vanilla-spawners:
   # ALLOW_ALL leaves every vanilla spawner untouched. CONVERT_TO_ZOMBIES converts
@@ -129,8 +131,25 @@ hordes:
     requests-per-second: 2
     ticket-seconds: 30
 
-# Rare special infected are only assigned to scraggler walkers and physical horde members.
+# Special infected are only assigned to scraggler walkers and physical horde members.
+# Each eligible walker receives at most one subtype.
 special-infected:
+  runner:
+    enabled: true
+    spawn-chance: 0.03
+    max-health: 26.0
+    movement-speed: 0.31
+    attack-damage: 5.5
+  popper:
+    enabled: true
+    spawn-chance: 0.02
+    max-health: 32.0
+    movement-speed: 0.13
+    attack-damage: 4.0
+    death-burst:
+      enabled: true
+      radius: 3.5
+      damage: 4.0
   hulk:
     enabled: true
     spawn-chance: 0.02
