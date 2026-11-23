@@ -224,10 +224,10 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         observeTeleport(event.getPlayer(),event.getTo());
     }
     @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true) public void onBloodMoonBedEnter(PlayerBedEnterEvent event) {
-        if (bloodMoon != null && bloodMoon.active(event.getPlayer().getWorld())) {
+        if (bloodMoon != null && bloodMoon.shouldBlockSleep(event.getPlayer().getWorld())) {
             event.setCancelled(true);
             event.getPlayer().sendMessage(ChatColor.DARK_RED + "[Dead Streets] " + ChatColor.RED
-                    + "You cannot sleep through a Blood Moon. Hold the shelter.");
+                    + "You cannot sleep through the Blood Moon tonight. Hold the shelter.");
         }
     }
     @EventHandler public void onJoin(PlayerJoinEvent event) {
