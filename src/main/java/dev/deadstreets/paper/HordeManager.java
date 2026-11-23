@@ -1,6 +1,7 @@
 package dev.deadstreets.paper;
 
 import dev.deadstreets.core.DangerRating;
+import dev.deadstreets.core.CompassDirection;
 import dev.deadstreets.core.HordeAlertGate;
 import dev.deadstreets.core.HordeArrivalPolicy;
 import dev.deadstreets.core.HordeState;
@@ -227,7 +228,7 @@ final class HordeManager {
                 }
                 // Shared horde, one alert per nearby player. Gate also ensures closing distance.
                 if(h.population()>0 && alertGate.observe(p.getUniqueId(),h.id(),dist,now)) {
-                    plugin.showWarning(p,DangerRating.calculate(h.population(),h.temperament()), approachDirection(p.getLocation().getX(),p.getLocation().getZ(),sourceX,sourceZ));
+                    plugin.showWarning(p,DangerRating.calculate(h.population(),h.temperament()), CompassDirection.from(p.getLocation().getX(),p.getLocation().getZ(),sourceX,sourceZ));
                     warningsSent++;
                 }
             }
@@ -238,20 +239,6 @@ final class HordeManager {
     }
     // Only virtual groups consume ambient migration slots. Fully-materialized
     // groups remain tracked for deaths/warnings but no longer block new migrations.
-    private static String approachDirection(double playerX,double playerZ,double sourceX,double sourceZ) {
-        double angle=Math.atan2(sourceX-playerX, playerZ-sourceZ);
-        int sector=(int)Math.floor((angle+Math.PI/8.0)/(Math.PI/4.0));
-        return switch(Math.floorMod(sector,8)) {
-            case 0 -> "North";
-            case 1 -> "North-East";
-            case 2 -> "East";
-            case 3 -> "South-East";
-            case 4 -> "South";
-            case 5 -> "South-West";
-            case 6 -> "West";
-            default -> "North-West";
-        };
-    }
     /** Admin-only diagnostic teleport. It never creates or force-generates terrain. */
     String teleportToHorde(Player player, String requestedId) {
         HordeState selected=null;
