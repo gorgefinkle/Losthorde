@@ -512,14 +512,14 @@ final class VisualManager implements Listener {
 
     void attach(Zombie zombie) {
         if (zombie == null || !zombie.isValid() || zombie.isDead()) return;
-        String type = plugin.specialVisualType(zombie);
-        if (type == null) return;
         if (!fmmReady) {
             // A crash may have saved the driver's hidden flag before FMM could
             // rebuild its model. Restore the vanilla body until FMM is ready.
             restoreVanillaBodyIfMarked(zombie);
             return;
         }
+        String type = plugin.specialVisualType(zombie);
+        if (type == null) return;
         String modelId = MODEL_IDS.get(type);
         if (modelId == null) return;
 
