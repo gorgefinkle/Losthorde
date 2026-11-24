@@ -2,20 +2,20 @@
 
 Experimental Paper 26.2 / Java 25 zombie population, migration, and special-infected plugin, with optional Metropolis BUILD population integration.
 
-**R14** introduces optional BetterModel 3.7.1 visuals for the horizontal Crawler and broad three-block Hulk, plus per-player aimed identity/health displays.
+**R15** introduces optional BetterModel 3.7.1 visuals for the horizontal Crawler and broad three-block Hulk, plus per-player aimed identity/health displays.
 
 ## Server requirements
 
 - Paper 26.2
 - Java 25
-- Dead Streets R14
+- Dead Streets R15
 - BetterModel 3.7.1 recommended for the custom Crawler and Hulk visuals (optional; vanilla fallback remains visible without it)
 
 BetterModel builds and delivers its own resource pack. Players must accept the pack to see the custom models. No client mod is required. Metropolis integration remains optional and file-based.
 
 ## Special infected
 
-- **Crawler:** Real Zombie gameplay entity with a fixed compact swimming-pose hitbox and a horizontal animated Blockbench model. The previous vanilla swimming pose alone rendered upright; R14 replaces that failed visual with BetterModel's deadstreets_crawler model and crawl animation.
+- **Crawler:** Real Zombie gameplay entity with a fixed compact swimming-pose hitbox and a horizontal animated Blockbench model. The previous vanilla swimming pose alone rendered upright; R15 corrects a visibility lifecycle bug: the plugin now lets BetterModel manage source-entity hiding and explicitly requests the model for current viewers. In-game rendering still requires client verification.
 - **Hulk:** Real Zombie with native scale 1.53846 and a measured three-block bounding box, plus a broad BetterModel zombie model and heavy_walk animation.
 - **Runner:** Retains its existing fast movement and combat tuning.
 - **Popper:** Retains its death burst, modest player damage, and release of 1–4 Crawlers.
