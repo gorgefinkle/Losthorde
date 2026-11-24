@@ -542,7 +542,7 @@ final class VisualManager implements Listener {
 
         AppearanceState appearance = rememberAppearance(zombie);
         PersistentDynamicEntity model = new PersistentDynamicEntity(modelId, zombie, fmmPlugin,
-                appearance, originalInvisibleKey, originalVisibleKey, fmmDynamicKey);
+                appearance, originalInvisibleKey, originalVisibleKey, originalGlowingKey, fmmDynamicKey);
         try {
             model.spawn(zombie);
             model.hideBackingEntity();
