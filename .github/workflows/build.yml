@@ -82,6 +82,43 @@ jobs:
           grep -F 'Native infected smoke test passed' logs/latest.log
           kill -TERM "$SERVER_PID" 2>/dev/null || true
           wait "$SERVER_PID" 2>/dev/null || true
+      - name: Download BetterModel 3.7.1
+        run: |
+          curl -fL 'https://github.com/toxicity188/BetterModel/releases/download/3.7.1/bettermodel-3.7.1-paper.jar' -o bettermodel.jar
+      - name: Run Paper 26.2 with BetterModel and validate imported assets
+        run: |
+          mkdir -p bettermodel-smoke/plugins
+          cp target/DeadStreets_R14.jar bettermodel-smoke/plugins/DeadStreets.jar
+          cp bettermodel.jar bettermodel-smoke/plugins/BetterModel.jar
+          echo 'eula=true' > bettermodel-smoke/eula.txt
+          cat > bettermodel-smoke/server.properties <<'EOF'
+          online-mode=false
+          server-port=25566
+          view-distance=4
+          simulation-distance=4
+          spawn-protection=0
+          EOF
+          cd bettermodel-smoke
+          java -Ddeadstreets.bettermodel-smoke=true -Xms1G -Xmx1G -jar ../paper.jar --nogui > server-console.log 2>&1 &
+          SERVER_PID=$!
+          READY=0
+          for attempt in $(seq 1 300); do
+            if grep -Fq 'BetterModel asset smoke test passed' logs/latest.log 2>/dev/null; then READY=1; break; fi
+            if grep -Eq 'Error occurred while enabling DeadStreets|NoClassDefFoundError|NoSuchMethodError|BetterModel did not import both' logs/latest.log 2>/dev/null; then break; fi
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [ "$READY" -ne 1 ]; then
+            cat server-console.log
+            cat logs/latest.log 2>/dev/null || true
+            kill "$SERVER_PID" 2>/dev/null || true
+            wait "$SERVER_PID" 2>/dev/null || true
+            exit 1
+          fi
+          grep -F 'BetterModel asset smoke test passed' logs/latest.log
+          kill -TERM "$SERVER_PID" 2>/dev/null || true
+          wait "$SERVER_PID" 2>/dev/null || true
+          cd ..
       - name: Package full source
         run: |
           mkdir -p dist
