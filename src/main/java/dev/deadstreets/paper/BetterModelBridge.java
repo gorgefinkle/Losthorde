@@ -144,7 +144,18 @@ final class BetterModelBridge {
         }
     }
 
-    void forgetEntity(Zombie zombie) {\n        Object tracker = trackers.remove(zombie.getUniqueId());\n        if (tracker != null) {\n            try { tracker.getClass().getMethod("close").invoke(tracker); }\n            catch (ReflectiveOperationException ignored) {}\n        }\n    }\n\n    void forgetChunk(org.bukkit.Chunk chunk) {\n        for (org.bukkit.entity.Entity entity : chunk.getEntities()) {\n            if (entity instanceof Zombie zombie) forgetEntity(zombie);\n        }\n    }\n\n    void refreshPlayer(Player player) {
+    void forgetEntity(Zombie zombie) {
+        // BetterModel owns death/unload animation and closes its tracker; only discard our handle.
+        trackers.remove(zombie.getUniqueId());
+    }
+
+    void forgetChunk(org.bukkit.Chunk chunk) {
+        for (org.bukkit.entity.Entity entity : chunk.getEntities()) {
+            if (entity instanceof Zombie zombie) forgetEntity(zombie);
+        }
+    }
+
+    void refreshPlayer(Player player) {
         for (UUID id : trackers.keySet()) {
             var entity = Bukkit.getEntity(id);
             if (entity instanceof Zombie zombie && zombie.isValid()) player.hideEntity(plugin, zombie);
