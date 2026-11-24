@@ -55,6 +55,7 @@ final class HulkManager {
     private void applyAttributes(Zombie zombie) {
         double scale = clamp(plugin.getConfig().getDouble("special-infected.hulk.scale", THREE_BLOCK_SCALE), 1.0, THREE_BLOCK_SCALE);
         set(zombie, Attribute.SCALE, scale);
+        refreshNativeDimensions(zombie);
         set(zombie, Attribute.MAX_HEALTH, clamp(plugin.getConfig().getDouble("special-infected.hulk.max-health", 50.0), 20.0, 200.0));
         set(zombie, Attribute.MOVEMENT_SPEED, clamp(plugin.getConfig().getDouble("special-infected.hulk.movement-speed", 0.16), 0.05, 0.30));
         set(zombie, Attribute.ATTACK_DAMAGE, clamp(plugin.getConfig().getDouble("special-infected.hulk.attack-damage", 12.0), 4.0, 40.0));
@@ -66,6 +67,23 @@ final class HulkManager {
         zombie.setPersistent(true);
         zombie.setRemoveWhenFarAway(false);
         zombie.setShouldBurnInDay(false);
+    }
+
+    /**
+     * Paper's attribute setter updates the scale attribute, but on the target 26.2
+     * runtime the Bukkit bounding box remained cached at vanilla dimensions. Ask the
+     * native entity to rebuild its dimensions after changing SCALE. Reflection keeps
+     * this plugin compile-time dependency-free while still using the server's own
+     * Entity.refreshDimensions implementation and synced scale attribute.
+     */
+    private static void refreshNativeDimensions(Zombie zombie) {
+        try {
+            Object handle = zombie.getClass().getMethod("getHandle").invoke(zombie);
+            java.lang.reflect.Method refresh = handle.getClass().getMethod("refreshDimensions");
+            refresh.invoke(handle);
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("Paper 26.2 could not refresh native Hulk dimensions", failure);
+        }
     }
 
     private static void set(Zombie zombie, Attribute attribute, double value) {
