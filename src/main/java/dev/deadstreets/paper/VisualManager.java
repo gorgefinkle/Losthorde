@@ -43,13 +43,78 @@ final class VisualManager implements Listener {
             "deadstreets_hulk.bbmodel"
     };
 
+    /**
+     * FMM normally removes a DynamicEntity's backing entity when FMM itself
+     * shuts down. That is correct for FMM-owned creatures but not for Dead
+     * Streets' persistent zombie drivers. This subclass keeps the zombie and
+     * restores its vanilla visibility whenever FMM reloads or Dead Streets
+     * detaches the visual.
+     */
+    private static final class PersistentDynamicEntity extends DynamicEntity {
+        private final Zombie zombie;
+        private final Plugin fmmPlugin;
+        private final boolean originalInvisible;
+        private final boolean originalVisibleByDefault;
+        private final String modelId;
+
+        PersistentDynamicEntity(String modelId, Zombie zombie, Plugin fmmPlugin) {
+            super(modelId, zombie.getLocation());
+            this.modelId = modelId;
+            this.zombie = zombie;
+            this.fmmPlugin = fmmPlugin;
+            this.originalInvisible = zombie.isInvisible();
+            this.originalVisibleByDefault = zombie.isVisibleByDefault();
+        }
+
+        boolean isAttachedTo(Zombie candidate, String expectedModelId) {
+            return zombie == candidate && modelId.equals(expectedModelId)
+                    && !isRemoved() && getUnderlyingEntity() == candidate;
+        }
+
+        void hideBackingEntity() {
+            boolean bedrockUsesUnderlying = getBedrockModeledEntity() != null
+                    && getBedrockModeledEntity().isAvailable()
+                    && getBedrockModeledEntity().isUsingUnderlyingEntity();
+            zombie.setVisibleByDefault(false);
+            zombie.setInvisible(!bedrockUsesUnderlying);
+            for (Player player : zombie.getWorld().getPlayers()) {
+                player.hideEntity(fmmPlugin, zombie);
+            }
+        }
+
+        private void restoreBackingEntity() {
+            if (!zombie.isValid()) return;
+            zombie.setVisibleByDefault(originalVisibleByDefault);
+            zombie.setInvisible(originalInvisible);
+            for (Player player : zombie.getWorld().getPlayers()) {
+                player.showEntity(fmmPlugin, zombie);
+            }
+        }
+
+        void detachKeepingZombie() {
+            if (isRemoved()) {
+                restoreBackingEntity();
+                return;
+            }
+            restoreBackingEntity();
+            // Protected FMM lifecycle hook, exposed only for this persistent
+            // driver integration. Unlike remove(), this never despawns the mob.
+            super.removeKeepingBody();
+        }
+
+        @Override
+        protected void shutdownRemove() {
+            detachKeepingZombie();
+        }
+    }
+
     private static final class Active {
         final Zombie zombie;
         final String type;
-        final DynamicEntity model;
+        final PersistentDynamicEntity model;
         boolean dying;
 
-        Active(Zombie zombie, String type, DynamicEntity model) {
+        Active(Zombie zombie, String type, PersistentDynamicEntity model) {
             this.zombie = zombie;
             this.type = type;
             this.model = model;
@@ -112,8 +177,8 @@ final class VisualManager implements Listener {
             return;
         }
 
-        // FMM invalidates its DynamicEntity instances on reload. Reacquire every
-        // model from the surviving Bukkit zombies instead of retaining stale refs.
+        // FMM's shutdown hook calls PersistentDynamicEntity.shutdownRemove(),
+        // which detaches the old model but deliberately preserves each zombie.
         active.clear();
         fmmReady = true;
         reloadRequested = false;
@@ -134,10 +199,11 @@ final class VisualManager implements Listener {
                 zombie.setSilent(true);
                 zombie.setInvulnerable(true);
             });
-            DynamicEntity model = null;
+            PersistentDynamicEntity model = null;
             try {
-                model = DynamicEntity.create(entry.getValue(), dummy);
-                if (model == null) throw new IllegalStateException("FMM refused model " + entry.getValue());
+                model = new PersistentDynamicEntity(entry.getValue(), dummy, fmmPlugin);
+                model.spawn(dummy);
+                model.hideBackingEntity();
                 if (!model.hasAnimation("idle") || !model.hasAnimation("damaged")
                         || !model.hasAnimation("attack") || !model.hasAnimation("death")) {
                     throw new IllegalStateException("Model " + entry.getValue() + " is missing a required state animation.");
@@ -167,23 +233,39 @@ final class VisualManager implements Listener {
         if (modelId == null) return;
 
         Active existing = active.get(zombie.getUniqueId());
-        if (existing != null && existing.type.equals(type) && !existing.model.isRemoved()) return;
+        if (existing != null && existing.type.equals(type) && existing.model.isAttachedTo(zombie, modelId)) return;
 
-        DynamicEntity model = DynamicEntity.create(modelId, zombie);
-        if (model == null) {
-            plugin.getLogger().severe("FreeMinecraftModels could not create " + modelId
-                    + " for infected entity " + zombie.getUniqueId());
+        DynamicEntity previous = DynamicEntity.getDynamicEntity(zombie);
+        if (previous instanceof PersistentDynamicEntity persistent) {
+            if (persistent.isAttachedTo(zombie, modelId)) {
+                active.put(zombie.getUniqueId(), new Active(zombie, type, persistent));
+                return;
+            }
+            persistent.detachKeepingZombie();
+        } else if (previous != null) {
+            plugin.getLogger().warning("Skipped " + zombie.getUniqueId()
+                    + ": another plugin already owns its FMM model attachment.");
             return;
         }
-        model.setClickSurface(true);
-        model.setDamagesOnContact(false);
-        String walk = switch (type) {
-            case "runner_husk" -> "run";
-            case "crawler_lowprofile" -> "crawl";
-            default -> "walk";
-        };
-        model.getAnimationComponent().setWalkAnimation(walk);
-        active.put(zombie.getUniqueId(), new Active(zombie, type, model));
+
+        PersistentDynamicEntity model = new PersistentDynamicEntity(modelId, zombie, fmmPlugin);
+        try {
+            model.spawn(zombie);
+            model.hideBackingEntity();
+            model.setClickSurface(true);
+            model.setDamagesOnContact(false);
+            String walk = switch (type) {
+                case "runner_husk" -> "run";
+                case "crawler_lowprofile" -> "crawl";
+                default -> "walk";
+            };
+            model.getAnimationComponent().setWalkAnimation(walk);
+            active.put(zombie.getUniqueId(), new Active(zombie, type, model));
+        } catch (RuntimeException | Error failure) {
+            if (!model.isRemoved()) model.detachKeepingZombie();
+            plugin.getLogger().severe("Could not attach FMM model " + modelId + ": " + failure.getMessage());
+            throw failure;
+        }
     }
 
     void attack(Zombie zombie) {
@@ -203,7 +285,6 @@ final class VisualManager implements Listener {
         Active visual = active.get(zombie.getUniqueId());
         if (visual == null || visual.dying) return;
         // FMM's own EntityDeathEvent listener starts removeWithDeathAnimation().
-        // Mark locally so no later action animation can race its terminal death pose.
         visual.dying = true;
     }
 
@@ -240,16 +321,8 @@ final class VisualManager implements Listener {
 
     void stop() {
         if (task != null) task.cancel();
-        if (fmmPlugin != null && fmmPlugin.isEnabled()) {
-            for (Active visual : active.values()) {
-                Zombie zombie = visual.zombie;
-                if (!zombie.isValid()) continue;
-                zombie.setVisibleByDefault(true);
-                for (Player player : zombie.getWorld().getPlayers()) {
-                    visual.model.hideFrom(player);
-                    player.showEntity(fmmPlugin, zombie);
-                }
-            }
+        for (Active visual : active.values()) {
+            visual.model.detachKeepingZombie();
         }
         active.clear();
     }
