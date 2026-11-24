@@ -37,11 +37,7 @@ jobs:
           cp target/DeadStreets_R12.jar plugins/DeadStreets.jar
           cp FreeMinecraftModels.jar plugins/FreeMinecraftModels.jar
           cp ResourcePackManager.jar plugins/ResourcePackManager.jar
-          # The smoke test validates import and rendering APIs without publishing a test pack.
-          cat > plugins/ResourcePackManager/config.yml <<'EOF'
-          autoHost: false
-          selfHostEnabled: false
-          EOF
+          # RSPM runs its normal merge/hosting path against the small test pack.
           echo 'eula=true' > eula.txt
           cat > server.properties <<'EOF'
           online-mode=false
