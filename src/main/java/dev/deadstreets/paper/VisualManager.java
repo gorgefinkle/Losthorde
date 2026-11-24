@@ -171,6 +171,8 @@ final class VisualManager implements Listener {
     private boolean reloadRequested;
     private boolean reloadFailed;
     private boolean modelAssetsChanged;
+    private boolean patchingPack;
+    private boolean patchPending;
 
     /**
      * Paper calls onLoad in dependency order. Stage the models before FMM's
@@ -280,11 +282,7 @@ final class VisualManager implements Listener {
         if (!Files.isRegularFile(published) || Files.size(published) == 0) {
             throw new IOException("The patched FreeMinecraftModels resource pack was not published.");
         }
-        boolean rspmReloaded = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "rspm reload");
-        if (!rspmReloaded) {
-            throw new IOException("ResourcePackManager did not accept /rspm reload; refusing to hide native infected.");
-        }
-        plugin.getLogger().info("Patched FMM model textures to use the four vanilla zombie-family client textures; removed bundled placeholder PNGs and refreshed RSPM.");
+        plugin.getLogger().info("Patched FMM model textures to use the four vanilla zombie-family client textures and removed bundled placeholder PNGs.");
     }
 
     private static int countOccurrences(String text, String needle) {
@@ -349,23 +347,50 @@ final class VisualManager implements Listener {
             }
             return;
         }
+        beginPackPatch();
+    }
 
-        try {
-            patchVanillaTextureReferences();
-        } catch (IOException failure) {
-            reloadFailed = true;
-            plugin.getLogger().severe("Could not republish FMM models with vanilla client textures: " + failure.getMessage());
+    /** Rewrites and zips the complete FMM pack off-thread, then publishes it on the server thread. */
+    private void beginPackPatch() {
+        if (patchingPack) {
+            patchPending = true;
             return;
         }
-
-        // FMM's shutdown hook calls PersistentDynamicEntity.shutdownRemove(),
-        // which detaches the old model but deliberately preserves each zombie.
-        active.clear();
-        fmmReady = true;
-        reloadRequested = false;
-        plugin.getLogger().info("FreeMinecraftModels loaded all four Dead Streets models.");
-        plugin.refreshLoadedZombies();
-        if (Boolean.getBoolean("deadstreets.model-smoke")) selfTest();
+        patchingPack = true;
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            String failureMessage = null;
+            try {
+                patchVanillaTextureReferences();
+            } catch (IOException failure) {
+                failureMessage = failure.getMessage();
+            }
+            final String result = failureMessage;
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                patchingPack = false;
+                if (!plugin.isEnabled()) return;
+                if (patchPending) {
+                    patchPending = false;
+                    beginPackPatch();
+                    return;
+                }
+                if (result != null) {
+                    reloadFailed = true;
+                    plugin.getLogger().severe("Could not republish FMM models with vanilla client textures: " + result);
+                    return;
+                }
+                boolean rspmReloaded = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "rspm reload");
+                if (!rspmReloaded) {
+                    reloadFailed = true;
+                    plugin.getLogger().severe("ResourcePackManager did not accept /rspm reload; native infected will remain visible.");
+                    return;
+                }
+                fmmReady = true;
+                reloadRequested = false;
+                plugin.getLogger().info("FreeMinecraftModels loaded all four Dead Streets models; vanilla-textured pack republished through RSPM.");
+                plugin.refreshLoadedZombies();
+                if (Boolean.getBoolean("deadstreets.model-smoke")) selfTest();
+            });
+        });
     }
 
     private void selfTest() {
