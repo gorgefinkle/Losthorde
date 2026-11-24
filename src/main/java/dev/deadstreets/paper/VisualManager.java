@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.StandardCopyOption;
 import java.nio.charset.StandardCharsets;
@@ -170,6 +171,28 @@ final class VisualManager implements Listener {
     private boolean reloadRequested;
     private boolean reloadFailed;
     private boolean modelAssetsChanged;
+
+    /**
+     * Paper calls onLoad in dependency order. Stage the models before FMM's
+     * onEnable starts its first asynchronous import, avoiding a needless full
+     * FMM reload on every fresh server start.
+     */
+    static void stageBeforeFmmStartup(Plugin source) {
+        Plugin fmm = Bukkit.getPluginManager().getPlugin("FreeMinecraftModels");
+        if (fmm == null) return;
+        try {
+            Path destination = fmm.getDataFolder().toPath().resolve("models").resolve("deadstreets");
+            Files.createDirectories(destination);
+            for (String file : MODEL_FILES) {
+                try (InputStream input = source.getResource("fmm/" + file)) {
+                    if (input == null) throw new IOException("Missing embedded model resource fmm/" + file);
+                    Files.copy(input, destination.resolve(file), StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        } catch (IOException failure) {
+            source.getLogger().severe("Could not stage FMM models before plugin startup: " + failure.getMessage());
+        }
+    }
 
     VisualManager(DeadStreetsPlugin plugin) {
         this.plugin = plugin;
