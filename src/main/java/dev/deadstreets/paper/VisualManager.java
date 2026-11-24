@@ -663,7 +663,12 @@ final class VisualManager implements Listener {
         Iterator<Map.Entry<UUID, Active>> iterator = active.entrySet().iterator();
         while (iterator.hasNext()) {
             Active visual = iterator.next().getValue();
-            if (!visual.zombie.isValid() || visual.zombie.isDead() || visual.model.isRemoved()) {
+            if (!visual.zombie.isValid() || visual.zombie.isDead()) {
+                iterator.remove();
+                continue;
+            }
+            if (visual.model.isRemoved()) {
+                visual.model.detachKeepingZombie();
                 iterator.remove();
                 continue;
             }
