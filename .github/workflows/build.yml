@@ -50,7 +50,7 @@ jobs:
           simulation-distance=4
           spawn-protection=0
           EOF
-          java -Xms1G -Xmx1G -jar paper.jar --nogui > server-console.log 2>&1 &
+          java -Ddeadstreets.model-smoke=true -Xms1G -Xmx1G -jar paper.jar --nogui > server-console.log 2>&1 &
           SERVER_PID=$!
           READY=0
           for attempt in $(seq 1 360); do
