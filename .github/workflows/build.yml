@@ -71,7 +71,7 @@ jobs:
           grep -F 'Dead Streets R12:' logs/latest.log
           python3 - <<'PY'
           from pathlib import Path
-          from zipfile import ZipFile
+          from zipfile import ZipFile\nimport json
 
           pack = Path("plugins/FreeMinecraftModels/output/FreeMinecraftModels.zip")
           expected = {
@@ -80,9 +80,29 @@ jobs:
               "deadstreets_crawler": "minecraft:entity/zombie/zombie",
               "deadstreets_hulk": "minecraft:entity/zombie/zombie",
           }
+          required_atlas = {
+              "minecraft:entity/zombie/zombie",
+              "minecraft:entity/zombie/husk",
+              "minecraft:entity/zombie/drowned",
+          }
           assert pack.is_file() and pack.stat().st_size > 0, "FMM pack ZIP missing"
           with ZipFile(pack) as archive:
               names = archive.namelist()
+              atlas_path = "assets/minecraft/atlases/blocks.json"
+              assert atlas_path in names, "FMM blocks atlas missing from pack"
+              atlas = json.loads(archive.read(atlas_path))
+              atlas_resources = {
+                  source.get("resource")
+                  for source in atlas.get("sources", [])
+                  if source.get("type") in ("single", "minecraft:single")
+              }
+              assert required_atlas <= atlas_resources, (
+                  f"Vanilla mob textures are not stitched into the display atlas: {required_atlas - atlas_resources}"
+              )
+              assert not any(
+                  str(resource).startswith("freeminecraftmodels:entity/deadstreets_")
+                  for resource in atlas_resources
+              ), "Stale Dead Streets placeholder atlas entries remain"
               for model_id, texture in expected.items():
                   prefix = f"assets/freeminecraftmodels/models/{model_id}/"
                   model_files = [name for name in names if name.startswith(prefix) and name.endswith(".json")]
@@ -92,7 +112,7 @@ jobs:
                   assert f"freeminecraftmodels:entity/{model_id}/" not in model_json, f"{model_id} still references placeholder namespace"
                   texture_prefix = f"assets/freeminecraftmodels/textures/entity/{model_id}/"
                   assert not any(name.startswith(texture_prefix) for name in names), f"{model_id} placeholder PNGs remain in pack"
-          print("FMM pack ZIP verified: all four vanilla texture references present; no bundled placeholder textures.")
+          print("FMM pack ZIP verified: all four model JSON references and all three vanilla atlas sprites are present; no placeholder textures remain.")
           PY
       - name: Package full source
         run: |
