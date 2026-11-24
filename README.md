@@ -2,7 +2,7 @@
 
 Experimental Paper 26.2 / Java 25 zombie population and migration plugin, with an optional file-based Metropolis BUILD population integration.
 
-**R12 is an active test build, not a production release.** It replaces the old block-display renderer with FreeMinecraftModels (FMM) and ResourcePackManager (RSPM). All four special infected now use articulated Blockbench geometry with zombie-family pixel textures: Husk Runner, Drowned Popper, zombie-textured Crawler, and zombie-textured three-block Hulk. The server-side zombie remains responsible for AI, pathfinding, collision, health, damage, and persistence.
+**R12.1 is an active test build, not a production release.** It replaces the old block-display renderer with FreeMinecraftModels (FMM) and ResourcePackManager (RSPM). All four special infected now use articulated Blockbench geometry with zombie-family pixel textures: Husk Runner, Drowned Popper, zombie-textured Crawler, and zombie-textured three-block Hulk. The server-side zombie remains responsible for AI, pathfinding, collision, health, damage, and persistence.
 
 ## Required server plugins
 
@@ -10,7 +10,7 @@ Install these three jars in `plugins/`:
 
 1. [FreeMinecraftModels 2.16.0](https://modrinth.com/plugin/free-minecraft-models) — imports and renders the articulated models.
 2. [ResourcePackManager 2.4.13](https://modrinth.com/plugin/resourcepackmanager) — merges and delivers the generated model pack.
-3. Dead Streets R12.
+3. Dead Streets R12.1.1.
 
 No client mods are needed. You do **not** need to create, upload, or host a pack yourself, and you do not need to download any third-party FMM content packs for these embedded models. FMM's current first-run guide asks administrators to run `/fmm initialize`, choose Recommended Setup and approve the server; follow that setup if the installed FMM release prompts for it. FMM generates the model pack; RSPM serves it from the server when reachable and falls back to its free remote hosting when necessary. Players who accept the server resource-pack prompt see the custom models; players who decline or are still downloading keep seeing the real vanilla zombie body instead of an invisible infected. If self-hosting cannot be verified, RSPM's remote fallback uploads the merged resource-pack ZIP plus a random server UUID and pack SHA-1 to MagmaGuy's hosting service; it does not upload world or player data. Its published policy says it does not log client downloads and deletes remote files within 24 hours after shutdown. If you do not want any external upload, RSPM can be configured for self-hosting only, but the server's pack port must be reachable by clients.
 
@@ -25,7 +25,7 @@ The editable source models live in `src/main/resources/fmm/`. During plugin load
 - **Crawler:** Low, elongated zombie-textured body; crawl locomotion, lunge attack, articulated hurt reaction and death.
 - **Hulk:** Broad, asymmetrical three-block zombie-textured brute; heavy walk, attack, roar, hurt reaction and death.
 
-The model files contain only a tiny transparent import placeholder. After FMM generates its pack, Dead Streets rewrites the model texture references to the matching vanilla client textures (zombie, husk, drowned) and strips the placeholder PNGs before RSPM republishes the pack; Mojang texture files are not bundled in the plugin or pack. The FMM models define the visual size and their hitbox bones. The hidden zombie drivers stay at unit scale so the old R11 scale modifiers cannot make the models too large or too small. The Crawler's underlying zombie retains its fixed swimming pose for its low collision profile.
+The model files contain only a tiny transparent import placeholder. After FMM generates its pack, Dead Streets rewrites the model texture references to the matching vanilla client textures (zombie, husk, drowned), adds those three textures as explicit `single` sources in `assets/minecraft/atlases/blocks.json`, and strips the placeholder PNGs before republishing. This atlas step is essential: FMM's display models render through the blocks/item atlas, where vanilla mob textures are not automatically registered. Mojang texture files are not bundled in the plugin or pack; the client supplies them from its vanilla assets. The FMM models define the visual size and their hitbox bones. The hidden zombie drivers stay at unit scale so the old R11 scale modifiers cannot make the models too large or too small. The Crawler's underlying zombie retains its fixed swimming pose for its low collision profile.
 
 ## Current development scope
 
