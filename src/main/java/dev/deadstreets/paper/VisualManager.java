@@ -133,6 +133,10 @@ final class VisualManager implements Listener {
 
         void detachKeepingZombie() {
             if (!isRemoved()) {
+                for (Player player : zombie.getWorld().getPlayers()) {
+                    showTo(player);
+                    showUnderlyingEntity(player);
+                }
                 // Protected FMM lifecycle hook, exposed only for this persistent
                 // driver integration. Unlike remove(), this never despawns the mob.
                 super.removeKeepingBody();
