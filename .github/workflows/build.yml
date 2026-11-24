@@ -23,7 +23,7 @@ jobs:
       - name: Verify optional BetterModel integration and packaged Blockbench assets
         run: |
           python3 - <<'PY'
-          import re
+          import re, json, base64
           from zipfile import ZipFile
 
           jar_path = "target/DeadStreets_R14.jar"
@@ -34,6 +34,16 @@ jobs:
               assert "BetterModel" in descriptor, "BetterModel soft dependency missing"
               assert "bettermodel/models/deadstreets_crawler.bbmodel" in names, "Crawler Blockbench model missing"
               assert "bettermodel/models/deadstreets_hulk.bbmodel" in names, "Hulk Blockbench model missing"
+              for path, animation in [
+                  ("bettermodel/models/deadstreets_crawler.bbmodel", "crawl"),
+                  ("bettermodel/models/deadstreets_hulk.bbmodel", "heavy_walk"),
+              ]:
+                  model = json.loads(jar.read(path))
+                  assert model["name"] in ("deadstreets_crawler", "deadstreets_hulk")
+                  assert any(a["name"] == animation and a["loop"] == "loop" for a in model["animations"])
+                  source = model["textures"][0]["source"]
+                  png = base64.b64decode(source.split(",", 1)[1])
+                  assert png.startswith(b"\\x89PNG\\r\\n\\x1a\\n"), f"Invalid embedded texture: {path}"
               assert "dev/deadstreets/paper/BetterModelBridge.class" in names, "BetterModel bridge missing"
               assert "dev/deadstreets/paper/ZombieIdentityManager.class" in names, "Targeted identity manager missing"
               config = jar.read("config.yml").decode("utf-8")
