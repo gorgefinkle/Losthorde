@@ -40,6 +40,8 @@ jobs:
               ]:
                   model = json.loads(jar.read(path))
                   assert model["name"] in ("deadstreets_crawler", "deadstreets_hulk")
+                  group_ids = {group["uuid"] for group in model["groups"]}
+                  assert None not in group_ids and model["outliner"][0]["uuid"] in group_ids, "Model root bone UUID is invalid"
                   assert any(a["name"] == animation and a["loop"] == "loop" for a in model["animations"])
                   source = model["textures"][0]["source"]
                   png = base64.b64decode(source.split(",", 1)[1])
