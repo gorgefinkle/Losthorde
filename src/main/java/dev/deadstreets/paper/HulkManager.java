@@ -11,8 +11,8 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Hulk gameplay subtype. Native SCALE sets the server collision dimensions to three blocks;
- * DisplayMotion supplies the broad, asymmetrical visual anatomy and articulated animations.
+ * Hulk gameplay subtype. The FMM model and its top-level hitbox bone supply the broad,
+ * asymmetrical three-block silhouette while this native zombie remains the AI/combat driver.
  */
 final class HulkManager {
     private final DeadStreetsPlugin plugin;
