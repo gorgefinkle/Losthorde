@@ -1,11 +1,10 @@
 name: DeadStreets
-version: R12.1
+version: R13
 main: dev.deadstreets.paper.DeadStreetsPlugin
 api-version: '26.2'
 author: Dead Streets Project
-description: Persistent walkers with animated vanilla-textured infected, migrating hordes and Metropolis population flags
+description: Persistent walkers with dependency-free native swimming Crawlers and three-block Hulks
 load: POSTWORLD
-depend: [FreeMinecraftModels, ResourcePackManager]
 softdepend: [Metropolis]
 commands:
   deadstreets:
