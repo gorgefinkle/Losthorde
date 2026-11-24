@@ -19,6 +19,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -129,6 +130,7 @@ final class VisualManager implements Listener {
     private boolean fmmReady;
     private boolean reloadRequested;
     private boolean reloadFailed;
+    private boolean modelAssetsChanged;
 
     VisualManager(DeadStreetsPlugin plugin) {
         this.plugin = plugin;
@@ -152,12 +154,19 @@ final class VisualManager implements Listener {
     private void installModelAssets() throws IOException {
         Path destination = fmmPlugin.getDataFolder().toPath().resolve("models").resolve("deadstreets");
         Files.createDirectories(destination);
+        modelAssetsChanged = false;
         for (String file : MODEL_FILES) {
             String resource = "fmm/" + file;
             Path target = destination.resolve(file);
             try (InputStream input = plugin.getResource(resource)) {
                 if (input == null) throw new IOException("Missing embedded model resource " + resource);
-                Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING);
+                byte[] embedded = input.readAllBytes();
+                boolean changed = !Files.exists(target)
+                        || !Arrays.equals(Files.readAllBytes(target), embedded);
+                if (changed) {
+                    Files.write(target, embedded);
+                    modelAssetsChanged = true;
+                }
             }
         }
     }
@@ -168,10 +177,11 @@ final class VisualManager implements Listener {
         fmmReady = false;
         active.clear();
         boolean complete = MODEL_IDS.values().stream().allMatch(ModeledEntityManager::modelExists);
-        if (!complete) {
+        if (!complete || modelAssetsChanged) {
             if (!reloadRequested) {
                 reloadRequested = true;
-                plugin.getLogger().info("FMM has not imported Dead Streets models yet; requesting one model reload.");
+                modelAssetsChanged = false;
+                plugin.getLogger().info("FMM model files are new or changed; requesting one model reload.");
                 Bukkit.getScheduler().runTask(plugin, ModeledEntityManager::reload);
             } else {
                 reloadFailed = true;
