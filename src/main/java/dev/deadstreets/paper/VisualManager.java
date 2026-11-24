@@ -592,14 +592,7 @@ final class VisualManager implements Listener {
         if (visual == null || visual.dying || visual.model.isRemoved()) return;
         visual.model.getSkeleton().tint();
         visual.model.playAnimation("damaged", true, false);
-        if (visual.type.equals("popper_drowned") && !visual.inflating) {
-            AttributeInstance maxHealth = zombie.getAttribute(Attribute.MAX_HEALTH);
-            double threshold = (maxHealth == null ? 32.0 : maxHealth.getValue()) * 0.4;
-            if (zombie.getHealth() <= threshold && visual.model.hasAnimation("inflate")) {
-                visual.model.playAnimation("inflate", true, false);
-                visual.inflating = true;
-            }
-        }
+        restorePopperInflation(visual);
     }
 
     void onDeath(Zombie zombie) {
