@@ -141,7 +141,19 @@ final class VisualManager implements Listener {
             hideFromViewers(existing);
             return;
         }
-        if (existing != null) remove(existing);
+        if (existing != null) {
+            active.remove(zombie.getUniqueId());
+            remove(existing);
+        }
+
+        // Crawler and Hulk deliberately use the real vanilla Zombie renderer.
+        // DisplayMotion turns model texture faces into nearest solid block displays,
+        // which destroys the vanilla skin's pixel-art appearance and suppresses the
+        // native hurt flash / locomotion feedback. Their native swimming/scale poses
+        // provide the correct Minecraft texture, hit reaction, and built-in animation.
+        if (type.equals("crawler_lowprofile") || type.equals("hulk_brute")) {
+            return;
+        }
 
         ImportedModel model = models.get(type);
         if (model == null) {
