@@ -118,7 +118,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         Objects.requireNonNull(getCommand("deadstreets"), "deadstreets command").setExecutor(this);
         spawners.start();
         refreshLoadedZombies();
-        if (Boolean.getBoolean("deadstreets.native-smoke")) runNativeInfectedSmokeTest();
+        if (Boolean.getBoolean("deadstreets.native-smoke")) Bukkit.getScheduler().runTaskLater(this, this::runNativeInfectedSmokeTest, 2L);
         population.start();
         hordes.start();
         bloodMoon.start();
