@@ -20,11 +20,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.StandardCopyOption;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Stream;
+import java.util.zip.Deflater;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Attaches FreeMinecraftModels' textured, articulated Blockbench models to the
@@ -44,6 +53,18 @@ final class VisualManager implements Listener {
             "deadstreets_crawler.bbmodel",
             "deadstreets_hulk.bbmodel"
     };
+    private static final Map<String, String> VANILLA_TEXTURES = Map.of(
+            "deadstreets_runner", "minecraft:entity/zombie/husk",
+            "deadstreets_popper", "minecraft:entity/zombie/drowned",
+            "deadstreets_crawler", "minecraft:entity/zombie/zombie",
+            "deadstreets_hulk", "minecraft:entity/zombie/zombie"
+    );
+    private static final Map<String, String> TEXTURE_NAMES = Map.of(
+            "deadstreets_runner", "husk",
+            "deadstreets_popper", "drowned",
+            "deadstreets_crawler", "zombie",
+            "deadstreets_hulk", "zombie"
+    );
 
     /**
      * FMM normally removes a DynamicEntity's backing entity when FMM itself
@@ -186,6 +207,99 @@ final class VisualManager implements Listener {
         }
     }
 
+    /**
+     * FMM imports the placeholder atlas from the Blockbench file and writes
+     * model JSON that references it. Repoint those references to the matching
+     * texture already shipped by the vanilla client, then remove the placeholder
+     * PNGs and republish the pack. This keeps Mojang textures out of our jar and
+     * out of the remotely hosted pack.
+     */
+    private void patchVanillaTextureReferences() throws IOException {
+        Path output = fmmPlugin.getDataFolder().toPath().resolve("output");
+        Path packRoot = output.resolve("FreeMinecraftModels");
+        Path modelsRoot = packRoot.resolve("assets/freeminecraftmodels/models");
+        Path texturesRoot = packRoot.resolve("assets/freeminecraftmodels/textures/entity");
+        if (!Files.isDirectory(modelsRoot)) throw new IOException("FMM model output directory is missing: " + modelsRoot);
+
+        Map<String, Integer> references = new HashMap<>();
+        for (String modelId : VANILLA_TEXTURES.keySet()) references.put(modelId, 0);
+        try (Stream<Path> paths = Files.walk(modelsRoot)) {
+            for (Path file : paths.filter(Files::isRegularFile).filter(p -> p.toString().endsWith(".json")).toList()) {
+                String json = Files.readString(file, StandardCharsets.UTF_8);
+                String patched = json;
+                for (String modelId : VANILLA_TEXTURES.keySet()) {
+                    String oldReference = "freeminecraftmodels:entity/" + modelId + "/" + TEXTURE_NAMES.get(modelId);
+                    String newReference = VANILLA_TEXTURES.get(modelId);
+                    int found = countOccurrences(patched, oldReference);
+                    if (found > 0) {
+                        patched = patched.replace(oldReference, newReference);
+                        references.merge(modelId, found, Integer::sum);
+                    } else if (patched.contains(newReference)) {
+                        references.merge(modelId, 1, Integer::sum);
+                    }
+                }
+                if (!patched.equals(json)) Files.writeString(file, patched, StandardCharsets.UTF_8);
+            }
+        }
+
+        for (String modelId : VANILLA_TEXTURES.keySet()) {
+            if (references.getOrDefault(modelId, 0) == 0) {
+                throw new IOException("No generated model texture references found for " + modelId);
+            }
+            deleteTree(texturesRoot.resolve(modelId));
+        }
+        republishPack(packRoot, output.resolve("FreeMinecraftModels.zip"));
+        boolean rspmReloaded = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "rspm reload");
+        if (!rspmReloaded) {
+            plugin.getLogger().warning("Patched FMM models to use vanilla textures, but /rspm reload was not accepted.");
+        }
+        plugin.getLogger().info("Patched FMM model textures to use the four vanilla zombie-family client textures; removed bundled placeholder PNGs.");
+    }
+
+    private static int countOccurrences(String text, String needle) {
+        int count = 0;
+        int at = 0;
+        while ((at = text.indexOf(needle, at)) >= 0) {
+            count++;
+            at += needle.length();
+        }
+        return count;
+    }
+
+    private static void deleteTree(Path root) throws IOException {
+        if (!Files.exists(root)) return;
+        try (Stream<Path> paths = Files.walk(root)) {
+            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(path);
+        }
+    }
+
+    private static void republishPack(Path packRoot, Path published) throws IOException {
+        Path pending = published.resolveSibling("FreeMinecraftModels.zip.pending");
+        try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(pending))) {
+            zip.setLevel(Deflater.DEFAULT_COMPRESSION);
+            try (Stream<Path> paths = Files.walk(packRoot)) {
+                List<Path> files = paths.filter(Files::isRegularFile).sorted().toList();
+                for (Path file : files) {
+                    String name = packRoot.relativize(file).toString().replace('\\\\', '/');
+                    ZipEntry entry = new ZipEntry(name);
+                    // Stable timestamps keep RSPM's pack hash/cache stable between boots.
+                    entry.setTime(315532800000L);
+                    zip.putNextEntry(entry);
+                    Files.copy(file, zip);
+                    zip.closeEntry();
+                }
+            }
+        } catch (IOException failure) {
+            Files.deleteIfExists(pending);
+            throw failure;
+        }
+        try {
+            Files.move(pending, published, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException ignored) {
+            Files.move(pending, published, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
     @EventHandler(priority = EventPriority.MONITOR)
     public void onFmmReloaded(FmmReloadedEvent event) {
         if (!plugin.isEnabled() || reloadFailed) return;
@@ -202,6 +316,14 @@ final class VisualManager implements Listener {
                 reloadFailed = true;
                 plugin.getLogger().severe("FreeMinecraftModels reloaded but one or more Dead Streets models are still missing. Native zombies remain visible; special model rendering is disabled.");
             }
+            return;
+        }
+
+        try {
+            patchVanillaTextureReferences();
+        } catch (IOException failure) {
+            reloadFailed = true;
+            plugin.getLogger().severe("Could not republish FMM models with vanilla client textures: " + failure.getMessage());
             return;
         }
 
