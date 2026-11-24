@@ -101,7 +101,7 @@ final class CrawlerManager {
                 if (!force) plugin.budget().tag(created);
                 plugin.visuals().attachSoon(created);
             });
-            return (force ? "DEV FORCE: spawned uncounted test Crawler " : "Spawned test Crawler ") + zombie.getUniqueId() + " nearby using Paper's fixed low-profile pose.";
+            return (force ? "DEV FORCE: spawned uncounted test Crawler " : "Spawned test Crawler ") + zombie.getUniqueId() + " nearby with the low-profile FMM crawl model.";
         } catch (RuntimeException failure) {
             if (!force) plugin.budget().rollback();
             return "Test Crawler spawn failed: " + failure.getMessage();
