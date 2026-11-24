@@ -505,6 +505,7 @@ final class VisualManager implements Listener {
         if (previous instanceof PersistentDynamicEntity persistent) {
             if (persistent.isAttachedTo(zombie, modelId)) {
                 active.put(zombie.getUniqueId(), new Active(zombie, type, persistent));
+                for (Player player : zombie.getWorld().getPlayers()) applyPlayerVisibility(player);
                 return;
             }
             persistent.detachKeepingZombie();
