@@ -1,4 +1,4 @@
-# Dead Streets R12: persistent scragglers, migrating hordes, Blood Moon events, building populations and animated infected.
+# Dead Streets R13: native infected, persistent scragglers, migrating hordes, Blood Moon events and building populations.
 blood-moon:
   enabled: true
   # Every N in-game days, the selected night becomes a Blood Moon.
@@ -153,7 +153,7 @@ special-infected:
   hulk:
     enabled: true
     spawn-chance: 0.02
-    scale: 1.0 # Visual height comes from the three-block FMM model and its hitbox.
+    scale: 1.53846 # Native zombie scale: 1.95 blocks x 1.53846 ~= 3.0 blocks tall.
     max-health: 50.0
     movement-speed: 0.16
     attack-damage: 12.0
@@ -162,7 +162,6 @@ special-infected:
   crawler:
     enabled: true
     spawn-chance: 0.02
-    scale: 1.0 # Visual height comes from the low-profile FMM model and its hitbox.
     max-health: 24.0
     movement-speed: 0.20
     attack-damage: 5.0
