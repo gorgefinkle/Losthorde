@@ -10,6 +10,9 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.NamespacedKey;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.Chunk;
@@ -106,14 +109,11 @@ final class VisualManager implements Listener {
 
         void hideBackingEntity() {
             zombie.getPersistentDataContainer().set(fmmDynamicKey, PersistentDataType.BYTE, (byte) 0);
-            boolean bedrockUsesUnderlying = getBedrockModeledEntity() != null
-                    && getBedrockModeledEntity().isAvailable()
-                    && getBedrockModeledEntity().isUsingUnderlyingEntity();
-            zombie.setVisibleByDefault(false);
-            zombie.setInvisible(!bedrockUsesUnderlying);
-            for (Player player : zombie.getWorld().getPlayers()) {
-                player.hideEntity(fmmPlugin, zombie);
-            }
+            // Keep a real fallback body available per viewer. FMM's per-player
+            // show/hide APIs select the model for pack-ready clients and the
+            // native zombie for clients who decline or are still downloading.
+            zombie.setVisibleByDefault(true);
+            zombie.setInvisible(false);
         }
 
         private void restoreBackingEntity() {
@@ -163,7 +163,9 @@ final class VisualManager implements Listener {
     private final Map<UUID, Active> active = new HashMap<>();
     private final NamespacedKey originalInvisibleKey;
     private final NamespacedKey originalVisibleKey;
+    private final NamespacedKey packReadyKey;
     private NamespacedKey fmmDynamicKey;
+    private final Map<UUID, Boolean> packReadyByPlayer = new HashMap<>();
     private Plugin fmmPlugin;
     private BukkitTask task;
     private boolean fmmReady;
@@ -199,6 +201,7 @@ final class VisualManager implements Listener {
         this.plugin = plugin;
         this.originalInvisibleKey = new NamespacedKey(plugin, "fmm_original_invisible");
         this.originalVisibleKey = new NamespacedKey(plugin, "fmm_original_visible_by_default");
+        this.packReadyKey = new NamespacedKey(plugin, "fmm_resource_pack_ready");
     }
 
     void start() {
@@ -526,6 +529,7 @@ final class VisualManager implements Listener {
             };
             model.getAnimationComponent().setWalkAnimation(walk);
             active.put(zombie.getUniqueId(), new Active(zombie, type, model));
+            for (Player player : zombie.getWorld().getPlayers()) applyPlayerVisibility(player);
         } catch (RuntimeException | Error failure) {
             if (!model.isRemoved()) model.detachKeepingZombie();
             plugin.getLogger().severe("Could not attach FMM model " + modelId + ": " + failure.getMessage());
@@ -553,13 +557,47 @@ final class VisualManager implements Listener {
         visual.dying = true;
     }
 
-    void hideFrom(Player player) {
-        if (fmmPlugin == null || player == null || !player.isOnline()) return;
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        boolean ready = player.getPersistentDataContainer()
+                .getOrDefault(packReadyKey, PersistentDataType.BYTE, (byte) 0) != 0;
+        packReadyByPlayer.put(player.getUniqueId(), ready);
+        applyPlayerVisibility(player);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerResourcePackStatus(PlayerResourcePackStatusEvent event) {
+        Player player = event.getPlayer();
+        boolean ready = event.getStatus() == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED;
+        packReadyByPlayer.put(player.getUniqueId(), ready);
+        player.getPersistentDataContainer().set(packReadyKey, PersistentDataType.BYTE, (byte) (ready ? 1 : 0));
+        applyPlayerVisibility(player);
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        packReadyByPlayer.remove(event.getPlayer().getUniqueId());
+    }
+
+    private void applyPlayerVisibility(Player player) {
+        if (player == null || !player.isOnline()) return;
+        boolean ready = packReadyByPlayer.computeIfAbsent(player.getUniqueId(), ignored ->
+                player.getPersistentDataContainer().getOrDefault(packReadyKey, PersistentDataType.BYTE, (byte) 0) != 0);
         for (Active visual : active.values()) {
-            if (visual.zombie.getWorld() == player.getWorld() && visual.zombie.isValid()) {
-                player.hideEntity(fmmPlugin, visual.zombie);
+            if (visual.zombie.getWorld() != player.getWorld() || !visual.zombie.isValid()) continue;
+            if (ready) {
+                visual.model.showTo(player);
+                visual.model.hideUnderlyingEntity(player);
+            } else {
+                visual.model.hideFrom(player);
+                visual.model.showUnderlyingEntity(player);
             }
         }
+    }
+
+    void hideFrom(Player player) {
+        applyPlayerVisibility(player);
     }
 
     void onChunkUnload(Chunk chunk) {
@@ -590,6 +628,7 @@ final class VisualManager implements Listener {
             visual.model.detachKeepingZombie();
         }
         active.clear();
+        packReadyByPlayer.clear();
     }
 
     int activeCount() {
