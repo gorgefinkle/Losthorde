@@ -601,7 +601,7 @@ final class VisualManager implements Listener {
         }
     }
 
-    void hideFrom(Player player) {
+    void refreshPlayerVisibility(Player player) {
         applyPlayerVisibility(player);
     }
 
