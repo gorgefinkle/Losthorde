@@ -83,10 +83,11 @@ final class VisualManager implements Listener {
         private final String modelId;
         private final NamespacedKey originalInvisibleKey;
         private final NamespacedKey originalVisibleKey;
+        private final NamespacedKey fmmDynamicKey;
 
         PersistentDynamicEntity(String modelId, Zombie zombie, Plugin fmmPlugin,
                                 AppearanceState appearance, NamespacedKey originalInvisibleKey,
-                                NamespacedKey originalVisibleKey) {
+                                NamespacedKey originalVisibleKey, NamespacedKey fmmDynamicKey) {
             super(modelId, zombie.getLocation());
             this.modelId = modelId;
             this.zombie = zombie;
@@ -95,6 +96,7 @@ final class VisualManager implements Listener {
             this.originalVisibleByDefault = appearance.visibleByDefault();
             this.originalInvisibleKey = originalInvisibleKey;
             this.originalVisibleKey = originalVisibleKey;
+            this.fmmDynamicKey = fmmDynamicKey;
         }
 
         boolean isAttachedTo(Zombie candidate, String expectedModelId) {
@@ -103,6 +105,7 @@ final class VisualManager implements Listener {
         }
 
         void hideBackingEntity() {
+            zombie.getPersistentDataContainer().set(fmmDynamicKey, PersistentDataType.BYTE, (byte) 0);
             boolean bedrockUsesUnderlying = getBedrockModeledEntity() != null
                     && getBedrockModeledEntity().isAvailable()
                     && getBedrockModeledEntity().isUsingUnderlyingEntity();
@@ -122,6 +125,7 @@ final class VisualManager implements Listener {
             zombie.setPose(zombie.getPose(), true);
             zombie.getPersistentDataContainer().remove(originalInvisibleKey);
             zombie.getPersistentDataContainer().remove(originalVisibleKey);
+            zombie.getPersistentDataContainer().remove(fmmDynamicKey);
             for (Player player : zombie.getWorld().getPlayers()) {
                 player.showEntity(fmmPlugin, zombie);
             }
@@ -159,6 +163,7 @@ final class VisualManager implements Listener {
     private final Map<UUID, Active> active = new HashMap<>();
     private final NamespacedKey originalInvisibleKey;
     private final NamespacedKey originalVisibleKey;
+    private NamespacedKey fmmDynamicKey;
     private Plugin fmmPlugin;
     private BukkitTask task;
     private boolean fmmReady;
@@ -177,6 +182,7 @@ final class VisualManager implements Listener {
         if (fmmPlugin == null || !fmmPlugin.isEnabled()) {
             throw new IllegalStateException("FreeMinecraftModels is required for Dead Streets infected models.");
         }
+        fmmDynamicKey = new NamespacedKey(fmmPlugin, "DynamicEntity");
         try {
             installModelAssets();
         } catch (IOException failure) {
@@ -423,6 +429,7 @@ final class VisualManager implements Listener {
         zombie.setPose(zombie.getPose(), true);
         pdc.remove(originalInvisibleKey);
         pdc.remove(originalVisibleKey);
+        pdc.remove(fmmDynamicKey);
         for (Player player : zombie.getWorld().getPlayers()) player.showEntity(fmmPlugin, zombie);
     }
 
