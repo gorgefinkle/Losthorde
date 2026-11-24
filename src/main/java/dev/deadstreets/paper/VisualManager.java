@@ -280,7 +280,7 @@ final class VisualManager implements Listener {
             try (Stream<Path> paths = Files.walk(packRoot)) {
                 List<Path> files = paths.filter(Files::isRegularFile).sorted().toList();
                 for (Path file : files) {
-                    String name = packRoot.relativize(file).toString().replace('\\\\', '/');
+                    String name = packRoot.relativize(file).toString().replace(java.io.File.separatorChar, '/');
                     ZipEntry entry = new ZipEntry(name);
                     // Stable timestamps keep RSPM's pack hash/cache stable between boots.
                     entry.setTime(315532800000L);
