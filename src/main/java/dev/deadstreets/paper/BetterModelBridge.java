@@ -93,6 +93,13 @@ final class BetterModelBridge {
             }
             if (getOrCreate == null) throw new NoSuchMethodException("ModelRenderer.getOrCreate(PlatformEntity)");
             Object tracker = getOrCreate.invoke(renderer, platformEntity);
+            try {
+                Class<?> scalerClass = Class.forName("kr.toxicity.model.api.tracker.ModelScaler");
+                Object entityScaler = scalerClass.getMethod("entity").invoke(null);
+                tracker.getClass().getMethod("scaler", scalerClass).invoke(tracker, entityScaler);
+            } catch (ReflectiveOperationException ignored) {
+                // Older BetterModel API builds may not expose entity scaling.
+            }
             try { tracker.getClass().getMethod("animate", String.class).invoke(tracker, animation); }
             catch (ReflectiveOperationException missingAnimation) {
                 plugin.getLogger().warning("BetterModel asset '" + modelName + "' loaded but animation '" + animation + "' could not be started.");
