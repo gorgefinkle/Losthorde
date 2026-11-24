@@ -35,7 +35,7 @@ jobs:
           curl -fL "$FMM_URL" -o FreeMinecraftModels.jar
           curl -fL "$RSPM_URL" -o ResourcePackManager.jar
           mkdir -p plugins/ResourcePackManager
-          cp target/DeadStreets_R12.jar plugins/DeadStreets.jar
+          cp target/DeadStreets_R12.1.jar plugins/DeadStreets.jar
           cp FreeMinecraftModels.jar plugins/FreeMinecraftModels.jar
           cp ResourcePackManager.jar plugins/ResourcePackManager.jar
           # RSPM runs its normal merge/hosting path against the small test pack.
@@ -68,7 +68,7 @@ jobs:
           cat server-console.log
           grep -F 'FreeMinecraftModels loaded all four Dead Streets models' logs/latest.log
           grep -F 'FMM runtime smoke test passed' logs/latest.log
-          grep -F 'Dead Streets R12:' logs/latest.log
+          grep -F 'Dead Streets R12.1:' logs/latest.log
           python3 - <<'PY'
           from pathlib import Path
           from zipfile import ZipFile\nimport json
@@ -118,11 +118,11 @@ jobs:
         run: |
           mkdir -p dist
           cp target/DeadStreets_R12.jar dist/
-          git archive --format=zip --output=dist/DeadStreets_R12-source.zip HEAD
+          git archive --format=zip --output=dist/DeadStreets_R12.1-source.zip HEAD
       - name: Upload test build
         uses: actions/upload-artifact@v4
         with:
-          name: DeadStreets-R12-test-build
+          name: DeadStreets-R12.1-test-build
           path: dist/*
           if-no-files-found: error
           retention-days: 30
