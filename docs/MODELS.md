@@ -1,46 +1,31 @@
 # Dead Streets infected visuals
 
-Dead Streets uses FreeMinecraftModels (FMM) 2.16.0 for all four special infected. Each is an articulated Blockbench model attached to a real Bukkit zombie. The zombie remains the authoritative entity for AI, targeting, navigation, collision, health, damage, and persistence; FMM supplies the client-side geometry, texture and animation.
+Dead Streets R14 uses BetterModel 3.7.1 for the special Crawler and Hulk visuals. BetterModel is a soft dependency: the plugin still starts without it and leaves the native zombie visible as a fallback.
 
-| Infected | Texture | Model and animation |
+| Infected | Visual | Gameplay entity |
 |---|---|---|
-| Runner | Vanilla Husk texture | Forward-leaning runner; idle, run, attack, damaged, death |
-| Popper | Vanilla Drowned texture | Swollen drowned silhouette; idle, walk, attack, inflate, damaged, burst/death |
-| Crawler | Vanilla Zombie texture | Low elongated crawler; idle, crawl, lunge/attack, damaged, death |
-| Hulk | Vanilla Zombie texture | Broad three-block brute; idle, walk, attack, roar, damaged, death |
+| Crawler | Horizontal, animated Blockbench zombie; crawl animation | Native Zombie with fixed swimming-pose dimensions |
+| Hulk | Broad, thick-framed zombie; heavy_walk animation | Native Zombie scaled to approximately three blocks |
+| Runner | Existing fast infected implementation | Existing server-side entity |
+| Popper | Existing Popper implementation and death burst | Native zombie-family entity; releases 1–4 Crawlers |
 
-## Model source and installation
+## Assets and installation
 
-Editable .bbmodel files are embedded under `src/main/resources/fmm/`. During Dead Streets' `onLoad`, before FMM begins its first import, they are copied into:
+The editable Blockbench sources are embedded in the Dead Streets JAR:
 
-```
-plugins/FreeMinecraftModels/models/deadstreets/
-```
+- bettermodel/models/deadstreets_crawler.bbmodel
+- bettermodel/models/deadstreets_hulk.bbmodel
 
-If FMM has not imported the four model IDs, or the embedded assets changed during a plugin update, Dead Streets requests one FMM reload. On each successful `FmmReloadedEvent`, it reacquires the model instances from surviving zombies; it does not keep stale FMM references across reloads.
+When BetterModel is enabled, Dead Streets copies these assets into plugins/BetterModel/models/ and requests /bettermodel reload. BetterModel builds and publishes its own resource pack. Players must accept/download that pack to see the custom models. No separate client mod is required.
 
-FMM 2.16.0 and ResourcePackManager 2.4.13 are required server dependencies. The embedded Blockbench files use a transparent placeholder atlas only during FMM import. After each import Dead Streets rewrites the generated model JSON to reference the matching built-in client texture under the vanilla `minecraft` namespace, adds all three vanilla zombie-family textures as explicit `minecraft:single` sources in `assets/minecraft/atlases/blocks.json`, removes the placeholder PNGs, and asks RSPM to republish. The atlas entries are essential because FMM's display models render through Minecraft's blocks/item atlas; vanilla entity textures are not automatically included in it. The client supplies the actual PNGs from its vanilla assets, so Mojang texture PNGs are not redistributed in the plugin or generated pack. RSPM merges and hosts the FMM-generated pack, including its remote fallback when server self-hosting is unreachable. Players who finish loading the server pack see the custom models; players who decline or are still downloading see the real vanilla zombie body as a per-player fallback. No client mod or manually hosted pack is required.
+The model geometry uses a Minecraft-style humanoid silhouette and zombie palette (green skin, blue-green shirt, purple trousers), rather than concrete or display-block constructions. The source texture is embedded in each Blockbench file.
 
-## Geometry and collision
+## Entity and model lifecycle
 
-The model's reserved top-level `hitbox` bone defines its collision and click envelope:
+The Bukkit Zombie remains authoritative for AI, navigation, targeting, collision, health, damage, persistence, and death. BetterModel supplies only the visual model and animation. The Crawler keeps the compact fixed swimming-pose dimensions for its gameplay hitbox; the custom model provides the horizontal crawling silhouette that the vanilla renderer did not provide.
 
-- Runner: approximately 0.875 × 0.875 × 2.06 blocks.
-- Popper: approximately 1 × 1 × 2.125 blocks.
-- Crawler: approximately 0.75 × 2.125 × 0.625 blocks.
-- Hulk: approximately 1.875 × 1.875 × 3 blocks.
+Model trackers are reacquired after the BetterModel asset reload. Dead Streets discards its tracker references on entity death and chunk unload, and restores the original entity visibility on plugin shutdown. If BetterModel is absent or the model asset has not loaded, the vanilla zombie remains visible instead of becoming invisible.
 
-The hidden zombie driver remains at unit scale. This prevents the prior R11 native scale modifiers from scaling the already-sized FMM geometry a second time. The Crawler retains Paper's fixed swimming pose to keep its backing entity low to the ground.
+## Visual verification
 
-## Animation and combat
-
-FMM automatically selects idle/walk states from the backing entity's horizontal movement. Runner maps its movement state to `run`; Crawler maps it to `crawl`. Zombie attacks trigger the model's action-layer `attack` animation. Accepted damage triggers a short articulated `damaged` reaction and FMM's native tint flash. A Popper begins `inflate` once it falls below 40% health; a Hulk plays its one-time `roar` when a player approaches within 12 blocks. FMM's death handling plays `death`; the Popper's death clip is authored as its burst animation.
-
-The model click surface follows the authored hitbox. Contact damage from the model itself is disabled, so ordinary zombie combat remains authoritative and is not doubled.
-
-## Runtime lifecycle
-
-- Chunk unload removes Dead Streets' local reference; FMM owns its own entity/model lifecycle.
-- FMM reload invalidates old model instances; Dead Streets reattaches on the reload-complete event.
-- Dead Streets shutdown unhides the real zombie body for current viewers and leaves the persistent zombie entity intact.
-- A connected client is still required to visually verify UV orientation, proportions, animation quality, damage feedback, and the resource-pack delivery path.
+The CI Paper smoke test validates server-side entity state and verifies that both .bbmodel assets are packaged. It cannot validate client-side UV orientation, proportions, animation playback, or resource-pack delivery. Those still require a connected client with the BetterModel pack accepted.
