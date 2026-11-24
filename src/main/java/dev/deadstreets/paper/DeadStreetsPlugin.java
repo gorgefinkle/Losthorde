@@ -324,7 +324,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void onTeleport(PlayerTeleportEvent event) {
         observeTeleport(event.getPlayer(),event.getTo());
-        if (visuals != null) Bukkit.getScheduler().runTask(this, () -> visuals.hideFrom(event.getPlayer()));
+        if (visuals != null) Bukkit.getScheduler().runTask(this, () -> visuals.refreshPlayerVisibility(event.getPlayer()));
     }
     @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true) public void onBloodMoonBedEnter(PlayerBedEnterEvent event) {
         if (bloodMoon != null && bloodMoon.shouldBlockSleep(event.getPlayer().getWorld())) {
