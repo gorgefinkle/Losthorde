@@ -64,8 +64,16 @@ final class BetterModelBridge {
         if (!plugin.getConfig().getBoolean("models.bettermodel.enabled", true)) return false;
         Object existing = trackers.get(zombie.getUniqueId());
         if (existing != null) {
-            hideBase(zombie);
-            return true;
+            try {
+                if (Boolean.TRUE.equals(existing.getClass().getMethod("isClosed").invoke(existing))) {
+                    trackers.remove(zombie.getUniqueId());
+                    existing = null;
+                }
+            } catch (ReflectiveOperationException ignored) {}
+            if (existing != null) {
+                hideBase(zombie);
+                return true;
+            }
         }
         try {
             Class<?> api = Class.forName("kr.toxicity.model.api.BetterModel");
@@ -119,7 +127,7 @@ final class BetterModelBridge {
         }
     }
 
-    void refreshPlayer(Player player) {
+    void forgetEntity(Zombie zombie) {\n        Object tracker = trackers.remove(zombie.getUniqueId());\n        if (tracker != null) {\n            try { tracker.getClass().getMethod("close").invoke(tracker); }\n            catch (ReflectiveOperationException ignored) {}\n        }\n    }\n\n    void forgetChunk(org.bukkit.Chunk chunk) {\n        for (org.bukkit.entity.Entity entity : chunk.getEntities()) {\n            if (entity instanceof Zombie zombie) forgetEntity(zombie);\n        }\n    }\n\n    void refreshPlayer(Player player) {
         for (UUID id : trackers.keySet()) {
             var entity = Bukkit.getEntity(id);
             if (entity instanceof Zombie zombie && zombie.isValid()) player.hideEntity(plugin, zombie);
