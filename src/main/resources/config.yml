@@ -47,6 +47,9 @@ zombies:
   stop-zombie-reinforcements: true
   never-burn-in-daylight: true
   make-all-zombies-persistent: true
+  chat-health-bars:
+    enabled: true
+    # Only the player who damaged the infected receives the health readout.
   # Durable global admission cap for NEW Dead Streets walkers, including offloaded chunks.
   max-total-managed-walkers: 3000
 vanilla-mobs:
