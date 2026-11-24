@@ -134,7 +134,7 @@ final class ZombieIdentityManager {
         int filled = Math.max(0, Math.min(segments, (int) Math.ceil(segments * current / Math.max(1.0, max))));
         String bar = "§c" + "▰".repeat(filled) + "§8" + "▱".repeat(segments - filled)
                 + "§7  " + String.format(java.util.Locale.ROOT, "%.0f%%", 100.0 * current / Math.max(1.0, max));
-        display.setText("§f" + name + "\\n" + bar);
+        display.setText("§f" + name + "\n" + bar);
     }
 
     private Location plateLocation(Zombie zombie) {
