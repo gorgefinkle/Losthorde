@@ -12,7 +12,7 @@ Install these three jars in `plugins/`:
 2. [ResourcePackManager 2.4.13](https://modrinth.com/plugin/resourcepackmanager) — merges and delivers the generated model pack.
 3. Dead Streets R12.
 
-No client mods are needed. You do **not** need to create, upload, or host a pack yourself. FMM generates the model pack; RSPM serves it from the server when reachable and falls back to its free remote hosting when necessary. Players must accept the server resource-pack prompt to see the custom models. If self-hosting cannot be verified, RSPM's remote fallback uploads the merged resource-pack ZIP plus a random server UUID and pack SHA-1 to MagmaGuy's hosting service; it does not upload world or player data. Its published policy says it does not log client downloads and deletes remote files within 24 hours after shutdown. If you do not want any external upload, RSPM can be configured for self-hosting only, but the server's pack port must be reachable by clients.
+No client mods are needed. You do **not** need to create, upload, or host a pack yourself, and no FMM account linking or content-pack download is required for these embedded models. FMM generates the model pack; RSPM serves it from the server when reachable and falls back to its free remote hosting when necessary. Players must accept the server resource-pack prompt to see the custom models. If self-hosting cannot be verified, RSPM's remote fallback uploads the merged resource-pack ZIP plus a random server UUID and pack SHA-1 to MagmaGuy's hosting service; it does not upload world or player data. Its published policy says it does not log client downloads and deletes remote files within 24 hours after shutdown. If you do not want any external upload, RSPM can be configured for self-hosting only, but the server's pack port must be reachable by clients.
 
 FMM and RSPM are required dependencies in this build. DisplayMotion is no longer required.
 
@@ -25,7 +25,7 @@ The editable source models live in `src/main/resources/fmm/`. On startup Dead St
 - **Crawler:** Low, elongated zombie-textured body; crawl locomotion, lunge attack, articulated hurt reaction and death.
 - **Hulk:** Broad, asymmetrical three-block zombie-textured brute; heavy walk, attack, roar, hurt reaction and death.
 
-The FMM models define the visual size and their hitbox bones. The hidden zombie drivers stay at unit scale so the old R11 scale modifiers cannot make the models too large or too small. The Crawler's underlying zombie retains its fixed swimming pose for its low collision profile.
+The model files contain only a tiny transparent import placeholder. After FMM generates its pack, Dead Streets rewrites the model texture references to the matching vanilla client textures (zombie, husk, drowned) and strips the placeholder PNGs before RSPM republishes the pack; Mojang texture files are not bundled in the plugin or pack. The FMM models define the visual size and their hitbox bones. The hidden zombie drivers stay at unit scale so the old R11 scale modifiers cannot make the models too large or too small. The Crawler's underlying zombie retains its fixed swimming pose for its low collision profile.
 
 ## Current development scope
 
