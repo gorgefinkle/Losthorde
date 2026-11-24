@@ -1,11 +1,11 @@
 name: DeadStreets
-version: R13
+version: R14
 main: dev.deadstreets.paper.DeadStreetsPlugin
 api-version: '26.2'
 author: Dead Streets Project
-description: Persistent walkers with dependency-free native swimming Crawlers and three-block Hulks
+description: Persistent zombie populations with BetterModel animated special infected
 load: POSTWORLD
-softdepend: [Metropolis]
+softdepend: [Metropolis, BetterModel]
 commands:
   deadstreets:
     description: Dead Streets admin testing and diagnostics
