@@ -1,130 +1,157 @@
 package dev.deadstreets.paper;
 
+import com.magmaguy.freeminecraftmodels.api.FmmReloadedEvent;
+import com.magmaguy.freeminecraftmodels.api.ModeledEntityManager;
+import com.magmaguy.freeminecraftmodels.customentity.DynamicEntity;
 import org.bukkit.Bukkit;
-import org.bukkit.GameMode;
-import org.bukkit.attribute.Attribute;
-import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
-import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.Chunk;
-import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
-import org.bukkit.util.Vector;
-import org.jan1k.displaymotion.paper.DisplayMotion;
-import org.jan1k.displaymotion.paper.ImportedModel;
-import org.jan1k.displaymotion.paper.MotionDisplay;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
- * Replaces the visible body of special infected with DisplayMotion models while leaving
- * the server-side Zombie in charge of AI, pathfinding, collision, damage and persistence.
+ * Attaches FreeMinecraftModels' textured, articulated Blockbench models to the
+ * real server-side zombies. The zombies retain AI, targeting, navigation,
+ * collision, health, damage and persistence; FMM owns only their client visuals.
  */
 final class VisualManager implements Listener {
+    private static final Map<String, String> MODEL_IDS = Map.of(
+            "runner_husk", "deadstreets_runner",
+            "popper_drowned", "deadstreets_popper",
+            "crawler_lowprofile", "deadstreets_crawler",
+            "hulk_brute", "deadstreets_hulk"
+    );
     private static final String[] MODEL_FILES = {
-            "runner_husk", "popper_drowned"
+            "deadstreets_runner.bbmodel",
+            "deadstreets_popper.bbmodel",
+            "deadstreets_crawler.bbmodel",
+            "deadstreets_hulk.bbmodel"
     };
 
     private static final class Active {
         final Zombie zombie;
         final String type;
-        final MotionDisplay display;
-        final Set<UUID> hiddenPlayers = new HashSet<>();
-        String animation = "idle";
-        int lockUntil;
+        final DynamicEntity model;
         boolean dying;
-        int removeAt;
 
-        Active(Zombie zombie, String type, MotionDisplay display) {
+        Active(Zombie zombie, String type, DynamicEntity model) {
             this.zombie = zombie;
             this.type = type;
-            this.display = display;
+            this.model = model;
         }
     }
 
-    private record HitKey(UUID player, UUID zombie) {}
-
     private final DeadStreetsPlugin plugin;
-    private final Map<String, ImportedModel> models = new HashMap<>();
     private final Map<UUID, Active> active = new HashMap<>();
-    private final Map<HitKey, Integer> lastHitTick = new HashMap<>();
-    private DisplayMotion motion;
+    private Plugin fmmPlugin;
     private BukkitTask task;
+    private boolean fmmReady;
+    private boolean reloadRequested;
+    private boolean reloadFailed;
 
     VisualManager(DeadStreetsPlugin plugin) {
         this.plugin = plugin;
     }
 
     void start() {
-        motion = DisplayMotion.create(plugin, false);
+        fmmPlugin = Bukkit.getPluginManager().getPlugin("FreeMinecraftModels");
+        if (fmmPlugin == null || !fmmPlugin.isEnabled()) {
+            throw new IllegalStateException("FreeMinecraftModels is required for Dead Streets infected models.");
+        }
         try {
-            for (String name : MODEL_FILES) {
-                String file = "models/" + name + ".bbmodel";
-                plugin.saveResource(file, false);
-                Path path = plugin.getDataFolder().toPath().resolve(file);
-                ImportedModel model = ImportedModel.load(path);
-                if (!model.animations().contains("idle") || !model.animations().contains("death")) {
-                    throw new IOException("Model " + name + " must include idle and death animations; found " + model.animations());
-                }
-                models.put(name, model);
-                plugin.getLogger().info("Loaded " + name + ": " + model.parts().size() + " parts, animations=" + model.animations());
-            }
-            if (Boolean.getBoolean("deadstreets.model-smoke")) selfTest();
-        } catch (IOException | RuntimeException failure) {
-            plugin.getLogger().severe("Could not load required Dead Streets infected models: " + failure.getMessage());
-            throw new IllegalStateException("Dead Streets model initialization failed", failure);
+            installModelAssets();
+        } catch (IOException failure) {
+            throw new IllegalStateException("Could not install Dead Streets FMM model assets.", failure);
         }
         Bukkit.getPluginManager().registerEvents(this, plugin);
-        task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 2L);
+        task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
+        plugin.getLogger().info("Staged four vanilla-textured infected models for FreeMinecraftModels.");
     }
 
+    private void installModelAssets() throws IOException {
+        Path destination = fmmPlugin.getDataFolder().toPath().resolve("models").resolve("deadstreets");
+        Files.createDirectories(destination);
+        for (String file : MODEL_FILES) {
+            String resource = "fmm/" + file;
+            Path target = destination.resolve(file);
+            try (InputStream input = plugin.getResource(resource)) {
+                if (input == null) throw new IOException("Missing embedded model resource " + resource);
+                Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+    }
 
-    /** Full API smoke test, enabled only with -Ddeadstreets.model-smoke=true. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onFmmReloaded(FmmReloadedEvent event) {
+        if (!plugin.isEnabled() || reloadFailed) return;
+        boolean complete = MODEL_IDS.values().stream().allMatch(ModeledEntityManager::modelExists);
+        if (!complete) {
+            if (!reloadRequested) {
+                reloadRequested = true;
+                plugin.getLogger().info("FMM has not imported Dead Streets models yet; requesting one model reload.");
+                Bukkit.getScheduler().runTask(plugin, ModeledEntityManager::reload);
+            } else {
+                reloadFailed = true;
+                plugin.getLogger().severe("FreeMinecraftModels reloaded but one or more Dead Streets models are still missing. Native zombies remain visible; special model rendering is disabled.");
+            }
+            return;
+        }
+
+        // FMM invalidates its DynamicEntity instances on reload. Reacquire every
+        // model from the surviving Bukkit zombies instead of retaining stale refs.
+        active.clear();
+        fmmReady = true;
+        reloadRequested = false;
+        plugin.getLogger().info("FreeMinecraftModels loaded all four Dead Streets models.");
+        plugin.refreshLoadedZombies();
+        if (Boolean.getBoolean("deadstreets.model-smoke")) selfTest();
+    }
+
     private void selfTest() {
-        if (Bukkit.getWorlds().isEmpty()) throw new IllegalStateException("No loaded world for model self-test");
-        World world = Bukkit.getWorlds().getFirst();
-        Location base = world.getSpawnLocation().clone().add(0, 1, 0);
+        if (Bukkit.getWorlds().isEmpty()) throw new IllegalStateException("No loaded world for FMM model self-test");
+        var world = Bukkit.getWorlds().getFirst();
+        var base = world.getSpawnLocation().clone().add(0, 1, 0);
         int index = 0;
-        for (Map.Entry<String, ImportedModel> entry : models.entrySet()) {
-            Location at = base.clone().add(index * 0.7, 0, 0);
+        for (Map.Entry<String, String> entry : MODEL_IDS.entrySet()) {
+            var at = base.clone().add(index++ * 2.5, 0, 0);
             Zombie dummy = world.spawn(at, Zombie.class, zombie -> {
                 zombie.setAI(false);
                 zombie.setSilent(true);
                 zombie.setInvulnerable(true);
             });
-            MotionDisplay display = null;
+            DynamicEntity model = null;
             try {
-                display = entry.getValue().spawn(motion, at);
-                display.follow(dummy, new Vector(0, 0, 0), 2);
-                display.hitbox(1.0f, 1.8f);
-                display.onClick(click -> { });
-                for (String animation : entry.getValue().animations()) {
-                    entry.getValue().play(display, animation, 0);
+                model = DynamicEntity.create(entry.getValue(), dummy);
+                if (model == null) throw new IllegalStateException("FMM refused model " + entry.getValue());
+                if (!model.hasAnimation("idle") || !model.hasAnimation("damaged")
+                        || !model.hasAnimation("attack") || !model.hasAnimation("death")) {
+                    throw new IllegalStateException("Model " + entry.getValue() + " is missing a required state animation.");
                 }
-                entry.getValue().play(display, "idle", 0);
-            } catch (RuntimeException failure) {
-                throw new IllegalStateException("DisplayMotion spawn/animation self-test failed for " + entry.getKey(), failure);
+                model.setClickSurface(true);
+                model.setDamagesOnContact(false);
+                model.playAnimation("damaged", true, false);
+                model.playAnimation("attack", true, false);
             } finally {
-                if (display != null && !display.isRemoved()) display.remove();
-                dummy.remove();
+                if (model != null && !model.isRemoved()) model.remove();
+                else if (dummy.isValid()) dummy.remove();
             }
-            index++;
         }
-        plugin.getLogger().info("DisplayMotion model runtime self-test passed for " + models.size()
-                + " models and every animation, follow target, and hitbox.");
+        plugin.getLogger().info("FMM runtime smoke test passed: four textured models, idle/attack/damage/death states, entity attachment and click hitboxes.");
     }
 
     void attachSoon(Zombie zombie) {
@@ -133,171 +160,101 @@ final class VisualManager implements Listener {
     }
 
     void attach(Zombie zombie) {
-        if (zombie == null || !zombie.isValid() || zombie.isDead()) return;
+        if (!fmmReady || zombie == null || !zombie.isValid() || zombie.isDead()) return;
         String type = plugin.specialVisualType(zombie);
         if (type == null) return;
+        String modelId = MODEL_IDS.get(type);
+        if (modelId == null) return;
+
         Active existing = active.get(zombie.getUniqueId());
-        if (existing != null && existing.type.equals(type) && !existing.display.isRemoved()) {
-            hideFromViewers(existing);
-            return;
-        }
-        if (existing != null) {
-            active.remove(zombie.getUniqueId());
-            remove(existing);
-        }
+        if (existing != null && existing.type.equals(type) && !existing.model.isRemoved()) return;
 
-        // Crawler and Hulk deliberately use the real vanilla Zombie renderer.
-        // DisplayMotion turns model texture faces into nearest solid block displays,
-        // which destroys the vanilla skin's pixel-art appearance and suppresses the
-        // native hurt flash / locomotion feedback. Their native swimming/scale poses
-        // provide the correct Minecraft texture, hit reaction, and built-in animation.
-        if (type.equals("crawler_lowprofile") || type.equals("hulk_brute")) {
-            return;
-        }
-
-        ImportedModel model = models.get(type);
+        DynamicEntity model = DynamicEntity.create(modelId, zombie);
         if (model == null) {
-            plugin.getLogger().severe("No DisplayMotion model registered for special infected type " + type);
+            plugin.getLogger().severe("FreeMinecraftModels could not create " + modelId
+                    + " for infected entity " + zombie.getUniqueId());
             return;
         }
-        MotionDisplay display = model.spawn(motion, zombie.getLocation());
-        display.follow(zombie, new Vector(0, 0, 0), 2);
-        float width = switch (type) {
-            case "hulk_brute" -> 1.8f;
-            case "popper_drowned" -> 1.0f;
-            case "crawler_lowprofile" -> 1.3f;
-            default -> 0.95f;
+        model.setClickSurface(true);
+        model.setDamagesOnContact(false);
+        String walk = switch (type) {
+            case "runner_husk" -> "run";
+            case "crawler_lowprofile" -> "crawl";
+            default -> "walk";
         };
-        float height = switch (type) {
-            case "hulk_brute" -> 3.0f;
-            case "crawler_lowprofile" -> 0.72f;
-            case "popper_drowned" -> 2.15f;
-            default -> 2.0f;
-        };
-        display.hitbox(width, height);
-        Active visual = new Active(zombie, type, display);
-        display.onClick(click -> meleeHit(visual, click.player(), click.leftClick()));
-        active.put(zombie.getUniqueId(), visual);
-        model.play(display, "idle");
-        hideFromViewers(visual);
-    }
-
-    private void meleeHit(Active visual, Player attacker, boolean leftClick) {
-        if (!leftClick || visual.dying || !attacker.isOnline() || attacker.getGameMode() == GameMode.SPECTATOR) return;
-        Zombie zombie = visual.zombie;
-        if (!zombie.isValid() || zombie.isDead() || attacker.getWorld() != zombie.getWorld()) return;
-        if (attacker.getLocation().distanceSquared(zombie.getLocation()) > 16.0 || !attacker.hasLineOfSight(zombie)) return;
-        int now = Bukkit.getCurrentTick();
-        HitKey key = new HitKey(attacker.getUniqueId(), zombie.getUniqueId());
-        int previous = lastHitTick.getOrDefault(key, Integer.MIN_VALUE / 2);
-        if (now - previous < 9) return;
-        lastHitTick.put(key, now);
-        AttributeInstance attack = attacker.getAttribute(Attribute.ATTACK_DAMAGE);
-        double damage = attack == null ? 1.0 : Math.max(1.0, attack.getValue());
-        zombie.damage(damage, attacker);
+        model.getAnimationComponent().setWalkAnimation(walk);
+        active.put(zombie.getUniqueId(), new Active(zombie, type, model));
     }
 
     void attack(Zombie zombie) {
         Active visual = active.get(zombie.getUniqueId());
-        if (visual == null || visual.dying) return;
-        String animation = visual.type.equals("crawler_lowprofile") ? "lunge" : "attack";
-        if (!models.get(visual.type).animations().contains(animation)) return;
-        models.get(visual.type).play(visual.display, animation, 5);
-        visual.animation = animation;
-        visual.lockUntil = Bukkit.getCurrentTick() + switch (visual.type) {
-            case "crawler_lowprofile" -> 10;
-            case "popper_drowned" -> 14;
-            case "hulk_brute" -> 15;
-            default -> 11;
-        };
+        if (visual == null || visual.dying || visual.model.isRemoved()) return;
+        visual.model.playAnimation("attack", true, false);
+    }
+
+    void onDamage(Zombie zombie, EntityDamageEvent event) {
+        Active visual = active.get(zombie.getUniqueId());
+        if (visual == null || visual.dying || visual.model.isRemoved()) return;
+        visual.model.getSkeleton().tint();
+        visual.model.playAnimation("damaged", true, false);
     }
 
     void onDeath(Zombie zombie) {
         Active visual = active.get(zombie.getUniqueId());
-        if (visual == null) return;
+        if (visual == null || visual.dying) return;
+        // FMM's own EntityDeathEvent listener starts removeWithDeathAnimation().
+        // Mark locally so no later action animation can race its terminal death pose.
         visual.dying = true;
-        visual.removeAt = Bukkit.getCurrentTick() + (visual.type.equals("popper_drowned") ? 14 : 20);
-        String animation = visual.type.equals("popper_drowned") ? "burst" : "death";
-        models.get(visual.type).play(visual.display, animation, 3);
     }
 
     void hideFrom(Player player) {
+        if (fmmPlugin == null || player == null || !player.isOnline()) return;
         for (Active visual : active.values()) {
-            if (visual.zombie.getWorld() != player.getWorld()) continue;
-            visual.hiddenPlayers.add(player.getUniqueId());
-            player.hideEntity(plugin, visual.zombie);
+            if (visual.zombie.getWorld() == player.getWorld() && visual.zombie.isValid()) {
+                player.hideEntity(fmmPlugin, visual.zombie);
+            }
         }
     }
 
     void onChunkUnload(Chunk chunk) {
-        Iterator<Active> iterator = active.values().iterator();
+        Iterator<Map.Entry<UUID, Active>> iterator = active.entrySet().iterator();
         while (iterator.hasNext()) {
-            Active visual = iterator.next();
+            Active visual = iterator.next().getValue();
             if (visual.zombie.getWorld().getUID().equals(chunk.getWorld().getUID())
                     && (visual.zombie.getLocation().getBlockX() >> 4) == chunk.getX()
                     && (visual.zombie.getLocation().getBlockZ() >> 4) == chunk.getZ()) {
-                remove(visual);
                 iterator.remove();
             }
-        }
-    }
-
-    private void hideFromViewers(Active visual) {
-        for (Player player : visual.zombie.getWorld().getPlayers()) {
-            visual.hiddenPlayers.add(player.getUniqueId());
-            player.hideEntity(plugin, visual.zombie);
         }
     }
 
     private void tick() {
-        int now = Bukkit.getCurrentTick();
         Iterator<Map.Entry<UUID, Active>> iterator = active.entrySet().iterator();
         while (iterator.hasNext()) {
             Active visual = iterator.next().getValue();
-            if (visual.dying) {
-                if (now >= visual.removeAt) {
-                    remove(visual);
-                    iterator.remove();
-                }
-                continue;
-            }
-            if (!visual.zombie.isValid() || visual.zombie.isDead() || visual.display.isRemoved()) {
-                remove(visual);
+            if (!visual.zombie.isValid() || visual.zombie.isDead() || visual.model.isRemoved()) {
                 iterator.remove();
-                continue;
             }
-            if (now < visual.lockUntil) continue;
-            double speedSquared = visual.zombie.getVelocity().getX() * visual.zombie.getVelocity().getX()
-                    + visual.zombie.getVelocity().getZ() * visual.zombie.getVelocity().getZ();
-            String desired = switch (visual.type) {
-                case "runner_husk" -> speedSquared > 0.0225 ? "run" : speedSquared > 0.0015 ? "walk" : "idle";
-                case "crawler_lowprofile" -> speedSquared > 0.0008 ? "crawl" : "idle";
-                default -> speedSquared > 0.0015 ? "walk" : "idle";
-            };
-            if (!desired.equals(visual.animation)) {
-                models.get(visual.type).play(visual.display, desired, 7);
-                visual.animation = desired;
-            }
-            if (now % 40 == 0) hideFromViewers(visual);
         }
-        if (now % 600 == 0) lastHitTick.entrySet().removeIf(e -> now - e.getValue() > 200);
-    }
-
-    private void remove(Active visual) {
-        if (!visual.display.isRemoved()) visual.display.remove();
-        for (UUID id : visual.hiddenPlayers) {
-            Player player = Bukkit.getPlayer(id);
-            if (player != null) player.showEntity(plugin, visual.zombie);
-        }
-        visual.hiddenPlayers.clear();
     }
 
     void stop() {
         if (task != null) task.cancel();
-        for (Active visual : active.values()) remove(visual);
+        if (fmmPlugin != null && fmmPlugin.isEnabled()) {
+            for (Active visual : active.values()) {
+                Zombie zombie = visual.zombie;
+                if (!zombie.isValid()) continue;
+                zombie.setVisibleByDefault(true);
+                for (Player player : zombie.getWorld().getPlayers()) {
+                    visual.model.hideFrom(player);
+                    player.showEntity(fmmPlugin, zombie);
+                }
+            }
+        }
         active.clear();
-        lastHitTick.clear();
     }
 
-    int activeCount() { return active.size(); }
+    int activeCount() {
+        return active.size();
+    }
 }
