@@ -35,7 +35,7 @@ import java.util.UUID;
  */
 final class VisualManager implements Listener {
     private static final String[] MODEL_FILES = {
-            "runner_husk", "popper_drowned", "crawler_lowprofile", "hulk_brute"
+            "runner_husk", "popper_drowned"
     };
 
     private static final class Active {
