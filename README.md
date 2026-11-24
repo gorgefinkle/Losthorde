@@ -2,31 +2,48 @@
 
 Experimental Paper 26.2 / Java 25 zombie population and migration plugin, with an optional file-based Metropolis BUILD population integration.
 
-**R11 is an active development checkpoint, not yet a test-ready release.** It adds DisplayMotion-rendered special infected, original editable Blockbench models, the Popper death burst, and a stricter non-zombie hostile spawn policy. The Paper 26.2 + DisplayMotion 0.4.0 headless smoke test now loads all four models and exercises model spawn, follow, hitbox registration, click callbacks, and every animation clip. Connected-client appearance and real melee feel still need in-game verification. Do not install it in a valuable world.
+**R12 is an active test build, not a production release.** It replaces the old block-display renderer with FreeMinecraftModels (FMM) and ResourcePackManager (RSPM). All four special infected now use articulated Blockbench geometry with zombie-family pixel textures: Husk Runner, Drowned Popper, zombie-textured Crawler, and zombie-textured three-block Hulk. The server-side zombie remains responsible for AI, pathfinding, collision, health, damage, and persistence.
 
-## Required server dependency
+## Required server plugins
 
-Dead Streets R11 requires **[DisplayMotion 0.4.0](https://github.com/Jan1k1/displaymotion/releases/tag/v0.4.0)**. Install `DisplayMotion-0.4.0.jar` in the server's `plugins` folder alongside Dead Streets. DisplayMotion includes PacketEvents; do not install a separate PacketEvents jar just for this integration. Dead Streets intentionally has no vanilla-model fallback if DisplayMotion is missing.
+Install these three jars in `plugins/`:
 
-The four original, editable Blockbench models live in `src/main/resources/models/` (see [docs/MODELS.md](docs/MODELS.md) for the editing and animation contract): Husk Runner, Drowned Popper, low-profile Crawler, and three-block Hulk. DisplayMotion converts their solid-color geometry to vanilla blocks, so clients need no resource pack or mod and existing block texture packs can reskin those materials. The model renderer hides each special infected's vanilla body and uses a model hitbox to route melee hits back to the server-side zombie.
+1. [FreeMinecraftModels 2.16.0](https://modrinth.com/plugin/free-minecraft-models) — imports and renders the articulated models.
+2. [ResourcePackManager 2.4.13](https://modrinth.com/plugin/resourcepackmanager) — merges and delivers the generated model pack.
+3. Dead Streets R12.
+
+No client mods are needed. You do **not** need to create, upload, or host a pack yourself. FMM generates the model pack; RSPM serves it from the server when reachable and falls back to its free remote hosting when necessary. Players must accept the server resource-pack prompt to see the custom models. RSPM's remote fallback temporarily uploads the merged resource pack to its hosting service; its published data policy says inactive server uploads expire within 24 hours after shutdown.
+
+FMM and RSPM are required dependencies in this build. DisplayMotion is no longer required.
+
+## Infected model design
+
+The editable source models live in `src/main/resources/fmm/`. On startup Dead Streets copies them into FMM's active model directory and requests one FMM reload if they were not already imported. It listens for FMM reload completion and reattaches models to surviving zombies, so a model reload does not leave infected invisible.
+
+- **Runner:** Husk-textured, forward-leaning runner; idle, run, attack, damage and death states.
+- **Popper:** Drowned-textured swollen infected; idle, walk, attack, inflate, damage and burst-on-death states. Its death still applies modest non-block-damaging damage and releases 1–4 Crawlers.
+- **Crawler:** Low, elongated zombie-textured body; crawl locomotion, lunge attack, articulated hurt reaction and death.
+- **Hulk:** Broad, asymmetrical three-block zombie-textured brute; heavy walk, attack, roar, hurt reaction and death.
+
+The FMM models define the visual size and their hitbox bones. The hidden zombie drivers stay at unit scale so the old R11 scale modifiers cannot make the models too large or too small. The Crawler's underlying zombie retains its fixed swimming pose for its low collision profile.
 
 ## Current development scope
 
 - Persistent daylight-immune walkers with a durable global admission budget.
 - Configurable natural mob pass-through rates; non-zombie hostile mobs are blocked for all spawn reasons except admin commands and player spawn eggs.
-- Vanilla spawner policy: `ALLOW_ALL` or `CONVERT_TO_ZOMBIES`. When the Dead Streets proximity-wave controller is enabled, converted spawners use its immediate first wave, randomized 30–60-second follow-up waves, nearby cap, and floating countdown. If that controller is disabled, converted vanilla spawners operate as ordinary zombie spawners.
-- Persistent shared virtual hordes with larger configured populations, sound-sensitive migration, physical emergence only in unobserved chunks, and eight-way per-player arrival directions, estimated ETA, population and temperament.
-- Scragglers: a configurable subset of managed walkers gets independent local wander goals and may join a nearby shared horde. The wander manager does not spawn entities or generate chunks.
-- Blood Moon: one scheduled night every seven in-game days, with full-screen warning/wave notices and a configurable duration capped at sunrise. Choose its timer presentation with `/deadstreets bloodmoon display bossbar` or `/deadstreets bloodmoon display scoreboard`; the default is its own Bukkit BossBar.
-- Optional Metropolis BUILD population records. Metropolis writes a file-only sidecar after a BUILD has fully pasted; Dead Streets reads its district, footprint, and candidate interior columns, then validates safe indoor standing positions before spawning. Population activation remains disabled by default until the no-pop-in gate is passed.
+- Vanilla spawner policy: `ALLOW_ALL` or `CONVERT_TO_ZOMBIES`. When the Dead Streets proximity-wave controller is enabled, converted spawners use its immediate first wave, randomized 30–60-second follow-up waves, nearby cap, and floating countdown.
+- Persistent shared virtual hordes with sound-sensitive migration, physical emergence only in unobserved chunks, and eight-way per-player arrival directions, estimated ETA, population and temperament.
+- Scragglers: a configurable subset of managed walkers gets independent local wander goals and may join a nearby shared horde.
+- Blood Moon: one scheduled night every seven in-game days, with full-screen warning/wave notices and a configurable duration capped at sunrise.
+- Optional Metropolis BUILD population records. Metropolis writes a file-only sidecar after a BUILD has fully pasted; Dead Streets reads its district, footprint, and candidate interior columns, then validates safe indoor standing positions.
 
 ## Repositories
 
 - Dead Streets: this repository.
 - Metropolis exporter integration: the separate `deadstreets-building-population-export` development branch in the Metropolis repository. No Metropolis assets or source are copied into this repository.
 
-## Special infected\n\n- Husk Runner: fast, forward-leaning model with idle, walk, run, attack and death animations.\n- Drowned Popper: swollen model with an inflate/burst animation; death causes a modest-radius, non-block-damaging burst and releases 1–4 Crawlers.\n- Crawler: low horizontal body with crawl/lunge animations.\n- Hulk: broad, asymmetrical three-block brute with walk, attack and roar animations.\n\nOnly scragglers and physical horde members are eligible for random subtype assignment. Popper offspring are guaranteed Crawlers and cannot chain into more Poppers.\n\n## Build and verification
+## Build and verification
 
-Run `bash test_core.sh` with Java 25. For Paper packaging, run `mvn -B -ntp package` with access to the Paper 26.2 and JitPack Maven repositories. The current GitHub Actions attempts have failed before any job steps started, so they provide no compile or test evidence.
+Run `bash test_core.sh` with Java 25. Build with `mvn -B -ntp package`; the FMM 2.16.0 API resolves from MagmaGuy's Maven repository.
 
-Even after a successful build, connected-client visibility, real zombie pathfinding/combat, real Metropolis export-to-consumer activation, spawner conversion, long-run MSPT, and restart/power-loss behavior remain acceptance gates.
+The R12 runtime smoke test starts Paper 26.2 with FMM and RSPM, imports all four models, attaches them to real zombie entities, and checks the idle, attack, damage and death animation states. A successful headless test does not replace connected-client appearance, melee feel, pack acceptance, or long-run server performance testing. Test on a disposable world first.
