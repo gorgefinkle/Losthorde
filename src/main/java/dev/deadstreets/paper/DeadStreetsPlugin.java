@@ -69,6 +69,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     private CrawlerManager crawlers;
     private RunnerManager runners;
     private PopperManager poppers;
+    private ZombieIdentityManager identities;
     private final ObservationGuard observation = new ObservationGuard();
     private final Map<UUID,Integer> observerTickByWorld = new HashMap<>();
     ObservationGuard observation() { return observation; }
@@ -106,6 +107,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         crawlers = new CrawlerManager(this);
         runners = new RunnerManager(this);
         poppers = new PopperManager(this);
+        identities = new ZombieIdentityManager(this);
         walkerBudget.load();
         spawners = new SpawnerManager(this);
         population = new PopulationManager(this);
@@ -205,6 +207,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         zombie.getPersistentDataContainer().set(walkerTag, PersistentDataType.BYTE, (byte) 1);
         zombie.setPersistent(true);
         zombie.setRemoveWhenFarAway(false);
+        if (identities != null) identities.ensureIdentity(zombie);
         if (getConfig().getBoolean("zombies.never-burn-in-daylight",true)) zombie.setShouldBurnInDay(false);
     }
 
@@ -298,6 +301,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             if (hulks != null) hulks.refresh(z);
             if (runners != null) runners.refresh(z);
             if (poppers != null) poppers.refresh(z);
+            if (isManagedWalker(z) && identities != null) identities.ensureIdentity(z);
             if (getConfig().getBoolean("zombies.never-burn-in-daylight",true)) z.setShouldBurnInDay(false);
             if (getConfig().getBoolean("zombies.make-all-zombies-persistent",true)) {
                 z.setPersistent(true); z.setRemoveWhenFarAway(false);
@@ -319,6 +323,11 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     @EventHandler public void onEntitiesUnload(EntitiesUnloadEvent event) {
         hordes.onEntitiesUnload(event.getChunk());
     }
+    @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true)
+    public void onZombieDamagedByPlayer(EntityDamageByEntityEvent event) {
+        if (identities != null) identities.showHealthAfterHit(event);
+    }
+
     @EventHandler public void onZombieDeath(EntityDeathEvent event) {
         if(event.getEntity() instanceof Zombie zombie) {
             scragglers.onZombieDeath(zombie);
