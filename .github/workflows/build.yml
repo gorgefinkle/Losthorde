@@ -105,6 +105,9 @@ jobs:
           mkdir -p bettermodel-smoke/plugins
           cp target/DeadStreets_R14.jar bettermodel-smoke/plugins/DeadStreets.jar
           cp bettermodel.jar bettermodel-smoke/plugins/BetterModel.jar
+          mkdir -p bettermodel-smoke/plugins/BetterModel
+          unzip -p bettermodel.jar config.yml > bettermodel-smoke/plugins/BetterModel/config.yml
+          sed -i 's/exception: false/exception: true/' bettermodel-smoke/plugins/BetterModel/config.yml
           echo 'eula=true' > bettermodel-smoke/eula.txt
           cat > bettermodel-smoke/server.properties <<'EOF'
           online-mode=false
