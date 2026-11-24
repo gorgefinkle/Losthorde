@@ -5,7 +5,6 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.entity.Zombie;
@@ -91,6 +90,10 @@ final class ZombieIdentityManager {
     }
 
     private void tickViewers() {
+        if (!plugin.getConfig().getBoolean("zombies.target-display.enabled", true)) {
+            for (UUID id : java.util.List.copyOf(plates.keySet())) removePlate(id);
+            return;
+        }
         int range = Math.max(3, Math.min(24, plugin.getConfig().getInt("zombies.target-display.range", 9)));
         for (Player player : Bukkit.getOnlinePlayers()) {
             Entity target = player.getTargetEntity(range);
