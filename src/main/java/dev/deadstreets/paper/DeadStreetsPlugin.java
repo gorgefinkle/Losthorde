@@ -328,10 +328,12 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         hordes.onChunkLoad(event.getChunk());
     }
     @EventHandler public void onEntitiesUnload(EntitiesUnloadEvent event) {
+        if (models != null) models.forgetChunk(event.getChunk());
         hordes.onEntitiesUnload(event.getChunk());
     }
     @EventHandler public void onZombieDeath(EntityDeathEvent event) {
         if(event.getEntity() instanceof Zombie zombie) {
+            if (models != null) models.forgetEntity(zombie);
             scragglers.onZombieDeath(zombie);
             hordes.onZombieDeath(zombie);
             walkerBudget.onDeath(zombie);
