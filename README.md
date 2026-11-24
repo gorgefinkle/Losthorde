@@ -12,7 +12,7 @@ Install these three jars in `plugins/`:
 2. [ResourcePackManager 2.4.13](https://modrinth.com/plugin/resourcepackmanager) — merges and delivers the generated model pack.
 3. Dead Streets R12.
 
-No client mods are needed. You do **not** need to create, upload, or host a pack yourself. FMM generates the model pack; RSPM serves it from the server when reachable and falls back to its free remote hosting when necessary. Players must accept the server resource-pack prompt to see the custom models. RSPM's remote fallback temporarily uploads the merged resource pack to its hosting service; its published data policy says inactive server uploads expire within 24 hours after shutdown.
+No client mods are needed. You do **not** need to create, upload, or host a pack yourself. FMM generates the model pack; RSPM serves it from the server when reachable and falls back to its free remote hosting when necessary. Players must accept the server resource-pack prompt to see the custom models. If self-hosting cannot be verified, RSPM's remote fallback uploads the merged resource pack to MagmaGuy's hosting service; this is only the pack, not world or player data.
 
 FMM and RSPM are required dependencies in this build. DisplayMotion is no longer required.
 
