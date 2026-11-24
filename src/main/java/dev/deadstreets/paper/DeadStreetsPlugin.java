@@ -69,13 +69,11 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     private CrawlerManager crawlers;
     private RunnerManager runners;
     private PopperManager poppers;
-    private VisualManager visuals;
     private final ObservationGuard observation = new ObservationGuard();
     private final Map<UUID,Integer> observerTickByWorld = new HashMap<>();
     ObservationGuard observation() { return observation; }
     WalkerBudget budget() { return walkerBudget; }
     CrawlerManager crawlers() { return crawlers; }
-    VisualManager visuals() { return visuals; }
     boolean isManagedWalker(Zombie z) {return z.getPersistentDataContainer().has(walkerTag, PersistentDataType.BYTE);}
     boolean isCrawler(Zombie z) { return crawlers != null && crawlers.isCrawler(z); }
     void recordObservers(World w,long now) {
@@ -98,10 +96,6 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             dest.getX(),dest.getZ(),dest.getWorld().getViewDistance(),System.currentTimeMillis());
     }
 
-    @Override public void onLoad() {
-        VisualManager.stageBeforeFmmStartup(this);
-    }
-
     @Override public void onEnable() {
         saveDefaultConfig();
         walkerTag = new NamespacedKey(this, "dead_streets_walker");
@@ -112,7 +106,6 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         crawlers = new CrawlerManager(this);
         runners = new RunnerManager(this);
         poppers = new PopperManager(this);
-        visuals = new VisualManager(this);
         walkerBudget.load();
         spawners = new SpawnerManager(this);
         population = new PopulationManager(this);
@@ -122,16 +115,14 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         Bukkit.getPluginManager().registerEvents(this, this);
         Objects.requireNonNull(getCommand("deadstreets"), "deadstreets command").setExecutor(this);
         spawners.start();
-        visuals.start();
         refreshLoadedZombies();
         population.start();
         hordes.start();
         bloodMoon.start();
         scragglers.start();
-        getLogger().info("Dead Streets R12.1: persistent populations, migrating hordes, scragglers and animated textured infected.");
+        getLogger().info("Dead Streets R13: dependency-free native swimming Crawlers and three-block Hulks.");
     }
     @Override public void onDisable() {
-        if (visuals != null) visuals.stop();
         if (spawners != null) spawners.stop();
         if (population != null) population.stop();
         if (bloodMoon != null) bloodMoon.stop();
@@ -166,7 +157,6 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             if (!assigned && crawlers != null) { crawlers.assign(zombie); assigned = crawlers.isCrawler(zombie); }
             if (!assigned && hulks != null) hulks.assign(zombie);
         }
-        if (visuals != null) visuals.attachSoon(zombie);
     }
 
     private void markWalkerBase(Zombie zombie) {
@@ -185,16 +175,8 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         crawlers.prepareTest(zombie);
         crawlers.refresh(zombie);
         walkerBudget.tag(zombie);
-        if (visuals != null) visuals.attachSoon(zombie);
     }
 
-    String specialVisualType(Zombie zombie) {
-        if (runners != null && runners.isRunner(zombie)) return "runner_husk";
-        if (poppers != null && poppers.isPopper(zombie)) return "popper_drowned";
-        if (crawlers != null && crawlers.isCrawler(zombie)) return "crawler_lowprofile";
-        if (hulks != null && hulks.isHulk(zombie)) return "hulk_brute";
-        return null;
-    }
     private boolean isOurs(Zombie zombie) {return isManagedWalker(zombie);}
     @EventHandler public void onSpawn(CreatureSpawnEvent event) {
         if (!allowNaturalMob(event) || blockNonZombieHostile(event)) { event.setCancelled(true); return; }
@@ -274,7 +256,6 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             if (hulks != null) hulks.refresh(z);
             if (runners != null) runners.refresh(z);
             if (poppers != null) poppers.refresh(z);
-            if (visuals != null) visuals.attach(z);
             if (getConfig().getBoolean("zombies.never-burn-in-daylight",true)) z.setShouldBurnInDay(false);
             if (getConfig().getBoolean("zombies.make-all-zombies-persistent",true)) {
                 z.setPersistent(true); z.setRemoveWhenFarAway(false);
@@ -294,12 +275,10 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         hordes.onChunkLoad(event.getChunk());
     }
     @EventHandler public void onEntitiesUnload(EntitiesUnloadEvent event) {
-        if (visuals != null) visuals.onChunkUnload(event.getChunk());
         hordes.onEntitiesUnload(event.getChunk());
     }
     @EventHandler public void onZombieDeath(EntityDeathEvent event) {
         if(event.getEntity() instanceof Zombie zombie) {
-            if (visuals != null) visuals.onDeath(zombie);
             scragglers.onZombieDeath(zombie);
             hordes.onZombieDeath(zombie);
             walkerBudget.onDeath(zombie);
@@ -307,16 +286,6 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         }
     }
 
-    @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true)
-    public void onSpecialWalkerAttack(EntityDamageByEntityEvent event) {
-        if (event.getDamager() instanceof Zombie zombie && visuals != null) visuals.attack(zombie);
-    }
-
-    @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true)
-    public void onSpecialWalkerDamaged(EntityDamageEvent event) {
-        if (event.getEntity() instanceof Zombie zombie && visuals != null
-                && specialVisualType(zombie) != null) visuals.onDamage(zombie, event);
-    }
     @EventHandler public void onQuit(PlayerQuitEvent event) {
         hordes.forgetPlayer(event.getPlayer().getUniqueId());
         observation.forget(event.getPlayer().getUniqueId());
@@ -324,7 +293,6 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void onTeleport(PlayerTeleportEvent event) {
         observeTeleport(event.getPlayer(),event.getTo());
-        if (visuals != null) Bukkit.getScheduler().runTask(this, () -> visuals.refreshPlayerVisibility(event.getPlayer()));
     }
     @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true) public void onBloodMoonBedEnter(PlayerBedEnterEvent event) {
         if (bloodMoon != null && bloodMoon.shouldBlockSleep(event.getPlayer().getWorld())) {
@@ -335,10 +303,8 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     }
     @EventHandler public void onJoin(PlayerJoinEvent event) {
         observeTeleport(event.getPlayer(),event.getPlayer().getLocation());
-        if (visuals != null) Bukkit.getScheduler().runTask(this, () -> visuals.refreshPlayerVisibility(event.getPlayer()));
     }
     @EventHandler public void onChunkUnload(ChunkUnloadEvent event) {
-        if (visuals != null) visuals.onChunkUnload(event.getChunk());
         spawners.onChunkUnload(event.getChunk());
         population.onChunkUnload(event.getChunk());
     }
