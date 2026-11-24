@@ -1,7 +1,5 @@
 package dev.deadstreets.paper;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
@@ -134,11 +132,9 @@ final class ZombieIdentityManager {
         double current = Math.max(0.0, zombie.getHealth());
         int segments = 12;
         int filled = Math.max(0, Math.min(segments, (int) Math.ceil(segments * current / Math.max(1.0, max))));
-        Component bar = Component.text("▰".repeat(filled), NamedTextColor.RED)
-                .append(Component.text("▱".repeat(segments - filled), NamedTextColor.DARK_GRAY))
-                .append(Component.text("  " + String.format(java.util.Locale.ROOT, "%.0f%%", 100.0 * current / Math.max(1.0, max)),
-                        NamedTextColor.GRAY));
-        display.text(Component.text(name, NamedTextColor.WHITE).append(Component.newline()).append(bar));
+        String bar = "§c" + "▰".repeat(filled) + "§8" + "▱".repeat(segments - filled)
+                + "§7  " + String.format(java.util.Locale.ROOT, "%.0f%%", 100.0 * current / Math.max(1.0, max));
+        display.setText("§f" + name + "\\n" + bar);
     }
 
     private Location plateLocation(Zombie zombie) {
