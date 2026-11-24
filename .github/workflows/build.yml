@@ -1,4 +1,4 @@
-name: Compile, core tests and Paper/FMM runtime smoke
+name: Compile, core tests and dependency-free Paper runtime smoke
 on:
   push:
   pull_request:
@@ -19,26 +19,36 @@ jobs:
       - name: Core test harness
         run: bash test_core.sh
       - name: Build Paper plugin
-        run: mvn -B -ntp -DskipTests package
-      - name: Download Paper 26.2, FreeMinecraftModels and ResourcePackManager
+        run: mvn -B -ntp -DskipTests clean package
+      - name: Verify plugin has no renderer or resource-pack plugin dependencies
         run: |
-          curl -fsSL -H 'User-Agent: Losthorde-R12-Smoke/1.0' \
+          python3 - <<'PY'
+          import re
+          from zipfile import ZipFile
+
+          jar_path = "target/DeadStreets_R13.jar"
+          with ZipFile(jar_path) as jar:
+              descriptor = jar.read("plugin.yml").decode("utf-8")
+              assert not re.search(r"(?m)^depend\\s*:", descriptor), "Required plugin dependencies remain"
+              assert "FreeMinecraftModels" not in descriptor
+              assert "ResourcePackManager" not in descriptor
+              assert not any(name.endswith(".bbmodel") for name in jar.namelist()), "Model assets remain embedded"
+              assert not any("VisualManager.class" in name for name in jar.namelist()), "Custom renderer class remains"
+          print("Dependency check passed: Paper API only; no FMM, RSPM, DisplayMotion, Blockbench assets or renderer class.")
+          PY
+      - name: Download Paper 26.2
+        run: |
+          curl -fsSL -H 'User-Agent: Losthorde-R13-Smoke/1.0' \
             'https://fill.papermc.io/v3/projects/paper/versions/26.2/builds?channel=STABLE' \
             -o paper-builds.json
           PAPER_URL="$(jq -r 'first(.[] | select(.channel == "STABLE") | .downloads["server:default"].url)' paper-builds.json)"
           test -n "$PAPER_URL" && test "$PAPER_URL" != "null"
           curl -fL "$PAPER_URL" -o paper.jar
-          FMM_URL="$(curl -fsSL -H 'User-Agent: Losthorde-R12-Smoke/1.0' 'https://api.modrinth.com/v2/project/free-minecraft-models/version' | jq -r '[.[] | select(.version_number == "2.16.0" and (.game_versions | index("26.2")))][0].files[] | select(.primary == true) | .url')"
-          RSPM_URL="$(curl -fsSL -H 'User-Agent: Losthorde-R12-Smoke/1.0' 'https://api.modrinth.com/v2/project/resourcepackmanager/version' | jq -r '[.[] | select(.version_number == "2.4.13" and (.game_versions | index("26.2")))][0].files[] | select(.primary == true) | .url')"
-          test -n "$FMM_URL" && test "$FMM_URL" != "null"
-          test -n "$RSPM_URL" && test "$RSPM_URL" != "null"
-          curl -fL "$FMM_URL" -o FreeMinecraftModels.jar
-          curl -fL "$RSPM_URL" -o ResourcePackManager.jar
-          mkdir -p plugins/ResourcePackManager
-          cp target/DeadStreets_R12.1.jar plugins/DeadStreets.jar
-          cp FreeMinecraftModels.jar plugins/FreeMinecraftModels.jar
-          cp ResourcePackManager.jar plugins/ResourcePackManager.jar
-          # RSPM runs its normal merge/hosting path against the small test pack.
+      - name: Run Paper 26.2 with Dead Streets only
+        run: |
+          mkdir -p plugins
+          cp target/DeadStreets_R13.jar plugins/DeadStreets.jar
+          test "$(find plugins -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 1
           echo 'eula=true' > eula.txt
           cat > server.properties <<'EOF'
           online-mode=false
@@ -47,12 +57,12 @@ jobs:
           simulation-distance=4
           spawn-protection=0
           EOF
-          java -Ddeadstreets.model-smoke=true -Xms1G -Xmx1G -jar paper.jar --nogui > server-console.log 2>&1 &
+          java -Ddeadstreets.native-smoke=true -Xms1G -Xmx1G -jar paper.jar --nogui > server-console.log 2>&1 &
           SERVER_PID=$!
           READY=0
-          for attempt in $(seq 1 360); do
-            if grep -q 'FMM runtime smoke test passed' logs/latest.log 2>/dev/null; then READY=1; break; fi
-            if grep -qE 'Could not install Dead Streets|FMM runtime smoke test failed|FreeMinecraftModels reloaded but one or more Dead Streets models are still missing' logs/latest.log 2>/dev/null; then break; fi
+          for attempt in $(seq 1 180); do
+            if grep -Fq 'Native infected smoke test passed' logs/latest.log 2>/dev/null; then READY=1; break; fi
+            if grep -Eq 'Error occurred while enabling DeadStreets|NoClassDefFoundError|NoSuchMethodError' logs/latest.log 2>/dev/null; then break; fi
             if ! kill -0 "$SERVER_PID" 2>/dev/null; then break; fi
             sleep 1
           done
@@ -63,66 +73,19 @@ jobs:
             wait "$SERVER_PID" 2>/dev/null || true
             exit 1
           fi
+          grep -F 'Dead Streets R13:' logs/latest.log
+          grep -F 'Native infected smoke test passed' logs/latest.log
           kill -TERM "$SERVER_PID" 2>/dev/null || true
           wait "$SERVER_PID" 2>/dev/null || true
-          cat server-console.log
-          grep -F 'FreeMinecraftModels loaded all four Dead Streets models' logs/latest.log
-          grep -F 'FMM runtime smoke test passed' logs/latest.log
-          grep -F 'Dead Streets R12.1:' logs/latest.log
-          python3 - <<'PY'
-          from pathlib import Path
-          from zipfile import ZipFile\nimport json
-
-          pack = Path("plugins/FreeMinecraftModels/output/FreeMinecraftModels.zip")
-          expected = {
-              "deadstreets_runner": "minecraft:entity/zombie/husk",
-              "deadstreets_popper": "minecraft:entity/zombie/drowned",
-              "deadstreets_crawler": "minecraft:entity/zombie/zombie",
-              "deadstreets_hulk": "minecraft:entity/zombie/zombie",
-          }
-          required_atlas = {
-              "minecraft:entity/zombie/zombie",
-              "minecraft:entity/zombie/husk",
-              "minecraft:entity/zombie/drowned",
-          }
-          assert pack.is_file() and pack.stat().st_size > 0, "FMM pack ZIP missing"
-          with ZipFile(pack) as archive:
-              names = archive.namelist()
-              atlas_path = "assets/minecraft/atlases/blocks.json"
-              assert atlas_path in names, "FMM blocks atlas missing from pack"
-              atlas = json.loads(archive.read(atlas_path))
-              atlas_resources = {
-                  source.get("resource")
-                  for source in atlas.get("sources", [])
-                  if source.get("type") in ("single", "minecraft:single")
-              }
-              assert required_atlas <= atlas_resources, (
-                  f"Vanilla mob textures are not stitched into the display atlas: {required_atlas - atlas_resources}"
-              )
-              assert not any(
-                  str(resource).startswith("freeminecraftmodels:entity/deadstreets_")
-                  for resource in atlas_resources
-              ), "Stale Dead Streets placeholder atlas entries remain"
-              for model_id, texture in expected.items():
-                  prefix = f"assets/freeminecraftmodels/models/{model_id}/"
-                  model_files = [name for name in names if name.startswith(prefix) and name.endswith(".json")]
-                  assert model_files, f"No packed model JSON for {model_id}"
-                  model_json = "\\n".join(archive.read(name).decode("utf-8") for name in model_files)
-                  assert texture in model_json, f"{model_id} does not reference {texture}"
-                  assert f"freeminecraftmodels:entity/{model_id}/" not in model_json, f"{model_id} still references placeholder namespace"
-                  texture_prefix = f"assets/freeminecraftmodels/textures/entity/{model_id}/"
-                  assert not any(name.startswith(texture_prefix) for name in names), f"{model_id} placeholder PNGs remain in pack"
-          print("FMM pack ZIP verified: all four model JSON references and all three vanilla atlas sprites are present; no placeholder textures remain.")
-          PY
       - name: Package full source
         run: |
           mkdir -p dist
-          cp target/DeadStreets_R12.jar dist/
-          git archive --format=zip --output=dist/DeadStreets_R12.1-source.zip HEAD
+          cp target/DeadStreets_R13.jar dist/
+          git archive --format=zip --output=dist/DeadStreets_R13-source.zip HEAD
       - name: Upload test build
         uses: actions/upload-artifact@v4
         with:
-          name: DeadStreets-R12.1-test-build
+          name: DeadStreets-R13-test-build
           path: dist/*
           if-no-files-found: error
           retention-days: 30
