@@ -10,7 +10,7 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-/** Husk-derived runner gameplay variant. Its visible body is supplied by the FreeMinecraftModels renderer. */
+/** Husk-derived runner gameplay variant. It uses the server's native Husk-based presentation. */
 final class RunnerManager {
     private final DeadStreetsPlugin plugin;
     private final NamespacedKey key;
@@ -87,7 +87,6 @@ final class RunnerManager {
                 plugin.markTestWalker(created);
                 apply(created);
                 if (!force) plugin.budget().tag(created);
-                plugin.visuals().attachSoon(created);
             });
             return (force ? "DEV FORCE: spawned uncounted test Runner " : "Spawned test Runner ") + zombie.getUniqueId() + " nearby.";
         } catch (RuntimeException failure) {
