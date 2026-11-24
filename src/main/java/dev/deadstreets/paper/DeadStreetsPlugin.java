@@ -18,6 +18,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityCombustByBlockEvent;
 import org.bukkit.event.entity.EntityCombustByEntityEvent;
 import org.bukkit.event.entity.EntityCombustEvent;
@@ -123,7 +124,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         hordes.start();
         bloodMoon.start();
         scragglers.start();
-        getLogger().info("Dead Streets R11: persistent populations, migrating hordes, scragglers and apocalypse spawn policy.");
+        getLogger().info("Dead Streets R12: persistent populations, migrating hordes, scragglers and animated textured infected.");
     }
     @Override public void onDisable() {
         if (visuals != null) visuals.stop();
@@ -305,6 +306,12 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true)
     public void onSpecialWalkerAttack(EntityDamageByEntityEvent event) {
         if (event.getDamager() instanceof Zombie zombie && visuals != null) visuals.attack(zombie);
+    }
+
+    @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true)
+    public void onSpecialWalkerDamaged(EntityDamageEvent event) {
+        if (event.getEntity() instanceof Zombie zombie && visuals != null
+                && specialVisualType(zombie) != null) visuals.onDamage(zombie, event);
     }
     @EventHandler public void onQuit(PlayerQuitEvent event) {
         hordes.forgetPlayer(event.getPlayer().getUniqueId());
