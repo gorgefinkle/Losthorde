@@ -259,8 +259,14 @@ final class VisualManager implements Listener {
                 model.playAnimation("damaged", true, false);
                 model.playAnimation("attack", true, false);
             } finally {
-                if (model != null && !model.isRemoved()) model.remove();
-                else if (dummy.isValid()) dummy.remove();
+                if (model != null && !model.isRemoved()) {
+                    model.detachKeepingZombie();
+                    if (!dummy.isValid() || dummy.isInvisible() || !dummy.isVisibleByDefault()
+                            || dummy.getHeight() < 1.5) {
+                        throw new IllegalStateException("FMM detach did not preserve and restore the native zombie driver for " + entry.getValue());
+                    }
+                }
+                if (dummy.isValid()) dummy.remove();
             }
         }
         plugin.getLogger().info("FMM runtime smoke test passed: four textured models, idle/attack/damage/death states, entity attachment and click hitboxes.");
