@@ -353,7 +353,7 @@ final class VisualManager implements Listener {
             try {
                 AppearanceState appearance = new AppearanceState(dummy.isInvisible(), dummy.isVisibleByDefault());
                 model = new PersistentDynamicEntity(entry.getValue(), dummy, fmmPlugin,
-                        appearance, originalInvisibleKey, originalVisibleKey);
+                        appearance, originalInvisibleKey, originalVisibleKey, fmmDynamicKey);
                 model.spawn(dummy);
                 model.hideBackingEntity();
                 String movement = switch (entry.getKey()) {
