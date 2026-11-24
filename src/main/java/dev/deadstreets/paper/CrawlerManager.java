@@ -11,10 +11,7 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * Dependency-free low-profile infected. The real vanilla Zombie renderer handles its
- * body and animation; Paper's fixed SWIMMING pose gives it the low, horizontal profile.
- */
+/** Native Zombie gameplay with an optional horizontal, animated BetterModel visual. */
 final class CrawlerManager {
     private final DeadStreetsPlugin plugin;
     private final NamespacedKey crawlerKey;
@@ -47,8 +44,9 @@ final class CrawlerManager {
         applyCrawlPose(zombie);
     }
     private void applyCrawlPose(Zombie zombie) {
-        // fixed=true prevents vanilla mob AI from replacing the pose with STANDING.
+        // Keep the compact swimming hitbox; BetterModel supplies the actual horizontal body and crawl animation.
         zombie.setPose(Pose.SWIMMING, true);
+        plugin.models().attach(zombie, "deadstreets_crawler", "crawl");
     }
     private void applyAttributes(Zombie zombie) {
         // Keep native zombie dimensions; Pose.SWIMMING supplies the low profile.
@@ -100,7 +98,7 @@ final class CrawlerManager {
                 refresh(created);
                 if (!force) plugin.budget().tag(created);
             });
-            return (force ? "DEV FORCE: spawned uncounted test Crawler " : "Spawned test Crawler ") + zombie.getUniqueId() + " nearby in the native swimming pose.";
+            return (force ? "DEV FORCE: spawned uncounted test Crawler " : "Spawned test Crawler ") + zombie.getUniqueId() + " nearby. BetterModel visual: " + (plugin.models().attach(zombie, "deadstreets_crawler", "crawl") ? "attached" : "not loaded; vanilla fallback active") + ".";
         } catch (RuntimeException failure) {
             if (!force) plugin.budget().rollback();
             return "Test Crawler spawn failed: " + failure.getMessage();
