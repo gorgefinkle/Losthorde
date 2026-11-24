@@ -15,7 +15,6 @@ import java.util.concurrent.ThreadLocalRandom;
  * DisplayMotion supplies the broad, asymmetrical visual anatomy and articulated animations.
  */
 final class HulkManager {
-    private static final double THREE_BLOCK_SCALE = 1.53846;
     private final DeadStreetsPlugin plugin;
     private final NamespacedKey hulkKey;
     private long assigned;
