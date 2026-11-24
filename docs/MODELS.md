@@ -11,7 +11,7 @@ Dead Streets uses FreeMinecraftModels (FMM) 2.16.0 for all four special infected
 
 ## Model source and installation
 
-Editable .bbmodel files are embedded under `src/main/resources/fmm/`. On Dead Streets startup, they are copied into:
+Editable .bbmodel files are embedded under `src/main/resources/fmm/`. During Dead Streets' `onLoad`, before FMM begins its first import, they are copied into:
 
 ```
 plugins/FreeMinecraftModels/models/deadstreets/
