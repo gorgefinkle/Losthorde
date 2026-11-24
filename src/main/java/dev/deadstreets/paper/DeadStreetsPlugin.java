@@ -128,7 +128,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         hordes.start();
         bloodMoon.start();
         scragglers.start();
-        getLogger().info("Dead Streets R12: persistent populations, migrating hordes, scragglers and animated textured infected.");
+        getLogger().info("Dead Streets R12.1: persistent populations, migrating hordes, scragglers and animated textured infected.");
     }
     @Override public void onDisable() {
         if (visuals != null) visuals.stop();
