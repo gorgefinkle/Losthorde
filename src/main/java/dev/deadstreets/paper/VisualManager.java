@@ -76,7 +76,7 @@ final class VisualManager implements Listener {
      * restores its vanilla visibility whenever FMM reloads or Dead Streets
      * detaches the visual.
      */
-    private record AppearanceState(boolean invisible, boolean visibleByDefault) {}
+    private record AppearanceState(boolean invisible, boolean visibleByDefault, boolean glowing) {}
 
     private static final class PersistentDynamicEntity extends DynamicEntity {
         private final Zombie zombie;
@@ -86,11 +86,13 @@ final class VisualManager implements Listener {
         private final String modelId;
         private final NamespacedKey originalInvisibleKey;
         private final NamespacedKey originalVisibleKey;
+        private final NamespacedKey originalGlowingKey;
         private final NamespacedKey fmmDynamicKey;
 
         PersistentDynamicEntity(String modelId, Zombie zombie, Plugin fmmPlugin,
                                 AppearanceState appearance, NamespacedKey originalInvisibleKey,
-                                NamespacedKey originalVisibleKey, NamespacedKey fmmDynamicKey) {
+                                NamespacedKey originalVisibleKey, NamespacedKey originalGlowingKey,
+                                NamespacedKey fmmDynamicKey) {
             super(modelId, zombie.getLocation());
             this.modelId = modelId;
             this.zombie = zombie;
@@ -99,12 +101,17 @@ final class VisualManager implements Listener {
             this.originalVisibleByDefault = appearance.visibleByDefault();
             this.originalInvisibleKey = originalInvisibleKey;
             this.originalVisibleKey = originalVisibleKey;
+            this.originalGlowingKey = originalGlowingKey;
             this.fmmDynamicKey = fmmDynamicKey;
         }
 
         boolean isAttachedTo(Zombie candidate, String expectedModelId) {
             return zombie == candidate && modelId.equals(expectedModelId)
                     && !isRemoved() && getUnderlyingEntity() == candidate;
+        }
+
+        void restoreOriginalGlow() {
+            zombie.setGlowing(originalGlowing);
         }
 
         void hideBackingEntity() {
@@ -120,11 +127,13 @@ final class VisualManager implements Listener {
             if (!zombie.isValid()) return;
             zombie.setVisibleByDefault(originalVisibleByDefault);
             zombie.setInvisible(originalInvisible);
+            zombie.setGlowing(originalGlowing);
             // FMM applies the model hitbox directly to the backing mob. A pose
             // refresh asks Paper to rebuild the vanilla box after detaching.
             zombie.setPose(zombie.getPose(), true);
             zombie.getPersistentDataContainer().remove(originalInvisibleKey);
             zombie.getPersistentDataContainer().remove(originalVisibleKey);
+            zombie.getPersistentDataContainer().remove(originalGlowingKey);
             zombie.getPersistentDataContainer().remove(fmmDynamicKey);
             for (Player player : zombie.getWorld().getPlayers()) {
                 player.showEntity(fmmPlugin, zombie);
@@ -167,6 +176,7 @@ final class VisualManager implements Listener {
     private final Map<UUID, Active> active = new HashMap<>();
     private final NamespacedKey originalInvisibleKey;
     private final NamespacedKey originalVisibleKey;
+    private final NamespacedKey originalGlowingKey;
     private final NamespacedKey packReadyKey;
     private NamespacedKey fmmDynamicKey;
     private final Map<UUID, Boolean> packReadyByPlayer = new HashMap<>();
@@ -205,6 +215,7 @@ final class VisualManager implements Listener {
         this.plugin = plugin;
         this.originalInvisibleKey = new NamespacedKey(plugin, "fmm_original_invisible");
         this.originalVisibleKey = new NamespacedKey(plugin, "fmm_original_visible_by_default");
+        this.originalGlowingKey = new NamespacedKey(plugin, "fmm_original_glowing");
         this.packReadyKey = new NamespacedKey(plugin, "fmm_resource_pack_ready");
     }
 
@@ -413,9 +424,9 @@ final class VisualManager implements Listener {
             });
             PersistentDynamicEntity model = null;
             try {
-                AppearanceState appearance = new AppearanceState(dummy.isInvisible(), dummy.isVisibleByDefault());
+                AppearanceState appearance = new AppearanceState(dummy.isInvisible(), dummy.isVisibleByDefault(), dummy.isGlowing());
                 model = new PersistentDynamicEntity(entry.getValue(), dummy, fmmPlugin,
-                        appearance, originalInvisibleKey, originalVisibleKey, fmmDynamicKey);
+                        appearance, originalInvisibleKey, originalVisibleKey, originalGlowingKey, fmmDynamicKey);
                 model.spawn(dummy);
                 model.hideBackingEntity();
                 String movement = switch (entry.getKey()) {
@@ -469,22 +480,30 @@ final class VisualManager implements Listener {
         if (!pdc.has(originalVisibleKey, PersistentDataType.BYTE)) {
             pdc.set(originalVisibleKey, PersistentDataType.BYTE, (byte) (zombie.isVisibleByDefault() ? 1 : 0));
         }
+        if (!pdc.has(originalGlowingKey, PersistentDataType.BYTE)) {
+            pdc.set(originalGlowingKey, PersistentDataType.BYTE, (byte) (zombie.isGlowing() ? 1 : 0));
+        }
         return new AppearanceState(
                 pdc.getOrDefault(originalInvisibleKey, PersistentDataType.BYTE, (byte) 0) != 0,
-                pdc.getOrDefault(originalVisibleKey, PersistentDataType.BYTE, (byte) 1) != 0);
+                pdc.getOrDefault(originalVisibleKey, PersistentDataType.BYTE, (byte) 1) != 0,
+                pdc.getOrDefault(originalGlowingKey, PersistentDataType.BYTE, (byte) 0) != 0);
     }
 
     private void restoreVanillaBodyIfMarked(Zombie zombie) {
         var pdc = zombie.getPersistentDataContainer();
         if (!pdc.has(originalInvisibleKey, PersistentDataType.BYTE)
-                && !pdc.has(originalVisibleKey, PersistentDataType.BYTE)) return;
+                && !pdc.has(originalVisibleKey, PersistentDataType.BYTE)
+                && !pdc.has(originalGlowingKey, PersistentDataType.BYTE)) return;
         boolean invisible = pdc.getOrDefault(originalInvisibleKey, PersistentDataType.BYTE, (byte) 0) != 0;
         boolean visible = pdc.getOrDefault(originalVisibleKey, PersistentDataType.BYTE, (byte) 1) != 0;
+        boolean glowing = pdc.getOrDefault(originalGlowingKey, PersistentDataType.BYTE, (byte) 0) != 0;
         zombie.setVisibleByDefault(visible);
         zombie.setInvisible(invisible);
+        zombie.setGlowing(glowing);
         zombie.setPose(zombie.getPose(), true);
         pdc.remove(originalInvisibleKey);
         pdc.remove(originalVisibleKey);
+        pdc.remove(originalGlowingKey);
         pdc.remove(fmmDynamicKey);
         for (Player player : zombie.getWorld().getPlayers()) player.showEntity(fmmPlugin, zombie);
     }
@@ -594,9 +613,11 @@ final class VisualManager implements Listener {
             if (ready) {
                 visual.model.showTo(player);
                 visual.model.hideUnderlyingEntity(player);
+                visual.model.restoreOriginalGlow();
             } else {
                 visual.model.hideFrom(player);
                 visual.model.showUnderlyingEntity(player);
+                visual.model.restoreOriginalGlow();
             }
         }
     }
