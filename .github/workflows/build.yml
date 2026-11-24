@@ -1,4 +1,4 @@
-name: Compile, core tests and dependency-free Paper runtime smoke
+name: Compile, core tests and Paper runtime smoke
 on:
   push:
   pull_request:
@@ -20,24 +20,26 @@ jobs:
         run: bash test_core.sh
       - name: Build Paper plugin
         run: mvn -B -ntp -DskipTests clean package
-      - name: Verify plugin has no renderer or resource-pack plugin dependencies
+      - name: Verify optional BetterModel integration and packaged Blockbench assets
         run: |
           python3 - <<'PY'
           import re
           from zipfile import ZipFile
 
-          jar_path = "target/DeadStreets_R13.jar"
+          jar_path = "target/DeadStreets_R14.jar"
           with ZipFile(jar_path) as jar:
               descriptor = jar.read("plugin.yml").decode("utf-8")
               assert not re.search(r"(?m)^depend\\s*:", descriptor), "Required plugin dependencies remain"
               assert "FreeMinecraftModels" not in descriptor
               assert "ResourcePackManager" not in descriptor
-              assert not any(name.endswith(".bbmodel") for name in jar.namelist()), "Model assets remain embedded"
+              assert "bettermodel/models/deadstreets_crawler.bbmodel" in jar.namelist(), "Crawler Blockbench model missing"
+          assert "bettermodel/models/deadstreets_hulk.bbmodel" in jar.namelist(), "Hulk Blockbench model missing"
               assert not any("VisualManager.class" in name for name in jar.namelist()), "Custom renderer class remains"
               assert "dev/deadstreets/paper/ZombieIdentityManager.class" in jar.namelist(), "Zombie identity/health manager missing"
               config = jar.read("config.yml").decode("utf-8")
-              assert "chat-health-bars:" in config and "enabled: true" in config, "Chat health bars are not enabled by default"
-          print("Dependency check passed: Paper API only; native infected and identity/health systems are packaged; no FMM, RSPM, DisplayMotion, Blockbench assets or renderer class.")
+              assert "target-display:" in config and "update-interval-ticks: 3" in config, "Aimed identity display is missing"
+          assert "chat-health-bars:" not in config, "Obsolete chat health bars remain"
+          print("Packaging check passed: BetterModel is optional; crawler/Hulk Blockbench models and aimed identity system are packaged.")
           PY
       - name: Download Paper 26.2
         run: |
@@ -50,7 +52,7 @@ jobs:
       - name: Run Paper 26.2 with Dead Streets only
         run: |
           mkdir -p plugins
-          cp target/DeadStreets_R13.jar plugins/DeadStreets.jar
+          cp target/DeadStreets_R14.jar plugins/DeadStreets.jar
           test "$(find plugins -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 1
           echo 'eula=true' > eula.txt
           cat > server.properties <<'EOF'
@@ -76,7 +78,7 @@ jobs:
             wait "$SERVER_PID" 2>/dev/null || true
             exit 1
           fi
-          grep -F 'Dead Streets R13:' logs/latest.log
+          grep -F 'Dead Streets R14:' logs/latest.log
           grep -F 'Native infected smoke test passed' logs/latest.log
           kill -TERM "$SERVER_PID" 2>/dev/null || true
           wait "$SERVER_PID" 2>/dev/null || true
@@ -84,11 +86,11 @@ jobs:
         run: |
           mkdir -p dist
           cp target/DeadStreets_R13.jar dist/
-          git archive --format=zip --output=dist/DeadStreets_R13-source.zip HEAD
+          git archive --format=zip --output=dist/DeadStreets_R14-source.zip HEAD
       - name: Upload test build
         uses: actions/upload-artifact@v4
         with:
-          name: DeadStreets-R13-test-build
+          name: DeadStreets-R14-test-build
           path: dist/*
           if-no-files-found: error
           retention-days: 30
