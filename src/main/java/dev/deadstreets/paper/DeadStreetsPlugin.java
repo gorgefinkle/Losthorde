@@ -128,7 +128,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         hordes.start();
         bloodMoon.start();
         scragglers.start();
-        getLogger().info("Dead Streets R14: per-viewer targeted identity plates; BetterModel-ready infected presentation.");
+        getLogger().info("Dead Streets R14: per-viewer targeted identity plates and optional BetterModel infected models.");
     }
     @Override public void onDisable() {
         if (spawners != null) spawners.stop();
@@ -172,9 +172,9 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             if (Math.abs(measuredHeight - 3.0) > 0.08) {
                 throw new IllegalStateException("Hulk bounding box is not three blocks tall: " + measuredHeight);
             }
-            getLogger().info("Native infected smoke test passed: Crawler fixed swimming pose; Hulk native scale "
+            getLogger().info("Native infected smoke test passed: Crawler compact pose hitbox; Hulk native scale "
                     + String.format(Locale.ROOT, "%.5f", scale.getBaseValue()) + " and "
-                    + String.format(Locale.ROOT, "%.3f", measuredHeight) + "-block bounding box; no renderer plugins.");
+                    + String.format(Locale.ROOT, "%.3f", measuredHeight) + "-block bounding box; BetterModel integration is optional.");
         } finally {
             if (crawler != null && crawler.isValid()) crawler.remove();
             if (hulk != null && hulk.isValid()) hulk.remove();
