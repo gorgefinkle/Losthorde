@@ -56,6 +56,7 @@ jobs:
           assert "hideEntity(" not in bridge, "Do not Bukkit-hide the source mob; this can suppress BetterModel's source spawn lifecycle"
           assert "showToCurrentViewers(tracker, zombie)" in bridge, "BetterModel tracker is not explicitly shown to current viewers"
           assert "candidate.getParameterTypes()[0] == Player.class" in bridge, "BetterModel PlatformPlayer adapter overload must be selected exactly"
+          assert "runTask(plugin, () ->" in bridge, "BetterModel tracker must be shown again after Bukkit completes the source spawn tick"
           assert "showToPlayer(entry.getValue(), player)" in bridge, "Late-joining viewers do not receive existing model trackers"
           assert "frontX" in crawler and "actual.getBlockX()" in crawler, "Crawler test spawn must prioritize a visible front position and report exact coordinates"
           print("Packaging check passed: optional BetterModel integration, source-entity lifecycle, explicit tracker visibility, both model assets and targeted identity display are present.")
