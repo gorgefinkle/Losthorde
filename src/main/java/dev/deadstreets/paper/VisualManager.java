@@ -86,20 +86,21 @@ final class VisualManager implements Listener {
             if (!zombie.isValid()) return;
             zombie.setVisibleByDefault(originalVisibleByDefault);
             zombie.setInvisible(originalInvisible);
+            // FMM applies the model hitbox directly to the backing mob. A pose
+            // refresh asks Paper to rebuild the vanilla box after detaching.
+            zombie.setPose(zombie.getPose(), true);
             for (Player player : zombie.getWorld().getPlayers()) {
                 player.showEntity(fmmPlugin, zombie);
             }
         }
 
         void detachKeepingZombie() {
-            if (isRemoved()) {
-                restoreBackingEntity();
-                return;
+            if (!isRemoved()) {
+                // Protected FMM lifecycle hook, exposed only for this persistent
+                // driver integration. Unlike remove(), this never despawns the mob.
+                super.removeKeepingBody();
             }
             restoreBackingEntity();
-            // Protected FMM lifecycle hook, exposed only for this persistent
-            // driver integration. Unlike remove(), this never despawns the mob.
-            super.removeKeepingBody();
         }
 
         @Override
@@ -164,6 +165,8 @@ final class VisualManager implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onFmmReloaded(FmmReloadedEvent event) {
         if (!plugin.isEnabled() || reloadFailed) return;
+        fmmReady = false;
+        active.clear();
         boolean complete = MODEL_IDS.values().stream().allMatch(ModeledEntityManager::modelExists);
         if (!complete) {
             if (!reloadRequested) {
