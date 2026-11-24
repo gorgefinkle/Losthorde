@@ -10,6 +10,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.NamespacedKey;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.Chunk;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
@@ -50,20 +52,28 @@ final class VisualManager implements Listener {
      * restores its vanilla visibility whenever FMM reloads or Dead Streets
      * detaches the visual.
      */
+    private record AppearanceState(boolean invisible, boolean visibleByDefault) {}
+
     private static final class PersistentDynamicEntity extends DynamicEntity {
         private final Zombie zombie;
         private final Plugin fmmPlugin;
         private final boolean originalInvisible;
         private final boolean originalVisibleByDefault;
         private final String modelId;
+        private final NamespacedKey originalInvisibleKey;
+        private final NamespacedKey originalVisibleKey;
 
-        PersistentDynamicEntity(String modelId, Zombie zombie, Plugin fmmPlugin) {
+        PersistentDynamicEntity(String modelId, Zombie zombie, Plugin fmmPlugin,
+                                AppearanceState appearance, NamespacedKey originalInvisibleKey,
+                                NamespacedKey originalVisibleKey) {
             super(modelId, zombie.getLocation());
             this.modelId = modelId;
             this.zombie = zombie;
             this.fmmPlugin = fmmPlugin;
-            this.originalInvisible = zombie.isInvisible();
-            this.originalVisibleByDefault = zombie.isVisibleByDefault();
+            this.originalInvisible = appearance.invisible();
+            this.originalVisibleByDefault = appearance.visibleByDefault();
+            this.originalInvisibleKey = originalInvisibleKey;
+            this.originalVisibleKey = originalVisibleKey;
         }
 
         boolean isAttachedTo(Zombie candidate, String expectedModelId) {
@@ -89,6 +99,8 @@ final class VisualManager implements Listener {
             // FMM applies the model hitbox directly to the backing mob. A pose
             // refresh asks Paper to rebuild the vanilla box after detaching.
             zombie.setPose(zombie.getPose(), true);
+            zombie.getPersistentDataContainer().remove(originalInvisibleKey);
+            zombie.getPersistentDataContainer().remove(originalVisibleKey);
             for (Player player : zombie.getWorld().getPlayers()) {
                 player.showEntity(fmmPlugin, zombie);
             }
@@ -124,6 +136,8 @@ final class VisualManager implements Listener {
 
     private final DeadStreetsPlugin plugin;
     private final Map<UUID, Active> active = new HashMap<>();
+    private final NamespacedKey originalInvisibleKey;
+    private final NamespacedKey originalVisibleKey;
     private Plugin fmmPlugin;
     private BukkitTask task;
     private boolean fmmReady;
@@ -133,6 +147,8 @@ final class VisualManager implements Listener {
 
     VisualManager(DeadStreetsPlugin plugin) {
         this.plugin = plugin;
+        this.originalInvisibleKey = new NamespacedKey(plugin, "fmm_original_invisible");
+        this.originalVisibleKey = new NamespacedKey(plugin, "fmm_original_visible_by_default");
     }
 
     void start() {
@@ -213,7 +229,9 @@ final class VisualManager implements Listener {
             });
             PersistentDynamicEntity model = null;
             try {
-                model = new PersistentDynamicEntity(entry.getValue(), dummy, fmmPlugin);
+                AppearanceState appearance = new AppearanceState(dummy.isInvisible(), dummy.isVisibleByDefault());
+                model = new PersistentDynamicEntity(entry.getValue(), dummy, fmmPlugin,
+                        appearance, originalInvisibleKey, originalVisibleKey);
                 model.spawn(dummy);
                 model.hideBackingEntity();
                 String movement = switch (entry.getKey()) {
@@ -253,10 +271,43 @@ final class VisualManager implements Listener {
         Bukkit.getScheduler().runTask(plugin, () -> attach(zombie));
     }
 
+    private AppearanceState rememberAppearance(Zombie zombie) {
+        var pdc = zombie.getPersistentDataContainer();
+        if (!pdc.has(originalInvisibleKey, PersistentDataType.BYTE)) {
+            pdc.set(originalInvisibleKey, PersistentDataType.BYTE, (byte) (zombie.isInvisible() ? 1 : 0));
+        }
+        if (!pdc.has(originalVisibleKey, PersistentDataType.BYTE)) {
+            pdc.set(originalVisibleKey, PersistentDataType.BYTE, (byte) (zombie.isVisibleByDefault() ? 1 : 0));
+        }
+        return new AppearanceState(
+                pdc.getOrDefault(originalInvisibleKey, PersistentDataType.BYTE, (byte) 0) != 0,
+                pdc.getOrDefault(originalVisibleKey, PersistentDataType.BYTE, (byte) 1) != 0);
+    }
+
+    private void restoreVanillaBodyIfMarked(Zombie zombie) {
+        var pdc = zombie.getPersistentDataContainer();
+        if (!pdc.has(originalInvisibleKey, PersistentDataType.BYTE)
+                && !pdc.has(originalVisibleKey, PersistentDataType.BYTE)) return;
+        boolean invisible = pdc.getOrDefault(originalInvisibleKey, PersistentDataType.BYTE, (byte) 0) != 0;
+        boolean visible = pdc.getOrDefault(originalVisibleKey, PersistentDataType.BYTE, (byte) 1) != 0;
+        zombie.setVisibleByDefault(visible);
+        zombie.setInvisible(invisible);
+        zombie.setPose(zombie.getPose(), true);
+        pdc.remove(originalInvisibleKey);
+        pdc.remove(originalVisibleKey);
+        for (Player player : zombie.getWorld().getPlayers()) player.showEntity(fmmPlugin, zombie);
+    }
+
     void attach(Zombie zombie) {
-        if (!fmmReady || zombie == null || !zombie.isValid() || zombie.isDead()) return;
+        if (zombie == null || !zombie.isValid() || zombie.isDead()) return;
         String type = plugin.specialVisualType(zombie);
         if (type == null) return;
+        if (!fmmReady) {
+            // A crash may have saved the driver's hidden flag before FMM could
+            // rebuild its model. Restore the vanilla body until FMM is ready.
+            restoreVanillaBodyIfMarked(zombie);
+            return;
+        }
         String modelId = MODEL_IDS.get(type);
         if (modelId == null) return;
 
@@ -276,7 +327,9 @@ final class VisualManager implements Listener {
             return;
         }
 
-        PersistentDynamicEntity model = new PersistentDynamicEntity(modelId, zombie, fmmPlugin);
+        AppearanceState appearance = rememberAppearance(zombie);
+        PersistentDynamicEntity model = new PersistentDynamicEntity(modelId, zombie, fmmPlugin,
+                appearance, originalInvisibleKey, originalVisibleKey);
         try {
             model.spawn(zombie);
             model.hideBackingEntity();
