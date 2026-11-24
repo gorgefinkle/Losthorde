@@ -2,6 +2,7 @@ name: Compile, core tests and Paper/FMM runtime smoke
 on:
   push:
   pull_request:
+  pull_request:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
