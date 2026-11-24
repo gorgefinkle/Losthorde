@@ -207,9 +207,25 @@ final class VisualManager implements Listener {
                 model = new PersistentDynamicEntity(entry.getValue(), dummy, fmmPlugin);
                 model.spawn(dummy);
                 model.hideBackingEntity();
-                if (!model.hasAnimation("idle") || !model.hasAnimation("damaged")
-                        || !model.hasAnimation("attack") || !model.hasAnimation("death")) {
-                    throw new IllegalStateException("Model " + entry.getValue() + " is missing a required state animation.");
+                String movement = switch (entry.getKey()) {
+                    case "deadstreets_runner" -> "run";
+                    case "deadstreets_crawler" -> "crawl";
+                    default -> "walk";
+                };
+                if (!model.hasAnimation("idle") || !model.hasAnimation(movement)
+                        || !model.hasAnimation("damaged") || !model.hasAnimation("attack")
+                        || !model.hasAnimation("death")) {
+                    throw new IllegalStateException("Model " + entry.getValue()
+                            + " is missing a required movement/combat/death animation.");
+                }
+                if (entry.getKey().equals("deadstreets_popper") && !model.hasAnimation("inflate")) {
+                    throw new IllegalStateException("Popper is missing its inflate animation.");
+                }
+                if (entry.getKey().equals("deadstreets_hulk") && !model.hasAnimation("roar")) {
+                    throw new IllegalStateException("Hulk is missing its roar animation.");
+                }
+                if (entry.getKey().equals("deadstreets_crawler") && !model.hasAnimation("lunge")) {
+                    throw new IllegalStateException("Crawler is missing its lunge animation.");
                 }
                 model.setClickSurface(true);
                 model.setDamagesOnContact(false);
