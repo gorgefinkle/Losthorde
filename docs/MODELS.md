@@ -1,6 +1,6 @@
 # Dead Streets infected visuals
 
-Dead Streets R14 uses BetterModel 3.7.1 for the special Crawler and Hulk visuals. BetterModel is a soft dependency: the plugin still starts without it and leaves the native zombie visible as a fallback.
+Dead Streets R15 uses BetterModel 3.7.1 for the special Crawler and Hulk visuals. BetterModel is a soft dependency: the plugin still starts without it and leaves the native zombie visible as a fallback. With BetterModel present, the plugin must preserve the source entity spawn lifecycle and let BetterModel's own hide option suppress the vanilla body; it must not hide the source through Bukkit hideEntity.
 
 | Infected | Visual | Gameplay entity |
 |---|---|---|
