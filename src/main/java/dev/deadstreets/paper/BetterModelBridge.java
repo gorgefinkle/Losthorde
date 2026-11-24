@@ -133,6 +133,14 @@ final class BetterModelBridge {
             // BetterModel's own EntityHideOption hides the vanilla body. Do not call
             // Bukkit hideEntity here: the model tracker depends on the source spawn lifecycle.
             showToCurrentViewers(tracker, zombie);
+            // Also retry on the next server tick, after Bukkit has completed the
+            // source entity's spawn lifecycle for this tick (important for Popper offspring).
+            UUID entityId = zombie.getUniqueId();
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (zombie.isValid() && trackers.get(entityId) == tracker) {
+                    showToCurrentViewers(tracker, zombie);
+                }
+            });
             return true;
         } catch (ClassNotFoundException absent) {
             if (!warnedApi) {
