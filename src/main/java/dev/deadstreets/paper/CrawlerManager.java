@@ -12,8 +12,8 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Low-profile crawler. Paper's fixed SWIMMING pose is used instead of the deprecated
- * setSwimming flag, which the server explicitly resets on the next tick.
+ * Low-profile crawler. Its zombie driver keeps Paper's fixed SWIMMING pose while FMM
+ * renders the elongated, articulated zombie-textured crawler model.
  */
 final class CrawlerManager {
     private final DeadStreetsPlugin plugin;
