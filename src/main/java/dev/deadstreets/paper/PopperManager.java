@@ -14,7 +14,7 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-/** Drowned-derived popper. Its death burst is visual-only with modest player damage and crawler spawns. */
+/** Drowned-style Popper gameplay subtype. Its native zombie body is used without a custom model dependency; its death burst deals modest player damage and spawns Crawlers. */
 final class PopperManager {
     private final DeadStreetsPlugin plugin;
     private final NamespacedKey key;
@@ -114,7 +114,6 @@ final class PopperManager {
                 plugin.markTestWalker(created);
                 apply(created);
                 if (!force) plugin.budget().tag(created);
-                plugin.visuals().attachSoon(created);
             });
             return (force ? "DEV FORCE: spawned uncounted test Popper " : "Spawned test Popper ") + zombie.getUniqueId() + " nearby.";
         } catch (RuntimeException failure) {
