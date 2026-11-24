@@ -1,10 +1,10 @@
 # Infected implementation
 
-Dead Streets R14 keeps real server-side zombie entities and uses BetterModel 3.7.1 as an optional visual layer for the Crawler and Hulk.
+Dead Streets R15 keeps real server-side zombie entities and uses BetterModel 3.7.1 as an optional visual layer for the Crawler and Hulk.
 
 ## Crawler
 
-The Crawler is a real Bukkit/Paper Zombie with a fixed Pose.SWIMMING to retain the compact native dimensions. The previous pose-only implementation failed visually: vanilla Minecraft continued to render an upright zombie with its head tilted. R14 replaces that visual with the deadstreets_crawler Blockbench model and its looping crawl animation. The model has a horizontal body, forward-reaching arms, and trailing legs.
+The Crawler is a real Bukkit/Paper Zombie with a fixed Pose.SWIMMING to retain the compact native dimensions. The previous pose-only implementation failed visually: vanilla Minecraft continued to render an upright zombie with its head tilted. R15 fixes a visibility lifecycle bug that could hide the source zombie before BetterModel had delivered its model. BetterModel now receives an explicit show request for current viewers. Client-side rendering remains a required in-game verification. The model has a horizontal body, forward-reaching arms, and trailing legs.
 
 Health, movement speed, attack damage, persistence, and daylight immunity remain properties of the real Zombie. Popper offspring use the same model path.
 
