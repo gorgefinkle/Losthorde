@@ -177,7 +177,7 @@ final class BetterModelBridge {
             Method adaptPlayer = null;
             for (Method candidate : adapterClass.getMethods()) {
                 if (candidate.getName().equals("adapt") && candidate.getParameterCount() == 1
-                        && candidate.getParameterTypes()[0].isAssignableFrom(player.getClass())) {
+                        && candidate.getParameterTypes()[0] == Player.class) {
                     adaptPlayer = candidate;
                     break;
                 }
