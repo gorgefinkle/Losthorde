@@ -51,7 +51,13 @@ jobs:
               config = jar.read("config.yml").decode("utf-8")
               assert "target-display:" in config and "update-interval-ticks: 3" in config, "Aimed identity display is missing"
               assert "chat-health-bars:" not in config, "Obsolete chat health bars remain"
-          print("Packaging check passed: optional BetterModel integration, both model assets and targeted identity display are present.")
+          bridge = open("src/main/java/dev/deadstreets/paper/BetterModelBridge.java", encoding="utf-8").read()
+          crawler = open("src/main/java/dev/deadstreets/paper/CrawlerManager.java", encoding="utf-8").read()
+          assert "hideEntity(" not in bridge, "Do not Bukkit-hide the source mob; this can suppress BetterModel's source spawn lifecycle"
+          assert "showToCurrentViewers(tracker, zombie)" in bridge, "BetterModel tracker is not explicitly shown to current viewers"
+          assert "showToPlayer(entry.getValue(), player)" in bridge, "Late-joining viewers do not receive existing model trackers"
+          assert "frontX" in crawler and "actual.getBlockX()" in crawler, "Crawler test spawn must prioritize a visible front position and report exact coordinates"
+          print("Packaging check passed: optional BetterModel integration, source-entity lifecycle, explicit tracker visibility, both model assets and targeted identity display are present.")
           PY
       - name: Download Paper 26.2
         run: |
