@@ -17,7 +17,8 @@ import java.util.concurrent.ThreadLocalRandom;
 final class HulkManager {
     private final DeadStreetsPlugin plugin;
     private final NamespacedKey hulkKey;
-    private static final double THREE_BLOCK_SCALE = 1.53846; // 1.95-block zombie -> ~3.0 blocks\n    private long assigned;
+    private static final double THREE_BLOCK_SCALE = 1.53846; // 1.95-block zombie -> ~3.0 blocks
+    private long assigned;
 
     HulkManager(DeadStreetsPlugin plugin) {
         this.plugin = plugin;
