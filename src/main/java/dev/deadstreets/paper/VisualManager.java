@@ -5,6 +5,8 @@ import com.magmaguy.freeminecraftmodels.api.ModeledEntityManager;
 import com.magmaguy.freeminecraftmodels.customentity.DynamicEntity;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Zombie;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -166,6 +168,8 @@ final class VisualManager implements Listener {
         final String type;
         final PersistentDynamicEntity model;
         boolean dying;
+        boolean inflating;
+        boolean roared;
 
         Active(Zombie zombie, String type, PersistentDynamicEntity model) {
             this.zombie = zombie;
@@ -574,6 +578,14 @@ final class VisualManager implements Listener {
         if (visual == null || visual.dying || visual.model.isRemoved()) return;
         visual.model.getSkeleton().tint();
         visual.model.playAnimation("damaged", true, false);
+        if (visual.type.equals("popper_drowned") && !visual.inflating) {
+            AttributeInstance maxHealth = zombie.getAttribute(Attribute.MAX_HEALTH);
+            double threshold = (maxHealth == null ? 32.0 : maxHealth.getValue()) * 0.4;
+            if (zombie.getHealth() <= threshold && visual.model.hasAnimation("inflate")) {
+                visual.model.playAnimation("inflate", true, false);
+                visual.inflating = true;
+            }
+        }
     }
 
     void onDeath(Zombie zombie) {
@@ -646,6 +658,16 @@ final class VisualManager implements Listener {
             Active visual = iterator.next().getValue();
             if (!visual.zombie.isValid() || visual.zombie.isDead() || visual.model.isRemoved()) {
                 iterator.remove();
+                continue;
+            }
+            if (visual.type.equals("hulk_brute") && !visual.roared && visual.model.hasAnimation("roar")) {
+                for (Player player : visual.zombie.getWorld().getPlayers()) {
+                    if (player.getLocation().distanceSquared(visual.zombie.getLocation()) <= 144.0) {
+                        visual.model.playAnimation("roar", true, false);
+                        visual.roared = true;
+                        break;
+                    }
+                }
             }
         }
     }
