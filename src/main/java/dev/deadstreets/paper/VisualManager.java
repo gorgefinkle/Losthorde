@@ -250,34 +250,36 @@ final class VisualManager implements Listener {
         Path texturesRoot = packRoot.resolve("assets/freeminecraftmodels/textures/entity");
         if (!Files.isDirectory(modelsRoot)) throw new IOException("FMM model output directory is missing: " + modelsRoot);
 
-        Map<String, Integer> references = new HashMap<>();
-        for (String modelId : VANILLA_TEXTURES.keySet()) references.put(modelId, 0);
-        try (Stream<Path> paths = Files.walk(modelsRoot)) {
-            for (Path file : paths.filter(Files::isRegularFile).filter(p -> p.toString().endsWith(".json")).toList()) {
-                String json = Files.readString(file, StandardCharsets.UTF_8);
-                String patched = json;
-                for (String modelId : VANILLA_TEXTURES.keySet()) {
-                    String oldReference = "freeminecraftmodels:entity/" + modelId + "/" + TEXTURE_NAMES.get(modelId);
-                    String newReference = VANILLA_TEXTURES.get(modelId);
-                    int found = countOccurrences(patched, oldReference);
+        for (String modelId : VANILLA_TEXTURES.keySet()) {
+            Path modelDirectory = modelsRoot.resolve(modelId);
+            if (!Files.isDirectory(modelDirectory)) {
+                throw new IOException("FMM did not generate model JSON files for " + modelId);
+            }
+            String oldReference = "freeminecraftmodels:entity/" + modelId + "/" + TEXTURE_NAMES.get(modelId);
+            String newReference = VANILLA_TEXTURES.get(modelId);
+            int references = 0;
+            try (Stream<Path> paths = Files.walk(modelDirectory)) {
+                for (Path file : paths.filter(Files::isRegularFile).filter(p -> p.toString().endsWith(".json")).toList()) {
+                    String json = Files.readString(file, StandardCharsets.UTF_8);
+                    int found = countOccurrences(json, oldReference);
                     if (found > 0) {
-                        patched = patched.replace(oldReference, newReference);
-                        references.merge(modelId, found, Integer::sum);
-                    } else if (patched.contains(newReference)) {
-                        references.merge(modelId, 1, Integer::sum);
+                        json = json.replace(oldReference, newReference);
+                        Files.writeString(file, json, StandardCharsets.UTF_8);
+                        references += found;
+                    } else {
+                        references += countOccurrences(json, newReference);
                     }
                 }
-                if (!patched.equals(json)) Files.writeString(file, patched, StandardCharsets.UTF_8);
             }
-        }
-
-        for (String modelId : VANILLA_TEXTURES.keySet()) {
-            if (references.getOrDefault(modelId, 0) == 0) {
-                throw new IOException("No generated model texture references found for " + modelId);
-            }
+            if (references == 0) throw new IOException("No generated texture references found for " + modelId);
             deleteTree(texturesRoot.resolve(modelId));
         }
-        republishPack(packRoot, output.resolve("FreeMinecraftModels.zip"));
+
+        Path published = output.resolve("FreeMinecraftModels.zip");
+        republishPack(packRoot, published);
+        if (!Files.isRegularFile(published) || Files.size(published) == 0) {
+            throw new IOException("The patched FreeMinecraftModels resource pack was not published.");
+        }
         boolean rspmReloaded = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "rspm reload");
         if (!rspmReloaded) {
             throw new IOException("ResourcePackManager did not accept /rspm reload; refusing to hide native infected.");
