@@ -30,6 +30,8 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
@@ -39,6 +41,10 @@ import java.util.stream.Stream;
 import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * Attaches FreeMinecraftModels' textured, articulated Blockbench models to the
@@ -300,12 +306,78 @@ final class VisualManager implements Listener {
             deleteTree(texturesRoot.resolve(modelId));
         }
 
+        // These models render through Minecraft's item/block display pipeline,
+        // not the native mob renderer. Vanilla entity PNGs are not automatically
+        // members of the blocks atlas, so explicitly stitch the three existing
+        // client textures into that atlas before publishing the pack.
+        patchVanillaBlocksAtlas(packRoot);
+
         Path published = output.resolve("FreeMinecraftModels.zip");
         republishPack(packRoot, published);
         if (!Files.isRegularFile(published) || Files.size(published) == 0) {
             throw new IOException("The patched FreeMinecraftModels resource pack was not published.");
         }
         plugin.getLogger().info("Patched FMM model textures to use the four vanilla zombie-family client textures and removed bundled placeholder PNGs.");
+    }
+
+    private static void patchVanillaBlocksAtlas(Path packRoot) throws IOException {
+        Path atlasFile = packRoot.resolve("assets/minecraft/atlases/blocks.json");
+        if (!Files.isRegularFile(atlasFile)) {
+            throw new IOException("FMM blocks atlas is missing: " + atlasFile);
+        }
+
+        JsonObject atlas = JsonParser.parseString(
+                Files.readString(atlasFile, StandardCharsets.UTF_8)).getAsJsonObject();
+        JsonArray sources = atlas.getAsJsonArray("sources");
+        if (sources == null) throw new IOException("FMM blocks atlas has no sources array.");
+
+        // FMM generated these from our temporary transparent Blockbench atlases.
+        // They must not survive after those placeholder PNGs are removed.
+        Set<String> deadStreetsTexturePrefixes = Set.of(
+                "freeminecraftmodels:entity/deadstreets_runner/",
+                "freeminecraftmodels:entity/deadstreets_popper/",
+                "freeminecraftmodels:entity/deadstreets_crawler/",
+                "freeminecraftmodels:entity/deadstreets_hulk/"
+        );
+        for (int i = sources.size() - 1; i >= 0; i--) {
+            JsonElement source = sources.get(i);
+            if (!source.isJsonObject()) continue;
+            JsonObject object = source.getAsJsonObject();
+            JsonElement resourceElement = object.get("resource");
+            if (resourceElement == null || !resourceElement.isJsonPrimitive()) continue;
+            String resource = resourceElement.getAsString();
+            if (deadStreetsTexturePrefixes.stream().anyMatch(resource::startsWith)) {
+                sources.remove(i);
+            }
+        }
+
+        Set<String> existing = new HashSet<>();
+        for (JsonElement source : sources) {
+            if (!source.isJsonObject()) continue;
+            JsonObject object = source.getAsJsonObject();
+            JsonElement type = object.get("type");
+            JsonElement resource = object.get("resource");
+            if (type != null && resource != null && type.isJsonPrimitive() && resource.isJsonPrimitive()
+                    && (type.getAsString().equals("single") || type.getAsString().equals("minecraft:single"))) {
+                existing.add(resource.getAsString());
+            }
+        }
+
+        Set<String> vanillaResources = Set.of(
+                "minecraft:entity/zombie/zombie",
+                "minecraft:entity/zombie/husk",
+                "minecraft:entity/zombie/drowned"
+        );
+        for (String resource : vanillaResources) {
+            if (existing.contains(resource)) continue;
+            JsonObject single = new JsonObject();
+            single.addProperty("type", "minecraft:single");
+            single.addProperty("resource", resource);
+            sources.add(single);
+        }
+
+        Files.writeString(atlasFile, new com.google.gson.GsonBuilder()
+                .setPrettyPrinting().create().toJson(atlas), StandardCharsets.UTF_8);
     }
 
     private static int countOccurrences(String text, String needle) {
