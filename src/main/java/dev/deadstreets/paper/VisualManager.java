@@ -251,9 +251,9 @@ final class VisualManager implements Listener {
         republishPack(packRoot, output.resolve("FreeMinecraftModels.zip"));
         boolean rspmReloaded = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "rspm reload");
         if (!rspmReloaded) {
-            plugin.getLogger().warning("Patched FMM models to use vanilla textures, but /rspm reload was not accepted.");
+            throw new IOException("ResourcePackManager did not accept /rspm reload; refusing to hide native infected.");
         }
-        plugin.getLogger().info("Patched FMM model textures to use the four vanilla zombie-family client textures; removed bundled placeholder PNGs.");
+        plugin.getLogger().info("Patched FMM model textures to use the four vanilla zombie-family client textures; removed bundled placeholder PNGs and refreshed RSPM.");
     }
 
     private static int countOccurrences(String text, String needle) {
