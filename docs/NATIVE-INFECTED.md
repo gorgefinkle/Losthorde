@@ -1,27 +1,33 @@
-# Native infected implementation
+# Infected implementation
 
-Dead Streets R13 uses vanilla entity rendering only. There are no Blockbench files, display entities, disguise libraries, model plugins, custom texture atlases or client resource packs required for infected visuals.
+Dead Streets R14 keeps real server-side zombie entities and uses BetterModel 3.7.1 as an optional visual layer for the Crawler and Hulk.
 
 ## Crawler
 
-The Crawler is a real Bukkit/Paper Zombie with its normal scale (1.0) and a fixed `Pose.SWIMMING` applied using Paper's `setPose(Pose.SWIMMING, true)`. The fixed flag prevents the normal mob pose update from immediately changing it back to `STANDING`. The vanilla client renders the zombie's own skin and swimming-pose limb animation. Paper uses the corresponding native pose dimensions for its entity bounds.
+The Crawler is a real Bukkit/Paper Zombie with a fixed Pose.SWIMMING to retain the compact native dimensions. The previous pose-only implementation failed visually: vanilla Minecraft continued to render an upright zombie with its head tilted. R14 replaces that visual with the deadstreets_crawler Blockbench model and its looping crawl animation. The model has a horizontal body, forward-reaching arms, and trailing legs.
 
-The pose is applied on assignment, explicit test spawn, Popper offspring creation, and entity-chunk refresh. The Crawler retains configurable max health, movement speed and attack damage, persistence, and daylight immunity.
+Health, movement speed, attack damage, persistence, and daylight immunity remain properties of the real Zombie. Popper offspring use the same model path.
 
 ## Hulk
 
-The Hulk is a real Bukkit/Paper Zombie with the native `Attribute.SCALE` base value set to `1.53846` by default. With a standard 1.95-block zombie as the baseline, this produces a target height of approximately 3 blocks. Minecraft scales the entity's actual bounding box along with its rendered model; pathfinding, collision and melee reach continue to use the real entity rather than a separate hitbox or display.
+The Hulk remains a real Zombie with native Attribute.SCALE set to 1.53846 by default, giving it a measured three-block bounding box. BetterModel attaches the broad deadstreets_hulk model and looping heavy_walk animation. The entity's native scale is also applied to the model tracker, so visual scale follows the actual Hulk size.
 
-The scale is configurable up to the three-block target. The manager reapplies it when managed entities load from chunks. Health, movement speed, attack damage, attack knockback and knockback resistance remain configurable.
+The explicit /ds spawn hulk test checks three blocks of vertical clearance before selecting a spawn position.
 
-The explicit `/ds spawn hulk` test checks three blocks of vertical clearance before selecting a spawn position, so it does not deliberately place the larger collision box inside a two-block tunnel.
+## Identity and health display
 
-## Other infected
+Generated first/last names remain stored in the zombie's persistent data. They are no longer exposed as globally visible vanilla custom names, and health is no longer printed to chat.
 
-Runner and Popper retain their gameplay attributes and event behavior. In this dependency-free build they currently use ordinary vanilla Zombie rendering; they do not have separate custom models or textures. Popper death still produces its burst and releases Crawlers.
+Every three ticks (configurable), Dead Streets asks each online player for their currently targeted entity within the configured range. If that one target is a managed zombie, the plugin creates or updates a private-to-that-player TextDisplay above it with the generated name and a health bar. Looking away, losing range, or changing targets removes the display. Work is proportional to online players, not horde size: there is no scan over every zombie and no per-zombie line-of-sight loop.
+
+Configuration:
+
+    zombies:
+      target-display:
+        enabled: true
+        range: 9
+        update-interval-ticks: 3
 
 ## Runtime verification
 
-The CI smoke test starts Paper 26.2 with Dead Streets as the only plugin. It creates temporary native Zombies, applies the Crawler pose and Hulk scale, verifies the pose enum, checks the Hulk's real bounding-box height against 3 blocks, then removes the temporary entities. This tests the server entity state without relying on any external renderer or resource-pack service.
-
-A live client test is still necessary to judge whether the swimming pose reads as the intended crawler and whether the scaled Hulk's proportions and navigation feel right in the actual world.
+CI starts Paper 26.2 with Dead Streets as the only plugin, checks the Crawler's fixed compact pose, checks the Hulk's native three-block bounding box, and verifies both Blockbench files are packaged. A separate live-client test is still required to confirm BetterModel resource-pack delivery, the horizontal crawler silhouette, and animation quality.
