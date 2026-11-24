@@ -70,6 +70,27 @@ final class CrawlerManager {
         if (!plugin.budget().reserve(force)) return plugin.budget().denialReason() + " No test Crawler was spawned.";
         Location origin = player.getLocation();
         Location destination = null;
+        // Prefer a clear spot directly in front of the player so the test result cannot
+        // silently appear behind them or on the far side of a nearby obstruction.
+        var forward = origin.getDirection().setY(0);
+        if (forward.lengthSquared() < 0.001) forward.setZ(1);
+        forward.normalize().multiply(3.0);
+        int frontX = (int) Math.floor(origin.getX() + forward.getX());
+        int frontZ = (int) Math.floor(origin.getZ() + forward.getZ());
+        int frontY = origin.getBlockY();
+        if (origin.getWorld().isChunkLoaded(frontX >> 4, frontZ >> 4)) {
+            for (int dy : new int[]{0, 1, -1, 2, -2}) {
+                int y = frontY + dy;
+                var feet = origin.getWorld().getBlockAt(frontX, y, frontZ);
+                var head = origin.getWorld().getBlockAt(frontX, y + 1, frontZ);
+                var floor = origin.getWorld().getBlockAt(frontX, y - 1, frontZ);
+                if (feet.isPassable() && head.isPassable() && !feet.isLiquid() && !head.isLiquid()
+                        && floor.getType().isSolid()) {
+                    destination = new Location(origin.getWorld(), frontX + 0.5, y, frontZ + 0.5);
+                    break;
+                }
+            }
+        }
         for (int radius = 2; radius <= 4 && destination == null; radius++) {
             for (int dx = -radius; dx <= radius && destination == null; dx++) {
                 for (int dz = -radius; dz <= radius; dz++) {
@@ -98,7 +119,13 @@ final class CrawlerManager {
                 refresh(created);
                 if (!force) plugin.budget().tag(created);
             });
-            return (force ? "DEV FORCE: spawned uncounted test Crawler " : "Spawned test Crawler ") + zombie.getUniqueId() + " nearby. BetterModel visual: " + (plugin.models().attach(zombie, "deadstreets_crawler", "crawl") ? "attached" : "not loaded; vanilla fallback active") + ".";
+            boolean trackerCreated = plugin.models().attach(zombie, "deadstreets_crawler", "crawl");
+            Location actual = zombie.getLocation();
+            return (force ? "DEV FORCE: spawned uncounted test Crawler " : "Spawned test Crawler ")
+                    + zombie.getUniqueId() + " at " + actual.getWorld().getName() + " "
+                    + actual.getBlockX() + " " + actual.getBlockY() + " " + actual.getBlockZ()
+                    + ". BetterModel tracker: " + (trackerCreated ? "created; viewer packets requested (client render not yet verified)" : "unavailable; vanilla zombie fallback remains visible")
+                    + ". It was placed in front of you when a safe spot was available.";
         } catch (RuntimeException failure) {
             if (!force) plugin.budget().rollback();
             return "Test Crawler spawn failed: " + failure.getMessage();
