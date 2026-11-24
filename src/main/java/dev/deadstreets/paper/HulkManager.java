@@ -67,6 +67,7 @@ final class HulkManager {
         zombie.setPersistent(true);
         zombie.setRemoveWhenFarAway(false);
         zombie.setShouldBurnInDay(false);
+        plugin.models().attach(zombie, "deadstreets_hulk", "heavy_walk");
     }
 
     /**
@@ -126,7 +127,7 @@ final class HulkManager {
                 if (!isHulk(created)) prepareTest(created);
                 if (!force) plugin.budget().tag(created);
             });
-            return (force ? "DEV FORCE: spawned uncounted test Hulk " : "Spawned test Hulk ") + zombie.getUniqueId() + " at native three-block scale (" + String.format(java.util.Locale.ROOT, "%.3f", zombie.getBoundingBox().getHeight()) + " blocks tall).";
+            return (force ? "DEV FORCE: spawned uncounted test Hulk " : "Spawned test Hulk ") + zombie.getUniqueId() + " at native three-block scale (" + String.format(java.util.Locale.ROOT, "%.3f", zombie.getBoundingBox().getHeight()) + " blocks tall); BetterModel visual: " + (plugin.models().attach(zombie, "deadstreets_hulk", "heavy_walk") ? "attached" : "not loaded; vanilla fallback active") + ".";
         } catch (RuntimeException failure) {
             if (!force) plugin.budget().rollback();
             return "Test Hulk spawn failed: " + failure.getMessage();
