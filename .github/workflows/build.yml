@@ -69,6 +69,31 @@ jobs:
           grep -F 'FreeMinecraftModels loaded all four Dead Streets models' logs/latest.log
           grep -F 'FMM runtime smoke test passed' logs/latest.log
           grep -F 'Dead Streets R12:' logs/latest.log
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          pack = Path("plugins/FreeMinecraftModels/output/FreeMinecraftModels.zip")
+          expected = {
+              "deadstreets_runner": "minecraft:entity/zombie/husk",
+              "deadstreets_popper": "minecraft:entity/zombie/drowned",
+              "deadstreets_crawler": "minecraft:entity/zombie/zombie",
+              "deadstreets_hulk": "minecraft:entity/zombie/zombie",
+          }
+          assert pack.is_file() and pack.stat().st_size > 0, "FMM pack ZIP missing"
+          with ZipFile(pack) as archive:
+              names = archive.namelist()
+              for model_id, texture in expected.items():
+                  prefix = f"assets/freeminecraftmodels/models/{model_id}/"
+                  model_files = [name for name in names if name.startswith(prefix) and name.endswith(".json")]
+                  assert model_files, f"No packed model JSON for {model_id}"
+                  model_json = "\\n".join(archive.read(name).decode("utf-8") for name in model_files)
+                  assert texture in model_json, f"{model_id} does not reference {texture}"
+                  assert f"freeminecraftmodels:entity/{model_id}/" not in model_json, f"{model_id} still references placeholder namespace"
+                  texture_prefix = f"assets/freeminecraftmodels/textures/entity/{model_id}/"
+                  assert not any(name.startswith(texture_prefix) for name in names), f"{model_id} placeholder PNGs remain in pack"
+          print("FMM pack ZIP verified: all four vanilla texture references present; no bundled placeholder textures.")
+          PY
       - name: Package full source
         run: |
           mkdir -p dist
