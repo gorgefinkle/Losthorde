@@ -1,29 +1,31 @@
-# Dead Streets infected models
+# Dead Streets infected visuals
 
-These are original, editable Blockbench free-model assets used by the required DisplayMotion 0.4.0 runtime dependency.
+Dead Streets uses two rendering paths:
 
-| File | Visible role | Animation clips |
+- **Vanilla zombie rendering** for the Crawler and Hulk. These infected retain the real Minecraft zombie skin, native model, native walk/swim/attack animations, and the vanilla hurt flash.
+- **DisplayMotion models** for the Runner and Popper, where their distinct Husk and Drowned silhouettes justify custom articulated models.
+
+| Infected | Rendering | Appearance and animation |
 |---|---|---|
-| `runner_husk.bbmodel` | Dry, sand-colored, forward-leaning Husk Runner | `idle`, `walk`, `run`, `attack`, `death` |
-| `popper_drowned.bbmodel` | Swollen, drowned-colored Popper with exposed ribs | `idle`, `walk`, `attack`, `inflate`, `burst`, `death` |
-| `crawler_lowprofile.bbmodel` | Horizontal, long-armed low-profile Crawler | `idle`, `crawl`, `lunge`, `death` |
-| `hulk_brute.bbmodel` | Broad, asymmetrical three-block Hulk | `idle`, `walk`, `attack`, `roar`, `death` |
+| Runner | DisplayMotion | Husk-based custom model; `idle`, `walk`, `run`, `attack`, `death` |
+| Popper | DisplayMotion | Drowned-based custom model; `idle`, `walk`, `attack`, `inflate`, `burst`, `death` |
+| Crawler | Native vanilla Zombie | Real zombie texture and model in the fixed low-profile swimming pose; native crawl/swim locomotion, attack movement, and hurt flash |
+| Hulk | Native vanilla Zombie | Real zombie texture and model at the three-block target scale; native walk/attack movement and hurt flash |
 
-## Editing
+## DisplayMotion models
 
-Open the `.bbmodel` files directly in Blockbench. Textures are embedded in each file; no external texture files or client resource pack are required.
+The editable `.bbmodel` assets for Runner and Popper are embedded in the plugin JAR. DisplayMotion 0.4.0 is a required server dependency.
 
-DisplayMotion converts each cube into a vanilla block display using the closest solid vanilla block to the average color of that cube's texture faces. This deliberately keeps the models compatible with client texture packs. Use distinct solid-color swatches on separate cubes for material changes; detailed pixel patterns inside one texture will be averaged to a single block material.
+DisplayMotion converts cube faces into vanilla block displays using the closest solid vanilla block to the average color of each face. It does **not** render a full pixel-art skin texture like Minecraft's native entity renderer. For that reason, Crawler and Hulk intentionally do not use DisplayMotion: their vanilla zombie skin and native damage/locomotion feedback are more important than custom block-display geometry.
 
-Keep animation clip names unchanged because Dead Streets selects them by name. Keep the model's group hierarchy and UUID links intact when editing animations. Keep cube counts modest: each surviving cube is a client-rendered display part, so unnecessary geometry costs client FPS. DisplayMotion merges hidden/contained cubes and adjacent flat-color cubes where possible.
+The Crawler and Hulk `.bbmodel` files are retained in the repository as historical design references only; they are not loaded or shown in-game.
 
 ## Runtime behavior
 
-The server-side Zombie remains the gameplay controller for AI, targeting, collision, health, and damage. DisplayMotion supplies the visible articulated model and its clickable hitbox. Dead Streets hides the vanilla Zombie body from each viewer and routes left-clicks on the model hitbox back to the server-side Zombie.
+The server-side Zombie remains responsible for AI, targeting, collision, health, damage, and persistence.
 
-- Runner uses the Husk model and faster movement.
-- Popper uses the Drowned model. On death it plays `burst`, applies modest damage in a small radius without block damage, and releases 1–4 Crawlers.
-- Crawler uses a swimming-pose gameplay body and the horizontal model.
-- Hulk uses a three-block server collision scale and the broad model.
-
-An opt-in server startup self-test can exercise every model's spawn, follow, hitbox, click callback, and animation clips by launching Paper with `-Ddeadstreets.model-smoke=true`. It is disabled during normal server startup.
+- Runner and Popper use DisplayMotion displays and hide their underlying vanilla Zombie from viewers.
+- Crawler uses Paper's fixed `SWIMMING` pose and reduced native scale.
+- Hulk uses native zombie rendering and its three-block target scale.
+- Native-rendered infected keep Minecraft's normal damage tint/flash and built-in entity animation.
+- Popper death still plays its burst animation, applies modest damage in a small radius without block damage, and releases 1–4 Crawlers.
