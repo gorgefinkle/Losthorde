@@ -108,6 +108,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         runners = new RunnerManager(this);
         poppers = new PopperManager(this);
         identities = new ZombieIdentityManager(this);
+        identities.start();
         walkerBudget.load();
         spawners = new SpawnerManager(this);
         population = new PopulationManager(this);
@@ -123,7 +124,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         hordes.start();
         bloodMoon.start();
         scragglers.start();
-        getLogger().info("Dead Streets R13: dependency-free native swimming Crawlers and three-block Hulks.");
+        getLogger().info("Dead Streets R14: per-viewer targeted identity plates; BetterModel-ready infected presentation.");
     }
     @Override public void onDisable() {
         if (spawners != null) spawners.stop();
@@ -132,6 +133,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         if (hordes != null) hordes.stop();
         if (scragglers != null) scragglers.stop();
         if (walkerBudget != null) walkerBudget.stop();
+        if (identities != null) identities.stop();
     }
     private void runNativeInfectedSmokeTest() {
         if (Bukkit.getWorlds().isEmpty()) throw new IllegalStateException("No loaded world for native infected smoke test");
@@ -323,11 +325,6 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     @EventHandler public void onEntitiesUnload(EntitiesUnloadEvent event) {
         hordes.onEntitiesUnload(event.getChunk());
     }
-    @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true)
-    public void onZombieDamagedByPlayer(EntityDamageByEntityEvent event) {
-        if (identities != null) identities.showHealthAfterHit(event);
-    }
-
     @EventHandler public void onZombieDeath(EntityDeathEvent event) {
         if(event.getEntity() instanceof Zombie zombie) {
             scragglers.onZombieDeath(zombie);
@@ -341,6 +338,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         hordes.forgetPlayer(event.getPlayer().getUniqueId());
         observation.forget(event.getPlayer().getUniqueId());
         if (bloodMoon != null) bloodMoon.onPlayerQuit(event.getPlayer());
+        if (identities != null) identities.onQuit(event.getPlayer());
     }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void onTeleport(PlayerTeleportEvent event) {
         observeTeleport(event.getPlayer(),event.getTo());
