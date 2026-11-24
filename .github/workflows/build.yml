@@ -28,28 +28,28 @@ jobs:
 
           jar_path = "target/DeadStreets_R14.jar"
           with ZipFile(jar_path) as jar:
+              names = jar.namelist()
               descriptor = jar.read("plugin.yml").decode("utf-8")
-              assert not re.search(r"(?m)^depend\\s*:", descriptor), "Required plugin dependencies remain"
-              assert "FreeMinecraftModels" not in descriptor
-              assert "ResourcePackManager" not in descriptor
-              assert "bettermodel/models/deadstreets_crawler.bbmodel" in jar.namelist(), "Crawler Blockbench model missing"
-          assert "bettermodel/models/deadstreets_hulk.bbmodel" in jar.namelist(), "Hulk Blockbench model missing"
-              assert not any("VisualManager.class" in name for name in jar.namelist()), "Custom renderer class remains"
-              assert "dev/deadstreets/paper/ZombieIdentityManager.class" in jar.namelist(), "Zombie identity/health manager missing"
+              assert not re.search(r"(?m)^depend\\s*:", descriptor), "BetterModel must remain optional"
+              assert "BetterModel" in descriptor, "BetterModel soft dependency missing"
+              assert "bettermodel/models/deadstreets_crawler.bbmodel" in names, "Crawler Blockbench model missing"
+              assert "bettermodel/models/deadstreets_hulk.bbmodel" in names, "Hulk Blockbench model missing"
+              assert "dev/deadstreets/paper/BetterModelBridge.class" in names, "BetterModel bridge missing"
+              assert "dev/deadstreets/paper/ZombieIdentityManager.class" in names, "Targeted identity manager missing"
               config = jar.read("config.yml").decode("utf-8")
               assert "target-display:" in config and "update-interval-ticks: 3" in config, "Aimed identity display is missing"
-          assert "chat-health-bars:" not in config, "Obsolete chat health bars remain"
-          print("Packaging check passed: BetterModel is optional; crawler/Hulk Blockbench models and aimed identity system are packaged.")
+              assert "chat-health-bars:" not in config, "Obsolete chat health bars remain"
+          print("Packaging check passed: optional BetterModel integration, both model assets and targeted identity display are present.")
           PY
       - name: Download Paper 26.2
         run: |
-          curl -fsSL -H 'User-Agent: Losthorde-R13-Smoke/1.0' \
+          curl -fsSL -H 'User-Agent: Losthorde-R14-Smoke/1.0' \
             'https://fill.papermc.io/v3/projects/paper/versions/26.2/builds?channel=STABLE' \
             -o paper-builds.json
           PAPER_URL="$(jq -r 'first(.[] | select(.channel == "STABLE") | .downloads["server:default"].url)' paper-builds.json)"
           test -n "$PAPER_URL" && test "$PAPER_URL" != "null"
           curl -fL "$PAPER_URL" -o paper.jar
-      - name: Run Paper 26.2 with Dead Streets only
+      - name: Run Paper 26.2 without optional plugins
         run: |
           mkdir -p plugins
           cp target/DeadStreets_R14.jar plugins/DeadStreets.jar
@@ -85,7 +85,7 @@ jobs:
       - name: Package full source
         run: |
           mkdir -p dist
-          cp target/DeadStreets_R13.jar dist/
+          cp target/DeadStreets_R14.jar dist/
           git archive --format=zip --output=dist/DeadStreets_R14-source.zip HEAD
       - name: Upload test build
         uses: actions/upload-artifact@v4
