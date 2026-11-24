@@ -83,8 +83,8 @@ final class ZombieIdentityManager {
             pdc.set(lastKey, PersistentDataType.STRING, last);
         }
         // Keep the identity in persistent data, never as a globally visible vanilla nametag.
-        zombie.setCustomName(null);
-        zombie.setCustomNameVisible(false);
+        if (zombie.getCustomName() != null) zombie.setCustomName(null);
+        if (zombie.isCustomNameVisible()) zombie.setCustomNameVisible(false);
     }
 
     private void tickViewers() {
