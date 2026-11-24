@@ -88,7 +88,7 @@ final class BetterModelBridge {
                 }
             } catch (ReflectiveOperationException ignored) {}
             if (existing != null) {
-                hideBase(zombie);
+                showToCurrentViewers(existing, zombie);
                 return true;
             }
         }
@@ -130,7 +130,9 @@ final class BetterModelBridge {
                 plugin.getLogger().warning("BetterModel asset '" + modelName + "' loaded but animation '" + animation + "' could not be started.");
             }
             trackers.put(zombie.getUniqueId(), tracker);
-            hideBase(zombie);
+            // BetterModel's own EntityHideOption hides the vanilla body. Do not call
+            // Bukkit hideEntity here: the model tracker depends on the source spawn lifecycle.
+            showToCurrentViewers(tracker, zombie);
             return true;
         } catch (ClassNotFoundException absent) {
             if (!warnedApi) {
@@ -156,14 +158,49 @@ final class BetterModelBridge {
     }
 
     void refreshPlayer(Player player) {
-        for (UUID id : trackers.keySet()) {
-            var entity = Bukkit.getEntity(id);
-            if (entity instanceof Zombie zombie && zombie.isValid()) player.hideEntity(plugin, zombie);
+        if (!player.isOnline()) return;
+        for (Map.Entry<UUID, Object> entry : trackers.entrySet()) {
+            var entity = Bukkit.getEntity(entry.getKey());
+            if (entity instanceof Zombie zombie && zombie.isValid() && zombie.getWorld().equals(player.getWorld())) {
+                showToPlayer(entry.getValue(), player);
+            }
         }
     }
 
-    private void hideBase(Zombie zombie) {
-        for (Player player : zombie.getWorld().getPlayers()) player.hideEntity(plugin, zombie);
+    private void showToCurrentViewers(Object tracker, Zombie zombie) {
+        for (Player player : zombie.getWorld().getPlayers()) showToPlayer(tracker, player);
+    }
+
+    private void showToPlayer(Object tracker, Player player) {
+        try {
+            Class<?> adapterClass = Class.forName("kr.toxicity.model.api.bukkit.platform.BukkitAdapter");
+            Method adaptPlayer = null;
+            for (Method candidate : adapterClass.getMethods()) {
+                if (candidate.getName().equals("adapt") && candidate.getParameterCount() == 1
+                        && candidate.getParameterTypes()[0].isAssignableFrom(player.getClass())) {
+                    adaptPlayer = candidate;
+                    break;
+                }
+            }
+            if (adaptPlayer == null) throw new NoSuchMethodException("BukkitAdapter.adapt(Player)");
+            Object platformPlayer = adaptPlayer.invoke(null, player);
+            Method show = null;
+            for (Method candidate : tracker.getClass().getMethods()) {
+                if (candidate.getName().equals("show") && candidate.getParameterCount() == 1
+                        && candidate.getParameterTypes()[0].isInstance(platformPlayer)) {
+                    show = candidate;
+                    break;
+                }
+            }
+            if (show == null) throw new NoSuchMethodException("Tracker.show(PlatformPlayer)");
+            Object result = show.invoke(tracker, platformPlayer);
+            if (Boolean.FALSE.equals(result)) {
+                plugin.getLogger().warning("BetterModel declined to show a tracker to " + player.getName()
+                        + "; check model spawn events and client resource-pack status.");
+            }
+        } catch (ReflectiveOperationException failure) {
+            plugin.getLogger().warning("Could not send BetterModel tracker to " + player.getName() + ": " + failure.getMessage());
+        }
     }
 
     void detachAll() {
