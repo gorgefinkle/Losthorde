@@ -98,6 +98,10 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             dest.getX(),dest.getZ(),dest.getWorld().getViewDistance(),System.currentTimeMillis());
     }
 
+    @Override public void onLoad() {
+        VisualManager.stageBeforeFmmStartup(this);
+    }
+
     @Override public void onEnable() {
         saveDefaultConfig();
         walkerTag = new NamespacedKey(this, "dead_streets_walker");
