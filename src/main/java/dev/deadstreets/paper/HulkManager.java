@@ -47,7 +47,8 @@ final class HulkManager {
     }
 
     private void applyAttributes(Zombie zombie) {
-        set(zombie, Attribute.SCALE, clamp(plugin.getConfig().getDouble("special-infected.hulk.scale", THREE_BLOCK_SCALE), 1.10, THREE_BLOCK_SCALE));
+        // The FMM model and its hitbox define the three-block Hulk silhouette.
+        set(zombie, Attribute.SCALE, 1.0);
         set(zombie, Attribute.MAX_HEALTH, clamp(plugin.getConfig().getDouble("special-infected.hulk.max-health", 50.0), 20.0, 200.0));
         set(zombie, Attribute.MOVEMENT_SPEED, clamp(plugin.getConfig().getDouble("special-infected.hulk.movement-speed", 0.16), 0.05, 0.30));
         set(zombie, Attribute.ATTACK_DAMAGE, clamp(plugin.getConfig().getDouble("special-infected.hulk.attack-damage", 12.0), 4.0, 40.0));
