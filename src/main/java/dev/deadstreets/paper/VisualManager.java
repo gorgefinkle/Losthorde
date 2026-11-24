@@ -630,7 +630,7 @@ final class VisualManager implements Listener {
         boolean ready = packReadyByPlayer.computeIfAbsent(player.getUniqueId(), ignored ->
                 player.getPersistentDataContainer().getOrDefault(packReadyKey, PersistentDataType.BYTE, (byte) 0) != 0);
         for (Active visual : active.values()) {
-            if (visual.zombie.getWorld() != player.getWorld() || !visual.zombie.isValid()) continue;
+            if (visual.zombie.getWorld() != player.getWorld() || !visual.zombie.isValid() || visual.model.isRemoved()) continue;
             if (ready) {
                 visual.model.showTo(player);
                 visual.model.hideUnderlyingEntity(player);
