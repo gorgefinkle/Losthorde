@@ -34,7 +34,7 @@ The hidden zombie driver remains at unit scale. This prevents the prior R11 nati
 
 ## Animation and combat
 
-FMM automatically selects idle/walk states from the backing entity's horizontal movement. Runner maps its movement state to `run`; Crawler maps it to `crawl`. Zombie attacks trigger the model's action-layer `attack` animation. Accepted damage triggers a short articulated `damaged` reaction and FMM's native tint flash. FMM's death handling plays `death`; the Popper's death state is authored as its burst animation.
+FMM automatically selects idle/walk states from the backing entity's horizontal movement. Runner maps its movement state to `run`; Crawler maps it to `crawl`. Zombie attacks trigger the model's action-layer `attack` animation. Accepted damage triggers a short articulated `damaged` reaction and FMM's native tint flash. A Popper begins `inflate` once it falls below 40% health; a Hulk plays its one-time `roar` when a player approaches within 12 blocks. FMM's death handling plays `death`; the Popper's death clip is authored as its burst animation.
 
 The model click surface follows the authored hitbox. Contact damage from the model itself is disabled, so ordinary zombie combat remains authoritative and is not doubled.
 
