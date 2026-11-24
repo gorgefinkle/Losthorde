@@ -41,7 +41,13 @@ final class BetterModelBridge {
                 if (Bukkit.getPluginManager().isPluginEnabled("BetterModel")) {
                     boolean accepted = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "bettermodel reload");
                     if (!accepted) plugin.getLogger().warning("Could not dispatch BetterModel reload; run /bettermodel reload once.");
-                    Bukkit.getScheduler().runTaskLater(plugin, plugin::refreshLoadedZombies, 80L);
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        if (Boolean.getBoolean("deadstreets.bettermodel-smoke")) {
+                            if (!assetsLoaded()) throw new IllegalStateException("BetterModel did not import both Dead Streets Blockbench models.");
+                            plugin.getLogger().info("BetterModel asset smoke test passed: horizontal Crawler and broad Hulk models imported.");
+                        }
+                        plugin.refreshLoadedZombies();
+                    }, 80L);
                 }
             }, 20L);
             plugin.getLogger().info("Installed Dead Streets Blockbench assets into BetterModel/models; requesting a resource-pack reload.");
@@ -57,6 +63,17 @@ final class BetterModelBridge {
             if (Files.exists(destination) && java.util.Arrays.equals(Files.readAllBytes(destination), incoming)) return;
             Files.createDirectories(destination.getParent());
             Files.copy(new java.io.ByteArrayInputStream(incoming), destination, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    boolean assetsLoaded() {
+        try {
+            Class<?> api = Class.forName("kr.toxicity.model.api.BetterModel");
+            Object keys = api.getMethod("modelKeys").invoke(null);
+            return keys instanceof java.util.Set<?> set
+                    && set.contains("deadstreets_crawler") && set.contains("deadstreets_hulk");
+        } catch (ReflectiveOperationException failure) {
+            return false;
         }
     }
 
