@@ -28,7 +28,7 @@ jobs:
           test -n "$PAPER_URL" && test "$PAPER_URL" != "null"
           curl -fL "$PAPER_URL" -o paper.jar
           FMM_URL="$(curl -fsSL -H 'User-Agent: Losthorde-R12-Smoke/1.0' 'https://api.modrinth.com/v2/project/free-minecraft-models/version' | jq -r '[.[] | select(.version_number == "2.16.0" and (.game_versions | index("26.2")))][0].files[] | select(.primary == true) | .url')"
-          RSPM_URL="$(curl -fsSL -H 'User-Agent: Losthorde-R12-Smoke/1.0' 'https://api.modrinth.com/v2/project/jmQaa0X3/version' | jq -r '[.[] | select(.version_number == "2.4.13" and (.game_versions | index("26.2")))][0].files[] | select(.primary == true) | .url')"
+          RSPM_URL="$(curl -fsSL -H 'User-Agent: Losthorde-R12-Smoke/1.0' 'https://api.modrinth.com/v2/project/resourcepackmanager/version' | jq -r '[.[] | select(.version_number == "2.4.13" and (.game_versions | index("26.2")))][0].files[] | select(.primary == true) | .url')"
           test -n "$FMM_URL" && test "$FMM_URL" != "null"
           test -n "$RSPM_URL" && test "$RSPM_URL" != "null"
           curl -fL "$FMM_URL" -o FreeMinecraftModels.jar
