@@ -51,7 +51,8 @@ final class CrawlerManager {
         zombie.setPose(Pose.SWIMMING, true);
     }
     private void applyAttributes(Zombie zombie) {
-        set(zombie, Attribute.SCALE, clamp(plugin.getConfig().getDouble("special-infected.crawler.scale", 0.62), 0.45, 0.85));
+        // The FMM model defines the visible 0.625-block crawler height; keep its hidden AI carrier at unit scale.
+        set(zombie, Attribute.SCALE, 1.0);
         set(zombie, Attribute.MAX_HEALTH, clamp(plugin.getConfig().getDouble("special-infected.crawler.max-health", 24.0), 10.0, 60.0));
         set(zombie, Attribute.MOVEMENT_SPEED, clamp(plugin.getConfig().getDouble("special-infected.crawler.movement-speed", 0.20), 0.08, 0.35));
         set(zombie, Attribute.ATTACK_DAMAGE, clamp(plugin.getConfig().getDouble("special-infected.crawler.attack-damage", 5.0), 2.0, 16.0));
