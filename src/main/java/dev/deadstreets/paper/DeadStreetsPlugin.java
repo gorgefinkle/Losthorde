@@ -70,11 +70,13 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     private RunnerManager runners;
     private PopperManager poppers;
     private ZombieIdentityManager identities;
+    private BetterModelBridge models;
     private final ObservationGuard observation = new ObservationGuard();
     private final Map<UUID,Integer> observerTickByWorld = new HashMap<>();
     ObservationGuard observation() { return observation; }
     WalkerBudget budget() { return walkerBudget; }
     CrawlerManager crawlers() { return crawlers; }
+    BetterModelBridge models() { return models; }
     boolean isManagedWalker(Zombie z) {return z.getPersistentDataContainer().has(walkerTag, PersistentDataType.BYTE);}
     boolean isCrawler(Zombie z) { return crawlers != null && crawlers.isCrawler(z); }
     void recordObservers(World w,long now) {
@@ -109,6 +111,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         poppers = new PopperManager(this);
         identities = new ZombieIdentityManager(this);
         identities.start();
+        models = new BetterModelBridge(this);
         walkerBudget.load();
         spawners = new SpawnerManager(this);
         population = new PopulationManager(this);
@@ -119,6 +122,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         Objects.requireNonNull(getCommand("deadstreets"), "deadstreets command").setExecutor(this);
         spawners.start();
         refreshLoadedZombies();
+        models.installAssetsAndReload();
         if (Boolean.getBoolean("deadstreets.native-smoke")) Bukkit.getScheduler().runTaskLater(this, this::runNativeInfectedSmokeTest, 2L);
         population.start();
         hordes.start();
@@ -134,6 +138,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         if (scragglers != null) scragglers.stop();
         if (walkerBudget != null) walkerBudget.stop();
         if (identities != null) identities.stop();
+        if (models != null) models.detachAll();
     }
     private void runNativeInfectedSmokeTest() {
         if (Bukkit.getWorlds().isEmpty()) throw new IllegalStateException("No loaded world for native infected smoke test");
@@ -352,6 +357,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     }
     @EventHandler public void onJoin(PlayerJoinEvent event) {
         observeTeleport(event.getPlayer(),event.getPlayer().getLocation());
+        if (models != null) Bukkit.getScheduler().runTask(this, () -> models.refreshPlayer(event.getPlayer()));
     }
     @EventHandler public void onChunkUnload(ChunkUnloadEvent event) {
         spawners.onChunkUnload(event.getChunk());
