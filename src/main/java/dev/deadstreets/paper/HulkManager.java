@@ -11,13 +11,13 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Hulk gameplay subtype. The FMM model and its top-level hitbox bone supply the broad,
- * asymmetrical three-block silhouette while this native zombie remains the AI/combat driver.
+ * Dependency-free Hulk: a real vanilla Zombie scaled to approximately three blocks tall.
+ * Native rendering, collision, AI and combat all use the same scaled entity.
  */
 final class HulkManager {
     private final DeadStreetsPlugin plugin;
     private final NamespacedKey hulkKey;
-    private long assigned;
+    private static final double THREE_BLOCK_SCALE = 1.53846; // 1.95-block zombie -> ~3.0 blocks\n    private long assigned;
 
     HulkManager(DeadStreetsPlugin plugin) {
         this.plugin = plugin;
@@ -40,6 +40,11 @@ final class HulkManager {
         if (isHulk(zombie)) applyAttributes(zombie);
     }
 
+    void prepareTest(Zombie zombie) {
+        zombie.getPersistentDataContainer().set(hulkKey, PersistentDataType.BYTE, (byte) 1);
+        applyAttributes(zombie);
+    }
+
     private void apply(Zombie zombie) {
         zombie.getPersistentDataContainer().set(hulkKey, PersistentDataType.BYTE, (byte) 1);
         assigned++;
@@ -47,8 +52,8 @@ final class HulkManager {
     }
 
     private void applyAttributes(Zombie zombie) {
-        // The FMM model and its hitbox define the three-block Hulk silhouette.
-        set(zombie, Attribute.SCALE, 1.0);
+        double scale = clamp(plugin.getConfig().getDouble("special-infected.hulk.scale", THREE_BLOCK_SCALE), 1.0, THREE_BLOCK_SCALE);
+        set(zombie, Attribute.SCALE, scale);
         set(zombie, Attribute.MAX_HEALTH, clamp(plugin.getConfig().getDouble("special-infected.hulk.max-health", 50.0), 20.0, 200.0));
         set(zombie, Attribute.MOVEMENT_SPEED, clamp(plugin.getConfig().getDouble("special-infected.hulk.movement-speed", 0.16), 0.05, 0.30));
         set(zombie, Attribute.ATTACK_DAMAGE, clamp(plugin.getConfig().getDouble("special-infected.hulk.attack-damage", 12.0), 4.0, 40.0));
@@ -80,8 +85,10 @@ final class HulkManager {
                     if (!origin.getWorld().isChunkLoaded(x >> 4, z >> 4)) continue;
                     var feet = origin.getWorld().getBlockAt(x, y, z);
                     var head = origin.getWorld().getBlockAt(x, y + 1, z);
+                    var upper = origin.getWorld().getBlockAt(x, y + 2, z);
                     var floor = origin.getWorld().getBlockAt(x, y - 1, z);
-                    if (feet.isPassable() && head.isPassable() && !feet.isLiquid() && !head.isLiquid()
+                    if (feet.isPassable() && head.isPassable() && upper.isPassable()
+                            && !feet.isLiquid() && !head.isLiquid() && !upper.isLiquid()
                             && floor.getType().isSolid()) {
                         destination = new Location(origin.getWorld(), x + 0.5, y, z + 0.5);
                         break;
@@ -97,11 +104,10 @@ final class HulkManager {
             Location at = destination;
             Zombie zombie = at.getWorld().spawn(at, Zombie.class, created -> {
                 plugin.markTestWalker(created);
-                if (!isHulk(created)) apply(created);
+                if (!isHulk(created)) prepareTest(created);
                 if (!force) plugin.budget().tag(created);
-                plugin.visuals().attachSoon(created);
             });
-            return (force ? "DEV FORCE: spawned uncounted test Hulk " : "Spawned test Hulk ") + zombie.getUniqueId() + " at three-block target scale.";
+            return (force ? "DEV FORCE: spawned uncounted test Hulk " : "Spawned test Hulk ") + zombie.getUniqueId() + " at native three-block scale (" + String.format(java.util.Locale.ROOT, "%.3f", zombie.getBoundingBox().getHeight()) + " blocks tall).";
         } catch (RuntimeException failure) {
             if (!force) plugin.budget().rollback();
             return "Test Hulk spawn failed: " + failure.getMessage();
