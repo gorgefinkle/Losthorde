@@ -1,4 +1,4 @@
-# Dead Streets R13: native infected, persistent scragglers, migrating hordes, Blood Moon events and building populations.
+# Dead Streets R14: native infected, persistent scragglers, migrating hordes, Blood Moon events and building populations.
 blood-moon:
   enabled: true
   # Every N in-game days, the selected night becomes a Blood Moon.
@@ -47,11 +47,17 @@ zombies:
   stop-zombie-reinforcements: true
   never-burn-in-daylight: true
   make-all-zombies-persistent: true
-  chat-health-bars:
+  target-display:
     enabled: true
-    # Only the player who damaged the infected receives the health readout.
+    # Only the entity the viewer is aiming at receives a temporary identity/health plate.
+    range: 9
+    update-interval-ticks: 3
   # Durable global admission cap for NEW Dead Streets walkers, including offloaded chunks.
   max-total-managed-walkers: 3000
+models:
+  bettermodel:
+    enabled: true
+    # BetterModel is optional; without it the vanilla Zombie remains visible.
 vanilla-mobs:
   # Non-zombie hostile mobs are blocked for every spawn reason except COMMAND and SPAWNER_EGG.
   block-non-zombie-hostiles: true
