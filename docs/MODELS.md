@@ -17,7 +17,7 @@ Editable .bbmodel files are embedded under `src/main/resources/fmm/`. On Dead St
 plugins/FreeMinecraftModels/models/deadstreets/
 ```
 
-If FMM has not imported the four model IDs, Dead Streets requests one FMM reload. On each successful `FmmReloadedEvent`, it reacquires the model instances from surviving zombies; it does not keep stale FMM references across reloads.
+If FMM has not imported the four model IDs, or the embedded assets changed during a plugin update, Dead Streets requests one FMM reload. On each successful `FmmReloadedEvent`, it reacquires the model instances from surviving zombies; it does not keep stale FMM references across reloads.
 
 FMM 2.16.0 and ResourcePackManager 2.4.13 are required server dependencies. RSPM merges and hosts the FMM-generated pack, including its remote fallback when server self-hosting is unreachable. Players need to accept the server resource-pack prompt. No client mod or manually hosted pack is required.
 
