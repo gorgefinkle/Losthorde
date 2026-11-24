@@ -12,8 +12,8 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Low-profile crawler. Its zombie driver keeps Paper's fixed SWIMMING pose while FMM
- * renders the elongated, articulated zombie-textured crawler model.
+ * Dependency-free low-profile infected. The real vanilla Zombie renderer handles its
+ * body and animation; Paper's fixed SWIMMING pose gives it the low, horizontal profile.
  */
 final class CrawlerManager {
     private final DeadStreetsPlugin plugin;
@@ -51,7 +51,7 @@ final class CrawlerManager {
         zombie.setPose(Pose.SWIMMING, true);
     }
     private void applyAttributes(Zombie zombie) {
-        // The FMM model defines the visible 0.625-block crawler height; keep its hidden AI carrier at unit scale.
+        // Keep native zombie dimensions; Pose.SWIMMING supplies the low profile.
         set(zombie, Attribute.SCALE, 1.0);
         set(zombie, Attribute.MAX_HEALTH, clamp(plugin.getConfig().getDouble("special-infected.crawler.max-health", 24.0), 10.0, 60.0));
         set(zombie, Attribute.MOVEMENT_SPEED, clamp(plugin.getConfig().getDouble("special-infected.crawler.movement-speed", 0.20), 0.08, 0.35));
@@ -99,9 +99,8 @@ final class CrawlerManager {
                 prepareTest(created);
                 refresh(created);
                 if (!force) plugin.budget().tag(created);
-                plugin.visuals().attachSoon(created);
             });
-            return (force ? "DEV FORCE: spawned uncounted test Crawler " : "Spawned test Crawler ") + zombie.getUniqueId() + " nearby with the low-profile FMM crawl model.";
+            return (force ? "DEV FORCE: spawned uncounted test Crawler " : "Spawned test Crawler ") + zombie.getUniqueId() + " nearby in the native swimming pose.";
         } catch (RuntimeException failure) {
             if (!force) plugin.budget().rollback();
             return "Test Crawler spawn failed: " + failure.getMessage();
