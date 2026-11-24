@@ -533,7 +533,9 @@ final class VisualManager implements Listener {
         DynamicEntity previous = DynamicEntity.getDynamicEntity(zombie);
         if (previous instanceof PersistentDynamicEntity persistent) {
             if (persistent.isAttachedTo(zombie, modelId)) {
-                active.put(zombie.getUniqueId(), new Active(zombie, type, persistent));
+                Active visual = new Active(zombie, type, persistent);
+                active.put(zombie.getUniqueId(), visual);
+                restorePopperInflation(visual);
                 for (Player player : zombie.getWorld().getPlayers()) applyPlayerVisibility(player);
                 return;
             }
@@ -558,12 +560,24 @@ final class VisualManager implements Listener {
                 default -> "walk";
             };
             model.getAnimationComponent().setWalkAnimation(walk);
-            active.put(zombie.getUniqueId(), new Active(zombie, type, model));
+            Active visual = new Active(zombie, type, model);
+            active.put(zombie.getUniqueId(), visual);
+            restorePopperInflation(visual);
             for (Player player : zombie.getWorld().getPlayers()) applyPlayerVisibility(player);
         } catch (RuntimeException | Error failure) {
             if (!model.isRemoved()) model.detachKeepingZombie();
             plugin.getLogger().severe("Could not attach FMM model " + modelId + ": " + failure.getMessage());
             throw failure;
+        }
+    }
+
+    private void restorePopperInflation(Active visual) {
+        if (!visual.type.equals("popper_drowned") || visual.inflating) return;
+        AttributeInstance maxHealth = visual.zombie.getAttribute(Attribute.MAX_HEALTH);
+        double threshold = (maxHealth == null ? 32.0 : maxHealth.getValue()) * 0.4;
+        if (visual.zombie.getHealth() <= threshold && visual.model.hasAnimation("inflate")) {
+            visual.model.playAnimation("inflate", true, false);
+            visual.inflating = true;
         }
     }
 
