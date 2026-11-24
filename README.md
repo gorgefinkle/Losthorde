@@ -18,7 +18,7 @@ FMM and RSPM are required dependencies in this build. DisplayMotion is no longer
 
 ## Infected model design
 
-The editable source models live in `src/main/resources/fmm/`. On startup Dead Streets copies them into FMM's active model directory and requests one FMM reload if they were not already imported. It listens for FMM reload completion and reattaches models to surviving zombies, so a model reload does not leave infected invisible.
+The editable source models live in `src/main/resources/fmm/`. On startup Dead Streets copies them into FMM's active model directory and requests one FMM reload when the embedded models are new or have changed. It listens for FMM reload completion and reattaches models to surviving zombies, so a model reload does not leave infected invisible.
 
 - **Runner:** Husk-textured, forward-leaning runner; idle, run, attack, damage and death states.
 - **Popper:** Drowned-textured swollen infected; idle, walk, attack, inflate, damage and burst-on-death states. Its death still applies modest non-block-damaging damage and releases 1–4 Crawlers.
