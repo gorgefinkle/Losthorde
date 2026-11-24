@@ -116,6 +116,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         Objects.requireNonNull(getCommand("deadstreets"), "deadstreets command").setExecutor(this);
         spawners.start();
         refreshLoadedZombies();
+        if (Boolean.getBoolean("deadstreets.native-smoke")) runNativeInfectedSmokeTest();
         population.start();
         hordes.start();
         bloodMoon.start();
@@ -130,6 +131,47 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         if (scragglers != null) scragglers.stop();
         if (walkerBudget != null) walkerBudget.stop();
     }
+    private void runNativeInfectedSmokeTest() {
+        if (Bukkit.getWorlds().isEmpty()) throw new IllegalStateException("No loaded world for native infected smoke test");
+        var world = Bukkit.getWorlds().getFirst();
+        var base = world.getSpawnLocation().clone().add(8, 1, 8);
+        Zombie crawler = null;
+        Zombie hulk = null;
+        try {
+            crawler = world.spawn(base, Zombie.class, zombie -> {
+                zombie.setAI(false);
+                zombie.setSilent(true);
+            });
+            hulk = world.spawn(base.clone().add(4, 0, 0), Zombie.class, zombie -> {
+                zombie.setAI(false);
+                zombie.setSilent(true);
+            });
+
+            crawlers.prepareTest(crawler);
+            crawlers.refresh(crawler);
+            hulks.prepareTest(hulk);
+
+            if (crawler.getPose() != org.bukkit.entity.Pose.SWIMMING) {
+                throw new IllegalStateException("Crawler failed to retain Pose.SWIMMING: " + crawler.getPose());
+            }
+            var scale = hulk.getAttribute(org.bukkit.attribute.Attribute.SCALE);
+            if (scale == null || Math.abs(scale.getBaseValue() - 1.53846) > 0.001) {
+                throw new IllegalStateException("Hulk native scale is not the three-block target: "
+                        + (scale == null ? "missing" : scale.getBaseValue()));
+            }
+            double measuredHeight = hulk.getBoundingBox().getHeight();
+            if (Math.abs(measuredHeight - 3.0) > 0.08) {
+                throw new IllegalStateException("Hulk bounding box is not three blocks tall: " + measuredHeight);
+            }
+            getLogger().info("Native infected smoke test passed: Crawler fixed swimming pose; Hulk native scale "
+                    + String.format(Locale.ROOT, "%.5f", scale.getBaseValue()) + " and "
+                    + String.format(Locale.ROOT, "%.3f", measuredHeight) + "-block bounding box; no renderer plugins.");
+        } finally {
+            if (crawler != null && crawler.isValid()) crawler.remove();
+            if (hulk != null && hulk.isValid()) hulk.remove();
+        }
+    }
+
     NamespacedKey scragglerTag() { return scragglerTag; }
     boolean tryJoinHorde(Zombie zombie) { return hordes!=null && hordes.absorbScraggler(zombie); }
     NamespacedKey hordeMemberTag() { return hordeMemberTag; }
