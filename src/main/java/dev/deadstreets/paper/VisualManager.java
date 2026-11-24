@@ -208,8 +208,8 @@ final class VisualManager implements Listener {
                 model.spawn(dummy);
                 model.hideBackingEntity();
                 String movement = switch (entry.getKey()) {
-                    case "deadstreets_runner" -> "run";
-                    case "deadstreets_crawler" -> "crawl";
+                    case "runner_husk" -> "run";
+                    case "crawler_lowprofile" -> "crawl";
                     default -> "walk";
                 };
                 if (!model.hasAnimation("idle") || !model.hasAnimation(movement)
@@ -218,13 +218,13 @@ final class VisualManager implements Listener {
                     throw new IllegalStateException("Model " + entry.getValue()
                             + " is missing a required movement/combat/death animation.");
                 }
-                if (entry.getKey().equals("deadstreets_popper") && !model.hasAnimation("inflate")) {
+                if (entry.getKey().equals("popper_drowned") && !model.hasAnimation("inflate")) {
                     throw new IllegalStateException("Popper is missing its inflate animation.");
                 }
-                if (entry.getKey().equals("deadstreets_hulk") && !model.hasAnimation("roar")) {
+                if (entry.getKey().equals("hulk_brute") && !model.hasAnimation("roar")) {
                     throw new IllegalStateException("Hulk is missing its roar animation.");
                 }
-                if (entry.getKey().equals("deadstreets_crawler") && !model.hasAnimation("lunge")) {
+                if (entry.getKey().equals("crawler_lowprofile") && !model.hasAnimation("lunge")) {
                     throw new IllegalStateException("Crawler is missing its lunge animation.");
                 }
                 model.setClickSurface(true);
