@@ -34,7 +34,10 @@ jobs:
               assert "ResourcePackManager" not in descriptor
               assert not any(name.endswith(".bbmodel") for name in jar.namelist()), "Model assets remain embedded"
               assert not any("VisualManager.class" in name for name in jar.namelist()), "Custom renderer class remains"
-          print("Dependency check passed: Paper API only; no FMM, RSPM, DisplayMotion, Blockbench assets or renderer class.")
+              assert "dev/deadstreets/paper/ZombieIdentityManager.class" in jar.namelist(), "Zombie identity/health manager missing"
+              config = jar.read("config.yml").decode("utf-8")
+              assert "chat-health-bars:" in config and "enabled: true" in config, "Chat health bars are not enabled by default"
+          print("Dependency check passed: Paper API only; native infected and identity/health systems are packaged; no FMM, RSPM, DisplayMotion, Blockbench assets or renderer class.")
           PY
       - name: Download Paper 26.2
         run: |
