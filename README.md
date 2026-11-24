@@ -2,30 +2,28 @@
 
 Experimental Paper 26.2 / Java 25 zombie population and migration plugin, with an optional file-based Metropolis BUILD population integration.
 
-**R12.1 is an active test build, not a production release.** It replaces the old block-display renderer with FreeMinecraftModels (FMM) and ResourcePackManager (RSPM). All four special infected now use articulated Blockbench geometry with zombie-family pixel textures: Husk Runner, Drowned Popper, zombie-textured Crawler, and zombie-textured three-block Hulk. The server-side zombie remains responsible for AI, pathfinding, collision, health, damage, and persistence.
+**R13 is a dependency-free native-mob test build.** It removes FreeMinecraftModels, ResourcePackManager, DisplayMotion, Blockbench assets and custom display renderers. The special infected are now real server-side vanilla zombie-family entities; the server's own renderer supplies their appearance and animations.
 
-## Required server plugins
+## Server requirements
 
-Install these three jars in `plugins/`:
+- Paper 26.2
+- Java 25
+- Dead Streets R13
 
-1. [FreeMinecraftModels 2.16.0](https://modrinth.com/plugin/free-minecraft-models) — imports and renders the articulated models.
-2. [ResourcePackManager 2.4.13](https://modrinth.com/plugin/resourcepackmanager) — merges and delivers the generated model pack.
-3. Dead Streets R12.1.1.
+No companion model, disguise, display, resource-pack-hosting or client mod is required. Metropolis integration is optional and file-based. The optional Blood Moon texture pack is a separate setting and is not needed for infected rendering.
 
-No client mods are needed. You do **not** need to create, upload, or host a pack yourself, and you do not need to download any third-party FMM content packs for these embedded models. FMM's current first-run guide asks administrators to run `/fmm initialize`, choose Recommended Setup and approve the server; follow that setup if the installed FMM release prompts for it. FMM generates the model pack; RSPM serves it from the server when reachable and falls back to its free remote hosting when necessary. Players who accept the server resource-pack prompt see the custom models; players who decline or are still downloading keep seeing the real vanilla zombie body instead of an invisible infected. If self-hosting cannot be verified, RSPM's remote fallback uploads the merged resource-pack ZIP plus a random server UUID and pack SHA-1 to MagmaGuy's hosting service; it does not upload world or player data. Its published policy says it does not log client downloads and deletes remote files within 24 hours after shutdown. If you do not want any external upload, RSPM can be configured for self-hosting only, but the server's pack port must be reachable by clients.
+## Native infected
 
-FMM and RSPM are required dependencies in this build. DisplayMotion is no longer required.
+- **Crawler:** A real vanilla Zombie held in Paper's fixed `Pose.SWIMMING`. It uses the vanilla zombie texture and native swimming-pose animation/bounding dimensions, giving it a low horizontal silhouette. Its health, movement speed and attack damage remain configurable.
+- **Hulk:** A real vanilla Zombie with the native `minecraft:scale` attribute set to `1.53846` by default. A standard 1.95-block zombie therefore becomes approximately three blocks tall, and Minecraft scales its actual collision box along with its rendered body. It retains native zombie texture, movement, attack and hurt feedback. Its health, speed, damage, attack knockback and knockback resistance remain configurable.
+- **Runner:** Keeps its faster movement and combat tuning, but currently uses the ordinary vanilla zombie appearance.
+- **Popper:** Keeps its death burst, modest player damage and 1–4 Crawler release, but currently uses the ordinary vanilla zombie appearance.
 
-## Infected model design
+There are no fake display entities, client-side model substitutes, downloaded textures, pack prompts or custom hitboxes for the Crawler or Hulk. The entity the player sees is the entity the server controls and collides with.
 
-The editable source models live in `src/main/resources/fmm/`. During plugin load, Dead Streets stages them in FMM's active model directory before FMM's first import. It requests one FMM reload only if that staging could not be completed or the model IDs are missing. It listens for FMM reload completion and reattaches models to surviving zombies, so a model reload does not leave infected invisible.
+### Hulk clearance
 
-- **Runner:** Husk-textured, forward-leaning runner; idle, run, attack, damage and death states.
-- **Popper:** Drowned-textured swollen infected; idle, walk, attack, inflate, damage and burst-on-death states. Its death still applies modest non-block-damaging damage and releases 1–4 Crawlers.
-- **Crawler:** Low, elongated zombie-textured body; crawl locomotion, lunge attack, articulated hurt reaction and death.
-- **Hulk:** Broad, asymmetrical three-block zombie-textured brute; heavy walk, attack, roar, hurt reaction and death.
-
-The model files contain only a tiny transparent import placeholder. After FMM generates its pack, Dead Streets rewrites the model texture references to the matching vanilla client textures (zombie, husk, drowned), adds those three textures as explicit `single` sources in `assets/minecraft/atlases/blocks.json`, and strips the placeholder PNGs before republishing. This atlas step is essential: FMM's display models render through the blocks/item atlas, where vanilla mob textures are not automatically registered. Mojang texture files are not bundled in the plugin or pack; the client supplies them from its vanilla assets. The FMM models define the visual size and their hitbox bones. The hidden zombie drivers stay at unit scale so the old R11 scale modifiers cannot make the models too large or too small. The Crawler's underlying zombie retains its fixed swimming pose for its low collision profile.
+A three-block Hulk needs three blocks of vertical clearance. The `/ds spawn hulk` test now searches for a safe position with that headroom before it reserves and spawns the test entity. Tight tunnels and ordinary doorways can block a Hulk; that is a consequence of its real enlarged collision box, not a visual-only effect.
 
 ## Current development scope
 
@@ -44,6 +42,6 @@ The model files contain only a tiny transparent import placeholder. After FMM ge
 
 ## Build and verification
 
-Run `bash test_core.sh` with Java 25. Build with `mvn -B -ntp package`; the FMM 2.16.0 API resolves from MagmaGuy's Maven repository.
+Run `bash test_core.sh` with Java 25. Build with `mvn -B -ntp clean package`; only the Paper API is required at runtime.
 
-The R12 runtime smoke test starts Paper 26.2 with FMM and RSPM, imports all four models, attaches them to real zombie entities, and checks the idle, attack, damage and death animation states. A successful headless test does not replace connected-client appearance, melee feel, pack acceptance, or long-run server performance testing. Test on a disposable world first.
+CI launches Paper 26.2 with **Dead Streets as the only plugin** and checks the Crawler's swimming pose and the Hulk's measured native bounding-box height. This headless test confirms entity state and collision dimensions; a connected client is still needed to judge the actual silhouette and feel in-game. Test on a disposable world first.
