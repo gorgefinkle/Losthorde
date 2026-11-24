@@ -83,6 +83,7 @@ final class VisualManager implements Listener {
         private final Plugin fmmPlugin;
         private final boolean originalInvisible;
         private final boolean originalVisibleByDefault;
+        private final boolean originalGlowing;
         private final String modelId;
         private final NamespacedKey originalInvisibleKey;
         private final NamespacedKey originalVisibleKey;
@@ -99,6 +100,7 @@ final class VisualManager implements Listener {
             this.fmmPlugin = fmmPlugin;
             this.originalInvisible = appearance.invisible();
             this.originalVisibleByDefault = appearance.visibleByDefault();
+            this.originalGlowing = appearance.glowing();
             this.originalInvisibleKey = originalInvisibleKey;
             this.originalVisibleKey = originalVisibleKey;
             this.originalGlowingKey = originalGlowingKey;
