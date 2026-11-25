@@ -45,7 +45,7 @@ def prepare(source: Path, destination: Path) -> tuple[int, int]:
     if zombie_source not in atlas["sources"]:
         atlas["sources"].append(zombie_source)
     output_files[atlas_path] = (
-        json.dumps(atlas, separators=(",", ":")) + "\\n"
+        json.dumps(atlas, separators=(",", ":")) + "\n"
     ).encode("utf-8")
     model_paths: set[str] = set()
     crawler_items = sum("deadstreets_crawler_" in path for path in item_paths)
