@@ -359,7 +359,10 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     }
     @EventHandler public void onJoin(PlayerJoinEvent event) {
         observeTeleport(event.getPlayer(),event.getPlayer().getLocation());
-        if (models != null) Bukkit.getScheduler().runTask(this, () -> models.refreshPlayer(event.getPlayer()));
+        if (models != null) {
+            Bukkit.getScheduler().runTask(this, () -> models.refreshPlayer(event.getPlayer()));
+            Bukkit.getScheduler().runTaskLater(this, () -> models.sendModelResourcePack(event.getPlayer()), 140L);
+        }
     }
     @EventHandler public void onChunkUnload(ChunkUnloadEvent event) {
         spawners.onChunkUnload(event.getChunk());
