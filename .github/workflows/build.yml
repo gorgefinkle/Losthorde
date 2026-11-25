@@ -197,7 +197,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -f release-assets/DeadStreets-R22-models.zip
           if ! git diff --cached --quiet; then
-            git commit -m "Publish Dead Streets R22 geometry-only model pack"
+            git commit -m "Publish Dead Streets R22 atlas-enabled model pack"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
       - name: Package full source
@@ -205,10 +205,13 @@ jobs:
           mkdir -p dist
           cp target/DeadStreets_R22.jar dist/
           git archive --format=zip --output=dist/DeadStreets_R22-source.zip HEAD
+          cd dist
+          zip -q DeadStreets-R22-delivery.zip DeadStreets_R22.jar DeadStreets_R22-source.zip
+          cd ..
       - name: Upload test build
         uses: actions/upload-artifact@v4
         with:
           name: DeadStreets-R22-test-build
-          path: dist/*
+          path: dist/DeadStreets-R22-delivery.zip
           if-no-files-found: error
           retention-days: 30
