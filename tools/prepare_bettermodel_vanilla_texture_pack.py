@@ -38,8 +38,14 @@ def prepare(source: Path, destination: Path) -> tuple[int, int]:
     # Atlas source definitions merge across active packs, while the resource
     # manager resolves the PNG from the client's effective resource-pack stack.
     atlas_path = "assets/minecraft/atlases/items.json"
+    atlas = json.loads(source_files[atlas_path]) if atlas_path in source_files else {"sources": []}
+    if not isinstance(atlas.get("sources"), list):
+        raise RuntimeError("BetterModel items atlas has an invalid sources list")
+    zombie_source = {"type": "minecraft:single", "resource": VANILLA_ZOMBIE}
+    if zombie_source not in atlas["sources"]:
+        atlas["sources"].append(zombie_source)
     output_files[atlas_path] = (
-        json.dumps({"sources": [{"type": "minecraft:single", "resource": VANILLA_ZOMBIE}]}, separators=(",", ":")) + "\n"
+        json.dumps(atlas, separators=(",", ":")) + "\\n"
     ).encode("utf-8")
     model_paths: set[str] = set()
     crawler_items = sum("deadstreets_crawler_" in path for path in item_paths)
