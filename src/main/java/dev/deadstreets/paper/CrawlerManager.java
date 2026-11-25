@@ -11,7 +11,7 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-/** Native Zombie crawler; uses vanilla zombie texture and the native swimming/crawling pose. */
+/** Native Zombie gameplay with an optional horizontal, animated BetterModel visual. */
 final class CrawlerManager {
     private final DeadStreetsPlugin plugin;
     private final NamespacedKey crawlerKey;
@@ -44,8 +44,9 @@ final class CrawlerManager {
         applyCrawlPose(zombie);
     }
     private void applyCrawlPose(Zombie zombie) {
-        // Native pose and hitbox: the client renders the standard zombie model with its active resource-pack texture.
+        // Keep the compact swimming hitbox; BetterModel supplies the actual horizontal body and crawl animation.
         zombie.setPose(Pose.SWIMMING, true);
+        plugin.models().attach(zombie, "deadstreets_crawler", "crawl");
     }
     private void applyAttributes(Zombie zombie) {
         // Keep native zombie dimensions; Pose.SWIMMING supplies the low profile.
@@ -118,11 +119,13 @@ final class CrawlerManager {
                 refresh(created);
                 if (!force) plugin.budget().tag(created);
             });
+            boolean trackerCreated = plugin.models().attach(zombie, "deadstreets_crawler", "crawl");
             Location actual = zombie.getLocation();
             return (force ? "DEV FORCE: spawned uncounted test Crawler " : "Spawned test Crawler ")
                     + zombie.getUniqueId() + " at " + actual.getWorld().getName() + " "
                     + actual.getBlockX() + " " + actual.getBlockY() + " " + actual.getBlockZ()
-                    + ". Native zombie model and the player's active texture pack are used. It was placed in front of you when a safe spot was available.";
+                    + ". BetterModel tracker: " + (trackerCreated ? "created; viewer packets requested (client render not yet verified)" : "unavailable; vanilla zombie fallback remains visible")
+                    + ". It was placed in front of you when a safe spot was available.";
         } catch (RuntimeException failure) {
             if (!force) plugin.budget().rollback();
             return "Test Crawler spawn failed: " + failure.getMessage();
