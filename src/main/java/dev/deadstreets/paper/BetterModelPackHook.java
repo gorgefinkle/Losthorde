@@ -184,32 +184,43 @@ final class BetterModelPackHook {
             if (!found) throw new IOException("Injected zombie texture sprite is absent from BetterModel's final items atlas.");
             if (zip.getEntry("assets/minecraft/textures/entity/zombie/zombie.png") != null)
                 throw new IOException("Dead Streets must not replace the client's zombie texture PNG.");
+            Set<String> referencedModels = new HashSet<>();
             int itemCount = 0;
-            int modelCount = 0;
             var entries = zip.entries();
             while (entries.hasMoreElements()) {
                 ZipEntry entry = entries.nextElement();
                 String path = entry.getName();
-                if (entry.isDirectory()) continue;
-                if (path.startsWith("assets/") && path.contains("/items/")
-                        && path.contains("deadstreets_") && path.endsWith(".json")) itemCount++;
-                if (path.startsWith("assets/") && path.contains("/models/")
-                        && path.contains("deadstreets_") && path.endsWith(".json")) {
-                    modelCount++;
-                    try (var in = zip.getInputStream(entry)) {
-                        JsonObject model = JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
-                        if (!model.has("textures") || !model.get("textures").isJsonObject())
-                            throw new IOException("Final model has no texture map: " + path);
-                        for (Map.Entry<String, JsonElement> texture : model.getAsJsonObject("textures").entrySet()) {
-                            if (!ZOMBIE_TEXTURE.equals(texture.getValue().getAsString()))
-                                throw new IOException("Final model still points at a private/missing texture: " + path + " -> " + texture.getValue());
-                        }
+                if (entry.isDirectory() || !path.startsWith("assets/") || !path.contains("/items/")
+                        || !path.contains("deadstreets_") || !path.endsWith(".json")) continue;
+                itemCount++;
+                try (var in = zip.getInputStream(entry)) {
+                    JsonObject item = JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
+                    JsonElement ref = item.has("model") && item.get("model").isJsonObject()
+                            ? item.getAsJsonObject("model").get("model") : null;
+                    if (ref == null || !ref.isJsonPrimitive()) throw new IOException("Final item has no model reference: " + path);
+                    String modelRef = ref.getAsString();
+                    int colon = modelRef.indexOf(':');
+                    if (colon < 1) throw new IOException("Invalid final model reference: " + modelRef);
+                    referencedModels.add("assets/" + modelRef.substring(0, colon) + "/models/"
+                            + modelRef.substring(colon + 1) + ".json");
+                }
+            }
+            if (itemCount != 18 || referencedModels.size() != 18)
+                throw new IOException("Final BetterModel pack has item/model references " + itemCount + "/" + referencedModels.size() + ", expected 18/18.");
+            for (String modelPath : referencedModels) {
+                ZipEntry modelEntry = zip.getEntry(modelPath);
+                if (modelEntry == null) throw new IOException("Final item model is missing: " + modelPath);
+                try (var in = zip.getInputStream(modelEntry)) {
+                    JsonObject model = JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
+                    if (!model.has("textures") || !model.get("textures").isJsonObject())
+                        throw new IOException("Final model has no texture map: " + modelPath);
+                    for (Map.Entry<String, JsonElement> texture : model.getAsJsonObject("textures").entrySet()) {
+                        if (!ZOMBIE_TEXTURE.equals(texture.getValue().getAsString()))
+                            throw new IOException("Final model still points at a private/missing texture: " + modelPath + " -> " + texture.getValue());
                     }
                 }
             }
-            if (itemCount != 18 || modelCount != 18)
-                throw new IOException("Final BetterModel pack has item/model counts " + itemCount + "/" + modelCount + ", expected 18/18.");
-            return "items=" + itemCount + ", models=" + modelCount + ", client zombie texture alias registered, no zombie PNG shipped";
+            return "items=" + itemCount + ", models=" + referencedModels.size() + ", client zombie texture alias registered, no zombie PNG shipped";
         }
     }
 }
