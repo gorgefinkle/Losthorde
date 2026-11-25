@@ -169,11 +169,26 @@ jobs:
           kill -TERM "$SERVER_PID" 2>/dev/null || true
           wait "$SERVER_PID" 2>/dev/null || true
           cd ..
+      - name: Build geometry-only pack with vanilla zombie texture references
+        run: |
+          mkdir -p release-assets
+          python3 tools/prepare_bettermodel_vanilla_texture_pack.py \
+            bettermodel-smoke/plugins/BetterModel/build.zip \
+            release-assets/DeadStreets-R21-models.zip
+      - name: Publish geometry-only model pack for client delivery
+        if: github.event_name == 'push' && github.ref == 'refs/heads/r10-runner-popper-crawler-hulk'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add release-assets/DeadStreets-R21-models.zip
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish Dead Streets R21 geometry-only model pack"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
       - name: Package full source
         run: |
           mkdir -p dist
           cp target/DeadStreets_R21.jar dist/
-          cp bettermodel-smoke/plugins/BetterModel/build.zip dist/DeadStreets_R21-full-BetterModel-pack.zip
           git archive --format=zip --output=dist/DeadStreets_R21-source.zip HEAD
       - name: Upload test build
         uses: actions/upload-artifact@v4
