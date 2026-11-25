@@ -20,7 +20,7 @@ jobs:
         run: bash test_core.sh
       - name: Build Paper plugin
         run: mvn -B -ntp -DskipTests clean package
-      - name: Verify optional BetterModel integration and packaged Blockbench assets
+      - name: Verify native vanilla-textured infected and no custom pack
         run: |
           python3 - <<'PY'
           import re, json, base64
@@ -43,14 +43,11 @@ jobs:
           warning = open("src/main/java/dev/deadstreets/paper/DeadStreetsPlugin.java", encoding="utf-8").read()
           assert "eta,dist" in horde, "Horde alert does not pass live block distance"
           assert "blocks to the " in warning and "Math.round(distanceBlocks)" in warning, "Horde alert must state rounded block distance and compass direction"
-          bridge = open("src/main/java/dev/deadstreets/paper/BetterModelBridge.java", encoding="utf-8").read()
           crawler = open("src/main/java/dev/deadstreets/paper/CrawlerManager.java", encoding="utf-8").read()
-          assert "hideEntity(" not in bridge, "Do not Bukkit-hide the source mob; this can suppress BetterModel's source spawn lifecycle"
-          assert "showToCurrentViewers(tracker, zombie)" in bridge, "BetterModel tracker is not explicitly shown to current viewers"
-          assert "candidate.getParameterTypes()[0] == Player.class" in bridge, "BetterModel PlatformPlayer adapter overload must be selected exactly"
-          assert "runTask(plugin, () ->" in bridge, "BetterModel tracker must be shown again after Bukkit completes the source spawn tick"
-          assert "showToPlayer(entry.getValue(), player)" in bridge, "Late-joining viewers do not receive existing model trackers"
-          assert "frontX" in crawler and "actual.getBlockX()" in crawler, "Crawler test spawn must prioritize a visible front position and report exact coordinates"
+          hulk = open("src/main/java/dev/deadstreets/paper/HulkManager.java", encoding="utf-8").read()
+          assert "Pose.SWIMMING" in crawler and "set(zombie, Attribute.SCALE, 1.0)" in crawler, "Crawler must use native low-profile pose and zombie scale"
+          assert "THREE_BLOCK_SCALE" in hulk and "refreshNativeDimensions(zombie)" in hulk, "Hulk must retain native three-block scaling"
+          assert "models().attach" not in crawler and "models().attach" not in hulk, "Special infected must not attach custom models"
           print("Packaging check passed: native vanilla infected rendering, no BetterModel dependency, no custom texture/model assets, and targeted identity display.")
           PY
       - name: Download Paper 26.2
