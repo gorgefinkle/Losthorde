@@ -71,7 +71,7 @@ jobs:
               config = jar.read("config.yml").decode("utf-8")
               assert "target-display:" in config and "update-interval-ticks: 3" in config, "Aimed identity display is missing"
               assert "chat-health-bars:" not in config, "Obsolete chat health bars remain"
-              assert "resource-pack:" not in config, "Dead Streets must not configure a separate client pack"
+              assert "resource-pack:" in config and "DeadStreets-R23-models.zip" in config, "Integrated BetterModel pack delivery URL is missing"
           horde = open("src/main/java/dev/deadstreets/paper/HordeManager.java", encoding="utf-8").read()
           warning = open("src/main/java/dev/deadstreets/paper/DeadStreetsPlugin.java", encoding="utf-8").read()
           assert "eta,dist" in horde, "Horde alert does not pass live block distance"
