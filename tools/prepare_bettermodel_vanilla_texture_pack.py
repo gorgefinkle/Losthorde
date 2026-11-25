@@ -117,6 +117,6 @@ if __name__ == "__main__":
         raise SystemExit("Usage: prepare_bettermodel_vanilla_texture_pack.py INPUT.zip OUTPUT.zip")
     items, models = prepare(Path(sys.argv[1]), Path(sys.argv[2]))
     print(
-        f"Geometry-only pack ready: {items} item definitions, {models} model JSONs, "
+        f"Texture-inheriting pack ready: {items} item definitions, {models} model JSONs, "
         f"item atlas registers {VANILLA_ZOMBIE}; no PNG assets included."
     )
