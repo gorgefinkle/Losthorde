@@ -29,11 +29,12 @@ final class BetterModelBridge {
     private boolean warnedMissing;
     private boolean warnedApi;
     private boolean packReady;
+    private final BetterModelPackHook packHook;
     private final java.util.Set<UUID> packSentPlayers = new java.util.HashSet<>();
     private final java.util.Set<UUID> packLoadedPlayers = new java.util.HashSet<>();
     private static final UUID DEAD_STREETS_PACK_ID = UUID.fromString("b9c1d6e7-2f43-4b83-9a11-5d72e6c0a422");
 
-    BetterModelBridge(DeadStreetsPlugin plugin) { this.plugin = plugin; }
+    BetterModelBridge(DeadStreetsPlugin plugin) { this.plugin = plugin; this.packHook = new BetterModelPackHook(plugin); }
 
     void installAssetsAndReload() {
         if (!plugin.getConfig().getBoolean("models.bettermodel.enabled", true)) return;
@@ -43,90 +44,41 @@ final class BetterModelBridge {
             return;
         }
         try {
+            packHook.register();
             Path models = dependency.getDataFolder().toPath().resolve("models");
             Files.createDirectories(models);
             copyIfDifferent("bettermodel/models/deadstreets_crawler.bbmodel", models.resolve("deadstreets_crawler.bbmodel"));
             copyIfDifferent("bettermodel/models/deadstreets_hulk.bbmodel", models.resolve("deadstreets_hulk.bbmodel"));
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (Bukkit.getPluginManager().isPluginEnabled("BetterModel")) {
-                    boolean accepted = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "bettermodel reload");
-                    if (!accepted) plugin.getLogger().warning("Could not dispatch BetterModel reload; run /bettermodel reload once.");
+                if (!Bukkit.getPluginManager().isPluginEnabled("BetterModel")) return;
+                boolean firstReload = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "bettermodel reload");
+                if (!firstReload) plugin.getLogger().warning("Could not dispatch initial BetterModel reload.");
+                // The first reload imports our Blockbench files. The second reload hook
+                // can then rewrite the generated item models before BetterModel zips them.
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    if (!assetsLoaded()) {
+                        plugin.getLogger().severe("BetterModel did not register both Dead Streets model keys after initial reload.");
+                        return;
+                    }
+                    boolean secondReload = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "bettermodel reload");
+                    if (!secondReload) plugin.getLogger().warning("Could not dispatch BetterModel pack-injection reload.");
                     Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                        if (!assetsLoaded()) {
-                            if (Boolean.getBoolean("deadstreets.bettermodel-smoke"))
-                                throw new IllegalStateException("BetterModel did not import both Dead Streets Blockbench models.");
-                            plugin.getLogger().severe("BetterModel did not register both Dead Streets model keys after reload.");
-                        } else {
-                            try {
-                                String packReport = auditGeneratedPack(dependency);
-                                plugin.getLogger().info("BetterModel generated-pack audit passed: " + packReport);
-                                packReady = true;
-                                plugin.getLogger().info("BetterModel generated model assets passed the server-side audit; the R22 atlas bridge will be packaged for client delivery: " + packReport);
-                                for (Player online : Bukkit.getOnlinePlayers()) {
-                                    Bukkit.getScheduler().runTaskLater(plugin, () -> sendModelResourcePack(online), 40L);
-                                }
-                                if (Boolean.getBoolean("deadstreets.bettermodel-smoke"))
-                                    plugin.getLogger().info("BetterModel asset smoke test passed: both custom infected models registered; client model pack registers the active zombie texture in the item atlas without shipping a PNG.");
-                            } catch (IOException failure) {
-                                if (Boolean.getBoolean("deadstreets.bettermodel-smoke"))
-                                    throw new IllegalStateException("BetterModel generated resource-pack audit failed: " + failure.getMessage(), failure);
-                                plugin.getLogger().severe("BetterModel generated resource-pack audit failed: " + failure.getMessage());
-                            }
+                        try {
+                            String report = packHook.auditGeneratedPack(dependency.getDataFolder().toPath().resolve("build.zip"));
+                            packReady = true;
+                            plugin.getLogger().info("BetterModel integrated texture-pack audit passed: " + report);
+                            plugin.getLogger().info("BetterModel owns client pack delivery; Dead Streets sends no separate resource pack and ships no zombie PNG.");
+                        } catch (IOException failure) {
+                            plugin.getLogger().severe("BetterModel integrated pack audit failed: " + failure.getMessage());
                         }
                         plugin.refreshLoadedZombies();
-                    }, 80L);
-                }
+                    }, 120L);
+                }, 100L);
             }, 20L);
-            plugin.getLogger().info("Installed Dead Streets Blockbench assets into BetterModel/models; requesting a resource-pack reload.");
-        } catch (IOException failure) {
-            plugin.getLogger().severe("Could not install BetterModel assets: " + failure.getMessage());
+            plugin.getLogger().info("Installed Dead Streets Blockbench assets and registered BetterModel's native pack injection hook.");
+        } catch (IOException | ReflectiveOperationException failure) {
+            plugin.getLogger().severe("Could not initialize BetterModel integration: " + failure.getMessage());
         }
-    }
-
-
-    private String auditGeneratedPack(Plugin dependency) throws IOException {
-        Path data = dependency.getDataFolder().toPath();
-        Path zip = data.resolve("build.zip");
-        Path folder = data.resolve("build");
-        long pngCount = 0;
-        boolean hasPackMeta = false;
-        if (Files.isRegularFile(zip)) {
-            try (ZipFile archive = new ZipFile(zip.toFile())) {
-                var entries = archive.entries();
-                while (entries.hasMoreElements()) {
-                    ZipEntry entry = entries.nextElement();
-                    if (entry.isDirectory()) continue;
-                    String name = entry.getName().toLowerCase(java.util.Locale.ROOT);
-                    if (name.endsWith(".png")) pngCount++;
-                    if (name.equals("pack.mcmeta")) hasPackMeta = true;
-                }
-            }
-            String digest;
-            try {
-                digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(Files.readAllBytes(zip)));
-            } catch (NoSuchAlgorithmException impossible) {
-                throw new IllegalStateException("SHA-1 is unavailable", impossible);
-            }
-            if (!hasPackMeta || pngCount < 2) {
-                throw new IOException("BetterModel build.zip is incomplete: pack.mcmeta=" + hasPackMeta
-                        + ", PNG assets=" + pngCount + ", path=" + zip);
-            }
-            return "path=" + zip + ", PNG assets=" + pngCount + ", SHA-1=" + digest
-                    + ", bytes=" + Files.size(zip);
-        }
-        if (Files.isDirectory(folder)) {
-            try (var files = Files.walk(folder)) {
-                var paths = files.filter(Files::isRegularFile).toList();
-                pngCount = paths.stream().filter(p -> p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).endsWith(".png")).count();
-                hasPackMeta = paths.stream().anyMatch(p -> p.getFileName().toString().equals("pack.mcmeta"));
-            }
-            if (!hasPackMeta || pngCount < 2) {
-                throw new IOException("BetterModel build folder is incomplete: pack.mcmeta=" + hasPackMeta
-                        + ", PNG assets=" + pngCount + ", path=" + folder);
-            }
-            return "path=" + folder + ", PNG assets=" + pngCount + ", pack.mcmeta present";
-        }
-        throw new IOException("No generated BetterModel pack found at " + zip + " or " + folder);
     }
 
     private void copyIfDifferent(String resource, Path destination) throws IOException {
