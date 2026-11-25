@@ -1,4 +1,4 @@
-# Dead Streets R15: native infected, persistent scragglers, migrating hordes, Blood Moon events and building populations.
+# Dead Streets R18: native infected, persistent scragglers, migrating hordes, Blood Moon events and building populations.
 blood-moon:
   enabled: true
   # Every N in-game days, the selected night becomes a Blood Moon.
