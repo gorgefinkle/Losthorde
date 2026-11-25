@@ -30,7 +30,7 @@ jobs:
           import re, json, base64
           from zipfile import ZipFile
 
-          jar_path = "target/DeadStreets_R21.jar"
+          jar_path = "target/DeadStreets_R22.jar"
           with ZipFile(jar_path) as jar:
               names = jar.namelist()
               descriptor = jar.read("plugin.yml").decode("utf-8")
@@ -95,7 +95,7 @@ jobs:
       - name: Run Paper 26.2 without optional plugins
         run: |
           mkdir -p plugins
-          cp target/DeadStreets_R21.jar plugins/DeadStreets.jar
+          cp target/DeadStreets_R22.jar plugins/DeadStreets.jar
           test "$(find plugins -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 1
           echo 'eula=true' > eula.txt
           cat > server.properties <<'EOF'
@@ -121,7 +121,7 @@ jobs:
             wait "$SERVER_PID" 2>/dev/null || true
             exit 1
           fi
-          grep -F 'Dead Streets R21:' logs/latest.log
+          grep -F 'Dead Streets R22:' logs/latest.log
           grep -F 'Native infected smoke test passed' logs/latest.log
           kill -TERM "$SERVER_PID" 2>/dev/null || true
           for attempt in $(seq 1 15); do
@@ -136,7 +136,7 @@ jobs:
       - name: Run Paper 26.2 with BetterModel and validate imported assets
         run: |
           mkdir -p bettermodel-smoke/plugins
-          cp target/DeadStreets_R21.jar bettermodel-smoke/plugins/DeadStreets.jar
+          cp target/DeadStreets_R22.jar bettermodel-smoke/plugins/DeadStreets.jar
           cp bettermodel.jar bettermodel-smoke/plugins/BetterModel.jar
           mkdir -p bettermodel-smoke/plugins/BetterModel
           unzip -p bettermodel.jar config.yml > bettermodel-smoke/plugins/BetterModel/config.yml
@@ -184,31 +184,31 @@ jobs:
           kill -TERM "$SERVER_PID" 2>/dev/null || true
           wait "$SERVER_PID" 2>/dev/null || true
           cd ..
-      - name: Build geometry-only pack with vanilla zombie texture references
+      - name: Build item-atlas-enabled pack with client zombie texture reference
         run: |
           mkdir -p release-assets
           python3 tools/prepare_bettermodel_vanilla_texture_pack.py \
             bettermodel-smoke/plugins/BetterModel/build.zip \
-            release-assets/DeadStreets-R21-models.zip
-      - name: Publish geometry-only model pack for client delivery
+            release-assets/DeadStreets-R22-models.zip
+      - name: Publish item-atlas-enabled model pack for client delivery
         if: github.event_name == 'push' && github.ref == 'refs/heads/r10-runner-popper-crawler-hulk'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f release-assets/DeadStreets-R21-models.zip
+          git add -f release-assets/DeadStreets-R22-models.zip
           if ! git diff --cached --quiet; then
-            git commit -m "Publish Dead Streets R21 geometry-only model pack"
+            git commit -m "Publish Dead Streets R22 geometry-only model pack"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
       - name: Package full source
         run: |
           mkdir -p dist
-          cp target/DeadStreets_R21.jar dist/
-          git archive --format=zip --output=dist/DeadStreets_R21-source.zip HEAD
+          cp target/DeadStreets_R22.jar dist/
+          git archive --format=zip --output=dist/DeadStreets_R22-source.zip HEAD
       - name: Upload test build
         uses: actions/upload-artifact@v4
         with:
-          name: DeadStreets-R21-test-build
+          name: DeadStreets-R22-test-build
           path: dist/*
           if-no-files-found: error
           retention-days: 30
