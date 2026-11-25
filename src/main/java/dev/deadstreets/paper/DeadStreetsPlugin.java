@@ -128,7 +128,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         hordes.start();
         bloodMoon.start();
         scragglers.start();
-        getLogger().info("Dead Streets R20: native vanilla-textured infected; no custom resource pack required.");
+        getLogger().info("Dead Streets R21: native vanilla-textured infected; no custom resource pack required.");
     }
     @Override public void onDisable() {
         if (spawners != null) spawners.stop();
