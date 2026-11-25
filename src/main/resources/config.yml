@@ -57,13 +57,7 @@ zombies:
 models:
   bettermodel:
     enabled: true
-    # Geometry/animation pack; registers the entity texture in the item atlas for client-pack resolution.
-    # No Dead Streets texture PNG is shipped, so client texture packs remain authoritative.
-    resource-pack:
-      enabled: true
-      url: "https://raw.githubusercontent.com/gorgefinkle/Losthorde/r10-runner-popper-crawler-hulk/release-assets/DeadStreets-R22-models.zip"
-      required: false
-
+    # BetterModel generates and delivers its own pack; Dead Streets injects the client zombie atlas alias into it.
 vanilla-mobs:
   # Non-zombie hostile mobs are blocked for every spawn reason except COMMAND and SPAWNER_EGG.
   block-non-zombie-hostiles: true
