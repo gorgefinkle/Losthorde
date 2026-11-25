@@ -1,4 +1,4 @@
-# Dead Streets R20: native infected, persistent scragglers, migrating hordes, Blood Moon events and building populations.
+# Dead Streets R21: BetterModel custom infected geometry mapped to vanilla zombie textures.
 blood-moon:
   enabled: true
   # Every N in-game days, the selected night becomes a Blood Moon.
@@ -54,6 +54,16 @@ zombies:
     update-interval-ticks: 3
   # Durable global admission cap for NEW Dead Streets walkers, including offloaded chunks.
   max-total-managed-walkers: 3000
+models:
+  bettermodel:
+    enabled: true
+    # Geometry/animation pack only; its model JSON points to minecraft:entity/zombie/zombie.
+    # No Dead Streets texture PNG is shipped, so client texture packs remain authoritative.
+    resource-pack:
+      enabled: true
+      url: "https://raw.githubusercontent.com/gorgefinkle/Losthorde/r10-runner-popper-crawler-hulk/release-assets/DeadStreets-R21-models.zip"
+      required: false
+
 vanilla-mobs:
   # Non-zombie hostile mobs are blocked for every spawn reason except COMMAND and SPAWNER_EGG.
   block-non-zombie-hostiles: true
