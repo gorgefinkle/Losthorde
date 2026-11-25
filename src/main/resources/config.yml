@@ -1,4 +1,4 @@
-# Dead Streets R21: BetterModel custom infected geometry mapped to vanilla zombie textures.
+# Dead Streets R22: BetterModel custom infected geometry mapped to vanilla zombie textures.
 blood-moon:
   enabled: true
   # Every N in-game days, the selected night becomes a Blood Moon.
@@ -57,11 +57,11 @@ zombies:
 models:
   bettermodel:
     enabled: true
-    # Geometry/animation pack only; its model JSON points to minecraft:entity/zombie/zombie.
+    # Geometry/animation pack; registers the entity texture in the item atlas for client-pack resolution.
     # No Dead Streets texture PNG is shipped, so client texture packs remain authoritative.
     resource-pack:
       enabled: true
-      url: "https://raw.githubusercontent.com/gorgefinkle/Losthorde/r10-runner-popper-crawler-hulk/release-assets/DeadStreets-R21-models.zip"
+      url: "https://raw.githubusercontent.com/gorgefinkle/Losthorde/r10-runner-popper-crawler-hulk/release-assets/DeadStreets-R22-models.zip"
       required: false
 
 vanilla-mobs:
