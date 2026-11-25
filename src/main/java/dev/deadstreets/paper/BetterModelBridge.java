@@ -67,6 +67,7 @@ final class BetterModelBridge {
                             String report = packHook.auditGeneratedPack(dependency.getDataFolder().toPath().resolve("build.zip"));
                             packReady = true;
                             plugin.getLogger().info("BetterModel integrated texture-pack audit passed: " + report);
+                            if (Boolean.getBoolean("deadstreets.bettermodel-smoke")) plugin.getLogger().info("BetterModel integrated pack smoke test passed: " + report);
                             plugin.getLogger().info("BetterModel owns client pack delivery; Dead Streets sends no separate resource pack and ships no zombie PNG.");
                         } catch (IOException failure) {
                             plugin.getLogger().severe("BetterModel integrated pack audit failed: " + failure.getMessage());
