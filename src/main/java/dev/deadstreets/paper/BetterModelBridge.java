@@ -27,6 +27,9 @@ final class BetterModelBridge {
     private final Map<UUID, Object> trackers = new HashMap<>();
     private boolean warnedMissing;
     private boolean warnedApi;
+    private boolean packReady;
+    private final java.util.Set<UUID> packSentPlayers = new java.util.HashSet<>();
+    private static final UUID DEAD_STREETS_PACK_ID = UUID.fromString("a2b8fef3-3a90-4f15-9a9b-1e4c0b8d1919");
 
     BetterModelBridge(DeadStreetsPlugin plugin) { this.plugin = plugin; }
 
@@ -55,9 +58,11 @@ final class BetterModelBridge {
                             try {
                                 String packReport = auditGeneratedPack(dependency);
                                 plugin.getLogger().info("BetterModel generated-pack audit passed: " + packReport);
-                                plugin.getLogger().warning("BetterModel models require its generated resource pack on every client. Merge/host "
-                                        + dependency.getDataFolder().toPath().resolve("build.zip")
-                                        + " (or the configured build folder) and deliver it through your server resource-pack system.");
+                                packReady = true;
+                                plugin.getLogger().info("BetterModel generated pack is ready for automatic client delivery: " + packReport);
+                                for (Player online : Bukkit.getOnlinePlayers()) {
+                                    Bukkit.getScheduler().runTaskLater(plugin, () -> sendModelResourcePack(online), 40L);
+                                }
                                 if (Boolean.getBoolean("deadstreets.bettermodel-smoke"))
                                     plugin.getLogger().info("BetterModel asset smoke test passed: both models registered and generated pack contains their texture assets.");
                             } catch (IOException failure) {
@@ -239,6 +244,28 @@ final class BetterModelBridge {
                 showToPlayer(entry.getValue(), player);
             }
         }
+    }
+
+    void sendModelResourcePack(Player player) {
+        if (!packReady || !player.isOnline() || !plugin.getConfig().getBoolean("models.bettermodel.resource-pack.enabled", true)) return;
+        String url = plugin.getConfig().getString("models.bettermodel.resource-pack.url", "").trim();
+        if (url.isEmpty() || !url.startsWith("https://")) {
+            plugin.getLogger().severe("Dead Streets model resource pack URL is missing or is not HTTPS; custom infected textures cannot be delivered.");
+            return;
+        }
+        if (!packSentPlayers.add(player.getUniqueId())) return;
+        try {
+            // Additive Paper API keeps existing packs (including QualityArmory) active.
+            player.addResourcePack(DEAD_STREETS_PACK_ID, url, null, "Dead Streets: infected model textures", false);
+            plugin.getLogger().info("Requested the Dead Streets model resource pack for " + player.getName() + ".");
+        } catch (IllegalArgumentException failure) {
+            packSentPlayers.remove(player.getUniqueId());
+            plugin.getLogger().severe("Could not request the Dead Streets model resource pack for " + player.getName() + ": " + failure.getMessage());
+        }
+    }
+
+    void forgetPackPlayer(UUID playerId) {
+        packSentPlayers.remove(playerId);
     }
 
     private void showToCurrentViewers(Object tracker, Zombie zombie) {
