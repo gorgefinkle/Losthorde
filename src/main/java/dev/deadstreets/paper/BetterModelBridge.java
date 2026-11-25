@@ -201,45 +201,16 @@ final class BetterModelBridge {
     }
 
     void sendModelResourcePack(Player player) {
-        if (!packReady || !player.isOnline() || !plugin.getConfig().getBoolean("models.bettermodel.resource-pack.enabled", true)) return;
-        String url = plugin.getConfig().getString("models.bettermodel.resource-pack.url", "").trim();
-        if (url.isEmpty() || !url.startsWith("https://")) {
-            plugin.getLogger().severe("Dead Streets model resource pack URL is missing or is not HTTPS; custom infected model geometry cannot be rendered.");
-            return;
-        }
-        if (!packSentPlayers.add(player.getUniqueId())) return;
-        try {
-            // Additive Paper API keeps existing packs (including QualityArmory) active.
-            player.addResourcePack(DEAD_STREETS_PACK_ID, url, null, "Dead Streets: infected model geometry (uses your zombie texture pack)", false);
-            plugin.getLogger().info("Requested the Dead Streets model resource pack for " + player.getName() + ".");
-        } catch (IllegalArgumentException failure) {
-            packSentPlayers.remove(player.getUniqueId());
-            plugin.getLogger().severe("Could not request the Dead Streets model resource pack for " + player.getName() + ": " + failure.getMessage());
-        }
+        // BetterModel sends and tracks its own generated pack. Dead Streets deliberately
+        // does not send a second pack or require a client-side installation.
     }
 
     void handleResourcePackStatus(PlayerResourcePackStatusEvent event) {
-        if (!DEAD_STREETS_PACK_ID.equals(event.getID())) return;
-        Player player = event.getPlayer();
-        switch (event.getStatus()) {
-            case SUCCESSFULLY_LOADED -> {
-                packLoadedPlayers.add(player.getUniqueId());
-                refreshPlayer(player);
-            }
-            case DECLINED, FAILED_DOWNLOAD, INVALID_URL, FAILED_RELOAD, DISCARDED -> {
-                if (packLoadedPlayers.remove(player.getUniqueId())) {
-                    for (Object tracker : trackers.values()) hideFromPlayer(tracker, player);
-                }
-            }
-            default -> {
-                // ACCEPTED and DOWNLOADED are not proof that the client applied the pack yet.
-            }
-        }
+        // BetterModel owns the lifecycle/status of its own generated resource pack.
     }
 
     void forgetPackPlayer(UUID playerId) {
-        packSentPlayers.remove(playerId);
-        packLoadedPlayers.remove(playerId);
+        // No Dead Streets-owned client pack is sent.
     }
 
     private void showToCurrentViewers(Object tracker, Zombie zombie) {
@@ -247,7 +218,6 @@ final class BetterModelBridge {
     }
 
     private void showToPlayer(Object tracker, Player player) {
-        if (!packLoadedPlayers.contains(player.getUniqueId())) return;
         try {
             Class<?> adapterClass = Class.forName("kr.toxicity.model.api.bukkit.platform.BukkitAdapter");
             Method adaptPlayer = null;
