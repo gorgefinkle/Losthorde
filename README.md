@@ -2,7 +2,7 @@
 
 Experimental Paper 26.2 / Java 25 zombie population, migration, and special-infected plugin, with optional Metropolis BUILD population integration.
 
-**R22** carries optional BetterModel 3.7.1 visuals for the horizontal Crawler and broad three-block Hulk, plus per-player aimed identity/health displays.
+**R23** carries optional BetterModel 3.7.1 visuals for the horizontal Crawler and broad three-block Hulk, plus per-player aimed identity/health displays.
 
 ## Server requirements
 
