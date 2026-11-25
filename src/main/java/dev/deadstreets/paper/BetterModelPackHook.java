@@ -105,7 +105,7 @@ final class BetterModelPackHook {
                         if (!texture.getValue().isJsonPrimitive()) throw new IOException("Invalid texture value in " + modelPath);
                         String value = texture.getValue().getAsString();
                         if (value.startsWith("bettermodel:item/")) {
-                            texture.setValue(com.google.gson.JsonPrimitive.string(ZOMBIE_TEXTURE));
+                            textures.addProperty(texture.getKey(), ZOMBIE_TEXTURE);
                             rewritten = true;
                         } else if (!value.equals(ZOMBIE_TEXTURE)) {
                             throw new IOException("Unexpected generated texture reference in " + modelPath + ": " + value);
