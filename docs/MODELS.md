@@ -1,31 +1,12 @@
-# Dead Streets infected visuals
+# Infected rendering (R20)
 
-Dead Streets R15 uses BetterModel 3.7.1 for the special Crawler and Hulk visuals. BetterModel is a soft dependency: the plugin still starts without it and leaves the native zombie visible as a fallback. With BetterModel present, the plugin must preserve the source entity spawn lifecycle and let BetterModel's own hide option suppress the vanilla body; it must not hide the source through Bukkit hideEntity.
+Dead Streets intentionally does not install BetterModel, ship custom model textures, or request a resource pack.
 
-| Infected | Visual | Gameplay entity |
-|---|---|---|
-| Crawler | Horizontal, animated Blockbench zombie; crawl animation | Native Zombie with fixed swimming-pose dimensions |
-| Hulk | Broad, thick-framed zombie; heavy_walk animation | Native Zombie scaled to approximately three blocks |
-| Runner | Existing fast infected implementation | Existing server-side entity |
-| Popper | Existing Popper implementation and death burst | Native zombie-family entity; releases 1–4 Crawlers |
+Runner, Popper, Hulk, and Crawler use native Minecraft Zombie entities. Their client-side texture is the vanilla zombie texture resolved through the player's active resource-pack stack. This means compatible player resource packs can replace the zombie texture without a Dead Streets pack taking priority.
 
-## Assets and installation
+- Runner: native zombie presentation with increased movement speed.
+- Popper: native zombie presentation with slow movement and the death burst/crawler release gameplay.
+- Hulk: native zombie model and texture, scaled to approximately three blocks tall; its collision dimensions are refreshed with the native scale attribute.
+- Crawler: native zombie model and texture, low-profile swimming pose, native movement and combat.
 
-The editable Blockbench sources are embedded in the Dead Streets JAR:
-
-- bettermodel/models/deadstreets_crawler.bbmodel
-- bettermodel/models/deadstreets_hulk.bbmodel
-
-When BetterModel is enabled, Dead Streets copies these assets into plugins/BetterModel/models/ and requests /bettermodel reload. BetterModel builds and publishes its own resource pack. Players must accept/download that pack to see the custom models. No separate client mod is required.
-
-The model geometry uses a Minecraft-style humanoid silhouette and zombie palette (green skin, blue-green shirt, purple trousers), rather than concrete or display-block constructions. The source texture is embedded in each Blockbench file.
-
-## Entity and model lifecycle
-
-The Bukkit Zombie remains authoritative for AI, navigation, targeting, collision, health, damage, persistence, and death. BetterModel supplies only the visual model and animation. The Crawler keeps the compact fixed swimming-pose dimensions for its gameplay hitbox; the custom model provides the horizontal crawling silhouette that the vanilla renderer did not provide.
-
-Model trackers are reacquired after the BetterModel asset reload. Dead Streets discards its tracker references on entity death and chunk unload, and restores the original entity visibility on plugin shutdown. If BetterModel is absent or the model asset has not loaded, the vanilla zombie remains visible instead of becoming invisible.
-
-## Visual verification
-
-The CI Paper smoke test validates server-side entity state and verifies that both .bbmodel assets are packaged. It cannot validate client-side UV orientation, proportions, animation playback, or resource-pack delivery. Those still require a connected client with the BetterModel pack accepted.
+No BetterModel plugin is required. If BetterModel is installed for another plugin, Dead Streets does not modify or reload it.
