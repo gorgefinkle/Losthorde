@@ -1,11 +1,11 @@
 name: DeadStreets
-version: R19
+version: R20
 main: dev.deadstreets.paper.DeadStreetsPlugin
 api-version: '26.2'
 author: Dead Streets Project
-description: Persistent zombie populations with BetterModel animated special infected
+description: Persistent zombie populations with vanilla-textured special infected
 load: POSTWORLD
-softdepend: [Metropolis, BetterModel]
+softdepend: [Metropolis]
 commands:
   deadstreets:
     description: Dead Streets admin testing and diagnostics
