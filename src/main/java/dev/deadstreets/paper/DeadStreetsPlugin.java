@@ -128,7 +128,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         hordes.start();
         bloodMoon.start();
         scragglers.start();
-        getLogger().info("Dead Streets R19: per-viewer targeted identity plates and optional BetterModel infected models.");
+        getLogger().info("Dead Streets R20: native vanilla-textured infected; no custom resource pack required.");
     }
     @Override public void onDisable() {
         if (spawners != null) spawners.stop();
@@ -346,7 +346,6 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         observation.forget(event.getPlayer().getUniqueId());
         if (bloodMoon != null) bloodMoon.onPlayerQuit(event.getPlayer());
         if (identities != null) identities.onQuit(event.getPlayer());
-        if (models != null) models.forgetPackPlayer(event.getPlayer().getUniqueId());
     }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void onTeleport(PlayerTeleportEvent event) {
         observeTeleport(event.getPlayer(),event.getTo());
@@ -360,11 +359,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     }
     @EventHandler public void onJoin(PlayerJoinEvent event) {
         observeTeleport(event.getPlayer(),event.getPlayer().getLocation());
-        if (models != null) {
-            Bukkit.getScheduler().runTask(this, () -> models.refreshPlayer(event.getPlayer()));
-            // Wait behind join-time distributors such as QualityArmory; add this pack without replacing theirs.
-            Bukkit.getScheduler().runTaskLater(this, () -> models.sendModelResourcePack(event.getPlayer()), 140L);
-        }
+        if (models != null) Bukkit.getScheduler().runTask(this, () -> models.refreshPlayer(event.getPlayer()));
     }
     @EventHandler public void onChunkUnload(ChunkUnloadEvent event) {
         spawners.onChunkUnload(event.getChunk());
