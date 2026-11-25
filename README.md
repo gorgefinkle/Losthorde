@@ -2,16 +2,16 @@
 
 Experimental Paper 26.2 / Java 25 zombie population, migration, and special-infected plugin, with optional Metropolis BUILD population integration.
 
-**R15** introduces optional BetterModel 3.7.1 visuals for the horizontal Crawler and broad three-block Hulk, plus per-player aimed identity/health displays.
+**R22** carries optional BetterModel 3.7.1 visuals for the horizontal Crawler and broad three-block Hulk, plus per-player aimed identity/health displays.
 
 ## Server requirements
 
 - Paper 26.2
 - Java 25
-- Dead Streets R15
+- Dead Streets R22
 - BetterModel 3.7.1 recommended for the custom Crawler and Hulk visuals (optional; vanilla fallback remains visible without it)
 
-BetterModel builds and delivers its own resource pack. Players must accept the pack to see the custom models. No client mod is required. Metropolis integration remains optional and file-based.
+BetterModel builds the model geometry; Dead Streets delivers a small companion pack that registers the client's zombie texture in the item atlas. It ships no zombie PNG. Players must accept the pack to see custom models. No client mod is required. Metropolis integration remains optional and file-based.
 
 ## Special infected
 
@@ -47,4 +47,4 @@ The check runs once per player every three ticks by default. It does not scan al
 
 Run bash test_core.sh with Java 25. Build with mvn -B -ntp clean package. Paper is the only compile-time server dependency; BetterModel is integrated through its optional runtime API.
 
-CI starts Paper 26.2 without BetterModel to prove that the optional dependency does not prevent startup. It checks native Crawler/Hulk entity state and that both Blockbench models and the aimed identity system are packaged. A connected client with the BetterModel pack accepted is still needed to judge the actual appearance and animation. Test on a disposable world first.
+CI starts Paper 26.2 without BetterModel to prove that the optional dependency does not prevent startup. It checks native Crawler/Hulk entity state and that both Blockbench models and the aimed identity system are packaged. A connected Minecraft client with the R22 pack accepted is still required to verify the item-atlas texture bridge, actual appearance, and animation; CI cannot prove visual texture resolution. Test on a disposable world first.
