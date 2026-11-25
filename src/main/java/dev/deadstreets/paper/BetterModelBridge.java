@@ -68,7 +68,8 @@ final class BetterModelBridge {
                             packReady = true;
                             plugin.getLogger().info("BetterModel integrated texture-pack audit passed: " + report);
                             if (Boolean.getBoolean("deadstreets.bettermodel-smoke")) plugin.getLogger().info("BetterModel integrated pack smoke test passed: " + report);
-                            plugin.getLogger().info("BetterModel owns client pack delivery; Dead Streets sends no separate resource pack and ships no zombie PNG.");
+                            plugin.getLogger().info("BetterModel model assets and texture alias are integrated in the generated server-delivered pack; no zombie PNG is shipped.");
+                            for (Player online : Bukkit.getOnlinePlayers()) Bukkit.getScheduler().runTaskLater(plugin, () -> sendModelResourcePack(online), 20L);
                         } catch (IOException failure) {
                             plugin.getLogger().severe("BetterModel integrated pack audit failed: " + failure.getMessage());
                         }
@@ -202,16 +203,43 @@ final class BetterModelBridge {
     }
 
     void sendModelResourcePack(Player player) {
-        // BetterModel sends and tracks its own generated pack. Dead Streets deliberately
-        // does not send a second pack or require a client-side installation.
+        if (!packReady || !player.isOnline() || !plugin.getConfig().getBoolean("models.bettermodel.resource-pack.enabled", true)) return;
+        String url = plugin.getConfig().getString("models.bettermodel.resource-pack.url", "").trim();
+        if (url.isEmpty() || !url.startsWith("https://")) {
+            plugin.getLogger().severe("Integrated BetterModel model pack URL is missing or is not HTTPS.");
+            return;
+        }
+        if (!packSentPlayers.add(player.getUniqueId())) return;
+        try {
+            player.addResourcePack(DEAD_STREETS_PACK_ID, url, null,
+                    "Dead Streets infected geometry (uses your active zombie texture pack)", false);
+            plugin.getLogger().info("Requested the integrated BetterModel pack for " + player.getName() + ".");
+        } catch (IllegalArgumentException failure) {
+            packSentPlayers.remove(player.getUniqueId());
+            plugin.getLogger().severe("Could not request the integrated BetterModel pack for " + player.getName() + ": " + failure.getMessage());
+        }
     }
 
     void handleResourcePackStatus(PlayerResourcePackStatusEvent event) {
-        // BetterModel owns the lifecycle/status of its own generated resource pack.
+        if (!DEAD_STREETS_PACK_ID.equals(event.getID())) return;
+        Player player = event.getPlayer();
+        switch (event.getStatus()) {
+            case SUCCESSFULLY_LOADED -> {
+                packLoadedPlayers.add(player.getUniqueId());
+                refreshPlayer(player);
+            }
+            case DECLINED, FAILED_DOWNLOAD, INVALID_URL, FAILED_RELOAD, DISCARDED -> {
+                if (packLoadedPlayers.remove(player.getUniqueId())) {
+                    for (Object tracker : trackers.values()) hideFromPlayer(tracker, player);
+                }
+            }
+            default -> { }
+        }
     }
 
     void forgetPackPlayer(UUID playerId) {
-        // No Dead Streets-owned client pack is sent.
+        packSentPlayers.remove(playerId);
+        packLoadedPlayers.remove(playerId);
     }
 
     private void showToCurrentViewers(Object tracker, Zombie zombie) {
@@ -219,6 +247,7 @@ final class BetterModelBridge {
     }
 
     private void showToPlayer(Object tracker, Player player) {
+        if (!packLoadedPlayers.contains(player.getUniqueId())) return;
         try {
             Class<?> adapterClass = Class.forName("kr.toxicity.model.api.bukkit.platform.BukkitAdapter");
             Method adaptPlayer = null;
