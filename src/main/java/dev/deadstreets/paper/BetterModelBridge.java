@@ -59,7 +59,7 @@ final class BetterModelBridge {
                                 String packReport = auditGeneratedPack(dependency);
                                 plugin.getLogger().info("BetterModel generated-pack audit passed: " + packReport);
                                 packReady = true;
-                                plugin.getLogger().info("BetterModel generated pack is ready for automatic client delivery: " + packReport);
+                                plugin.getLogger().info("BetterModel generated model pack is ready for additive client delivery: " + packReport);
                                 for (Player online : Bukkit.getOnlinePlayers()) {
                                     Bukkit.getScheduler().runTaskLater(plugin, () -> sendModelResourcePack(online), 40L);
                                 }
