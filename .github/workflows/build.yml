@@ -169,18 +169,6 @@ jobs:
           kill -TERM "$SERVER_PID" 2>/dev/null || true
           wait "$SERVER_PID" 2>/dev/null || true
           cd ..
-      - name: Publish generated model pack for automatic client delivery
-        if: github.event_name == 'push' && github.ref == 'refs/heads/r10-runner-popper-crawler-hulk'
-        run: |
-          mkdir -p release-assets
-          cp bettermodel-smoke/plugins/BetterModel/build.zip release-assets/DeadStreets-R21-resourcepack.zip
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add release-assets/DeadStreets-R21-resourcepack.zip
-          if ! git diff --cached --quiet; then
-            git commit -m "Publish Dead Streets R21 client resource pack"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
       - name: Package full source
         run: |
           mkdir -p dist
