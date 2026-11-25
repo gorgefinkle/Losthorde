@@ -48,8 +48,23 @@ jobs:
                   assert None not in group_ids and model["outliner"][0]["uuid"] in group_ids, "Model root bone UUID is invalid"
                   assert any(a["name"] == animation and a["loop"] == "loop" for a in model["animations"])
                   source = model["textures"][0]["source"]
+                  assert source.startswith("data:image/png;base64,"), f"Texture placeholder is not a PNG data URI: {path}"
                   png = base64.b64decode(source.split(",", 1)[1])
-                  assert png.startswith(bytes.fromhex("89504e470d0a1a0a")), f"Invalid embedded texture: {path}"
+                  assert len(png) == 96 and png.startswith(bytes.fromhex("89504e470d0a1a0a")), f"Expected transparent 64x64 import placeholder: {path}"
+                  elements = {element["name"]: element for element in model["elements"]}
+                  expected_uvs = {
+                      "head": [8, 8, 16, 16],
+                      "torso": [20, 20, 28, 32],
+                      "arm_right": [44, 20, 48, 32],
+                      "arm_left": [36, 52, 40, 64],
+                      "leg_right": [4, 20, 8, 32],
+                      "leg_left": [20, 52, 24, 64],
+                      "shirt_trim": [20, 36, 28, 39],
+                      "shoe_right": [4, 30, 8, 32],
+                      "shoe_left": [20, 62, 24, 64],
+                  }
+                  for element_name, uv in expected_uvs.items():
+                      assert elements[element_name]["faces"]["north"]["uv"] == uv, f"{path} {element_name} is not mapped to the vanilla zombie atlas"
               assert "dev/deadstreets/paper/BetterModelBridge.class" in names, "BetterModel bridge missing"
               assert "dev/deadstreets/paper/ZombieIdentityManager.class" in names, "Targeted identity manager missing"
               config = jar.read("config.yml").decode("utf-8")
