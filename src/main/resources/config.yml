@@ -1,4 +1,4 @@
-# Dead Streets R22: BetterModel custom infected geometry mapped to vanilla zombie textures.
+# Dead Streets R23: BetterModel-native pack injection for client zombie texture inheritance.
 blood-moon:
   enabled: true
   # Every N in-game days, the selected night becomes a Blood Moon.
