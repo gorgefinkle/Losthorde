@@ -186,6 +186,13 @@ jobs:
           kill -TERM "$SERVER_PID" 2>/dev/null || true
           wait "$SERVER_PID" 2>/dev/null || true
           cd ..
+      - name: Upload integrated BetterModel pack for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeadStreets-R23-integrated-model-pack
+          path: bettermodel-smoke/plugins/BetterModel/build.zip
+          if-no-files-found: error
+          retention-days: 30
       - name: Publish integrated BetterModel pack
         if: github.event_name == 'push' && github.ref == 'refs/heads/r10-runner-popper-crawler-hulk'
         run: |
