@@ -128,7 +128,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         hordes.start();
         bloodMoon.start();
         scragglers.start();
-        getLogger().info("Dead Streets R15: per-viewer targeted identity plates and optional BetterModel infected models.");
+        getLogger().info("Dead Streets R17: per-viewer targeted identity plates and optional BetterModel infected models.");
     }
     @Override public void onDisable() {
         if (spawners != null) spawners.stop();
