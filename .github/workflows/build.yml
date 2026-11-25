@@ -1,12 +1,8 @@
 name: Compile, core tests and Paper runtime smoke
 on:
   push:
-    paths-ignore:
-      - 'release-assets/**'
   pull_request:
   workflow_dispatch:
-permissions:
-  contents: write
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -30,27 +26,15 @@ jobs:
           import re, json, base64
           from zipfile import ZipFile
 
-          jar_path = "target/DeadStreets_R19.jar"
+          jar_path = "target/DeadStreets_R20.jar"
           with ZipFile(jar_path) as jar:
               names = jar.namelist()
               descriptor = jar.read("plugin.yml").decode("utf-8")
               assert not re.search(r"(?m)^depend\\s*:", descriptor), "BetterModel must remain optional"
-              assert "BetterModel" in descriptor, "BetterModel soft dependency missing"
-              assert "bettermodel/models/deadstreets_crawler.bbmodel" in names, "Crawler Blockbench model missing"
-              assert "bettermodel/models/deadstreets_hulk.bbmodel" in names, "Hulk Blockbench model missing"
-              for path, animation in [
-                  ("bettermodel/models/deadstreets_crawler.bbmodel", "crawl"),
-                  ("bettermodel/models/deadstreets_hulk.bbmodel", "heavy_walk"),
-              ]:
-                  model = json.loads(jar.read(path))
-                  assert model["name"] in ("deadstreets_crawler", "deadstreets_hulk")
-                  group_ids = {group["uuid"] for group in model["groups"]}
-                  assert None not in group_ids and model["outliner"][0]["uuid"] in group_ids, "Model root bone UUID is invalid"
-                  assert any(a["name"] == animation and a["loop"] == "loop" for a in model["animations"])
-                  source = model["textures"][0]["source"]
-                  png = base64.b64decode(source.split(",", 1)[1])
-                  assert png.startswith(bytes.fromhex("89504e470d0a1a0a")), f"Invalid embedded texture: {path}"
-              assert "dev/deadstreets/paper/BetterModelBridge.class" in names, "BetterModel bridge missing"
+              assert "BetterModel" not in descriptor, "Dead Streets must not depend on BetterModel"
+              assert "dev/deadstreets/paper/BetterModelBridge.class" in names, "Native model compatibility shim missing"
+              assert not any(n.startswith("bettermodel/") for n in names), "Custom model/texture assets must not ship"
+              assert "resource-pack:" not in jar.read("config.yml").decode("utf-8"), "Dead Streets must not request a custom texture pack"
               assert "dev/deadstreets/paper/ZombieIdentityManager.class" in names, "Targeted identity manager missing"
               config = jar.read("config.yml").decode("utf-8")
               assert "target-display:" in config and "update-interval-ticks: 3" in config, "Aimed identity display is missing"
@@ -67,11 +51,11 @@ jobs:
           assert "runTask(plugin, () ->" in bridge, "BetterModel tracker must be shown again after Bukkit completes the source spawn tick"
           assert "showToPlayer(entry.getValue(), player)" in bridge, "Late-joining viewers do not receive existing model trackers"
           assert "frontX" in crawler and "actual.getBlockX()" in crawler, "Crawler test spawn must prioritize a visible front position and report exact coordinates"
-          print("Packaging check passed: optional BetterModel integration, source-entity lifecycle, explicit tracker visibility, both model assets and targeted identity display are present.")
+          print("Packaging check passed: native vanilla infected rendering, no BetterModel dependency, no custom texture/model assets, and targeted identity display.")
           PY
       - name: Download Paper 26.2
         run: |
-          curl -fsSL -H 'User-Agent: Losthorde-R18-Smoke/1.0' \
+          curl -fsSL -H 'User-Agent: Losthorde-R20-Smoke/1.0' \
             'https://fill.papermc.io/v3/projects/paper/versions/26.2/builds?channel=STABLE' \
             -o paper-builds.json
           PAPER_URL="$(jq -r 'first(.[] | select(.channel == "STABLE") | .downloads["server:default"].url)' paper-builds.json)"
@@ -80,7 +64,7 @@ jobs:
       - name: Run Paper 26.2 without optional plugins
         run: |
           mkdir -p plugins
-          cp target/DeadStreets_R19.jar plugins/DeadStreets.jar
+          cp target/DeadStreets_R20.jar plugins/DeadStreets.jar
           test "$(find plugins -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 1
           echo 'eula=true' > eula.txt
           cat > server.properties <<'EOF'
@@ -106,7 +90,7 @@ jobs:
             wait "$SERVER_PID" 2>/dev/null || true
             exit 1
           fi
-          grep -F 'Dead Streets R19:' logs/latest.log
+          grep -F 'Dead Streets R20:' logs/latest.log
           grep -F 'Native infected smoke test passed' logs/latest.log
           kill -TERM "$SERVER_PID" 2>/dev/null || true
           for attempt in $(seq 1 15); do
@@ -115,81 +99,15 @@ jobs:
           done
           kill -KILL "$SERVER_PID" 2>/dev/null || true
           wait "$SERVER_PID" 2>/dev/null || true
-      - name: Download BetterModel 3.7.1
-        run: |
-          curl -fL 'https://github.com/toxicity188/BetterModel/releases/download/3.7.1/bettermodel-3.7.1-paper.jar' -o bettermodel.jar
-      - name: Run Paper 26.2 with BetterModel and validate imported assets
-        run: |
-          mkdir -p bettermodel-smoke/plugins
-          cp target/DeadStreets_R19.jar bettermodel-smoke/plugins/DeadStreets.jar
-          cp bettermodel.jar bettermodel-smoke/plugins/BetterModel.jar
-          mkdir -p bettermodel-smoke/plugins/BetterModel
-          unzip -p bettermodel.jar config.yml > bettermodel-smoke/plugins/BetterModel/config.yml
-          sed -i 's/exception: false/exception: true/' bettermodel-smoke/plugins/BetterModel/config.yml
-          echo 'eula=true' > bettermodel-smoke/eula.txt
-          cat > bettermodel-smoke/server.properties <<'EOF'
-          online-mode=false
-          server-port=25566
-          view-distance=4
-          simulation-distance=4
-          spawn-protection=0
-          EOF
-          cd bettermodel-smoke
-          java -Ddeadstreets.bettermodel-smoke=true -Xms1G -Xmx1G -jar ../paper.jar --nogui > server-console.log 2>&1 &
-          SERVER_PID=$!
-          READY=0
-          for attempt in $(seq 1 300); do
-            if grep -Fq 'BetterModel asset smoke test passed' logs/latest.log 2>/dev/null; then READY=1; break; fi
-            if grep -Eq 'Error occurred while enabling DeadStreets|NoClassDefFoundError|NoSuchMethodError|BetterModel did not import both' logs/latest.log 2>/dev/null; then break; fi
-            if ! kill -0 "$SERVER_PID" 2>/dev/null; then break; fi
-            sleep 1
-          done
-          if [ "$READY" -ne 1 ]; then
-            cat server-console.log
-            cat logs/latest.log 2>/dev/null || true
-            kill "$SERVER_PID" 2>/dev/null || true
-            wait "$SERVER_PID" 2>/dev/null || true
-            exit 1
-          fi
-          grep -F 'BetterModel asset smoke test passed' logs/latest.log
-          python3 - <<'PY'
-          from zipfile import ZipFile
-          from pathlib import Path
-          import hashlib
-          pack = Path("plugins/BetterModel/build.zip")
-          assert pack.is_file(), f"BetterModel did not generate expected resource pack: {pack}"
-          with ZipFile(pack) as z:
-              names = [n for n in z.namelist() if not n.endswith("/")]
-              pngs = [n for n in names if n.lower().endswith(".png")]
-              assert "pack.mcmeta" in names, "Generated BetterModel pack is missing pack.mcmeta"
-              assert len(pngs) >= 2, f"Generated BetterModel pack has only {len(pngs)} PNG assets"
-              assert any(n.lower().startswith("assets/") for n in names), "Generated pack has no Minecraft assets tree"
-          print(f"Generated BetterModel pack verified: {len(pngs)} PNGs, {pack.stat().st_size} bytes, SHA1={hashlib.sha1(pack.read_bytes()).hexdigest()}")
-          PY
-          kill -TERM "$SERVER_PID" 2>/dev/null || true
-          wait "$SERVER_PID" 2>/dev/null || true
-          cd ..
-      - name: Publish generated model pack for automatic client delivery
-        if: github.event_name == 'push' && github.ref == 'refs/heads/r10-runner-popper-crawler-hulk'
-        run: |
-          mkdir -p release-assets
-          cp bettermodel-smoke/plugins/BetterModel/build.zip release-assets/DeadStreets-R19-resourcepack.zip
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add release-assets/DeadStreets-R19-resourcepack.zip
-          if ! git diff --cached --quiet; then
-            git commit -m "Publish Dead Streets R19 client resource pack"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
       - name: Package full source
         run: |
           mkdir -p dist
-          cp target/DeadStreets_R19.jar dist/
-          git archive --format=zip --output=dist/DeadStreets_R19-source.zip HEAD
+          cp target/DeadStreets_R20.jar dist/
+          git archive --format=zip --output=dist/DeadStreets_R20-source.zip HEAD
       - name: Upload test build
         uses: actions/upload-artifact@v4
         with:
-          name: DeadStreets-R19-test-build
+          name: DeadStreets-R20-test-build
           path: dist/*
           if-no-files-found: error
           retention-days: 30
