@@ -488,6 +488,10 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
     }
 
     public void showWarning(Player player, DangerRating rating, String direction, int etaSeconds) {
+        showWarning(player, rating, direction, etaSeconds, -1);
+    }
+
+    public void showWarning(Player player, DangerRating rating, String direction, int etaSeconds, double distanceBlocks) {
         ChatColor color = switch (rating.level()) {
             case LOW -> ChatColor.GREEN;
             case MODERATE -> ChatColor.YELLOW;
@@ -497,7 +501,9 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         String eta = etaSeconds < 0 ? "ETA Unknown" : ("ETA ~"
                 + (etaSeconds >= 60 ? (etaSeconds / 60) + "m " + (etaSeconds % 60) + "s"
                 : etaSeconds + "s"));
-        String subtitle = ChatColor.WHITE + "From the " + direction + " | " + eta
+        String distance = distanceBlocks < 0 ? "Distance Unknown"
+                : (Math.max(0, (int)Math.round(distanceBlocks)) + " blocks to the " + direction);
+        String subtitle = ChatColor.WHITE + distance + " | " + eta
                 + " | Est. Population: " + rating.approximatePopulation()
                 + ChatColor.GRAY + " | Temperament: " + ChatColor.WHITE + rating.temperament().label()
                 + ChatColor.GRAY + " | " + color + rating.level().name();
