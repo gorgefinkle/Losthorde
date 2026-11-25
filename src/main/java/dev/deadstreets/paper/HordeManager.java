@@ -231,7 +231,7 @@ final class HordeManager {
                     double alertSpeed=Math.max(0.25,plugin.getConfig().getDouble("hordes.virtual-speed-blocks-per-second",1.0));
                     int eta=(int)Math.min(3600,Math.ceil(dist/alertSpeed));
                     plugin.showWarning(p,DangerRating.calculate(h.population(),h.temperament()),
-                            CompassDirection.from(p.getLocation().getX(),p.getLocation().getZ(),sourceX,sourceZ),eta);
+                            CompassDirection.from(p.getLocation().getX(),p.getLocation().getZ(),sourceX,sourceZ),eta,dist);
                     warningsSent++;
                 }
             }
