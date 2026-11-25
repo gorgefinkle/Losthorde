@@ -120,6 +120,10 @@ final class BetterModelPackHook {
                     if (path.contains("deadstreets_hulk_")) hulkItems++;
                     addAsset(assets, modelPath, (model.toString() + "\n").getBytes(StandardCharsets.UTF_8));
                 }
+                if (crawlerItems == 0 && hulkItems == 0) {
+                    plugin.getLogger().info("BetterModel has not generated the Dead Streets model entries yet; waiting for the next reload.");
+                    return;
+                }
                 if (crawlerItems != 9 || hulkItems != 9 || modelPaths.size() != 18)
                     throw new IOException("Expected 9 crawler + 9 hulk model parts; found crawler=" + crawlerItems
                             + ", hulk=" + hulkItems + ", models=" + modelPaths.size());
