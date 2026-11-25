@@ -173,6 +173,7 @@ jobs:
         run: |
           mkdir -p dist
           cp target/DeadStreets_R21.jar dist/
+          cp bettermodel-smoke/plugins/BetterModel/build.zip dist/DeadStreets_R21-full-BetterModel-pack.zip
           git archive --format=zip --output=dist/DeadStreets_R21-source.zip HEAD
       - name: Upload test build
         uses: actions/upload-artifact@v4
