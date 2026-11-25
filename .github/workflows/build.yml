@@ -30,7 +30,7 @@ jobs:
           import re, json, base64
           from zipfile import ZipFile
 
-          jar_path = "target/DeadStreets_R22.jar"
+          jar_path = "target/DeadStreets_R23.jar"
           with ZipFile(jar_path) as jar:
               names = jar.namelist()
               descriptor = jar.read("plugin.yml").decode("utf-8")
@@ -66,10 +66,12 @@ jobs:
                   for element_name, uv in expected_uvs.items():
                       assert elements[element_name]["faces"]["north"]["uv"] == uv, f"{path} {element_name} is not mapped to the vanilla zombie atlas"
               assert "dev/deadstreets/paper/BetterModelBridge.class" in names, "BetterModel bridge missing"
+              assert "dev/deadstreets/paper/BetterModelPackHook.class" in names, "BetterModel native pack hook missing"
               assert "dev/deadstreets/paper/ZombieIdentityManager.class" in names, "Targeted identity manager missing"
               config = jar.read("config.yml").decode("utf-8")
               assert "target-display:" in config and "update-interval-ticks: 3" in config, "Aimed identity display is missing"
               assert "chat-health-bars:" not in config, "Obsolete chat health bars remain"
+              assert "resource-pack:" not in config, "Dead Streets must not configure a separate client pack"
           horde = open("src/main/java/dev/deadstreets/paper/HordeManager.java", encoding="utf-8").read()
           warning = open("src/main/java/dev/deadstreets/paper/DeadStreetsPlugin.java", encoding="utf-8").read()
           assert "eta,dist" in horde, "Horde alert does not pass live block distance"
@@ -95,7 +97,7 @@ jobs:
       - name: Run Paper 26.2 without optional plugins
         run: |
           mkdir -p plugins
-          cp target/DeadStreets_R22.jar plugins/DeadStreets.jar
+          cp target/DeadStreets_R23.jar plugins/DeadStreets.jar
           test "$(find plugins -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 1
           echo 'eula=true' > eula.txt
           cat > server.properties <<'EOF'
@@ -121,7 +123,7 @@ jobs:
             wait "$SERVER_PID" 2>/dev/null || true
             exit 1
           fi
-          grep -F 'Dead Streets R22:' logs/latest.log
+          grep -F 'Dead Streets R23:' logs/latest.log
           grep -F 'Native infected smoke test passed' logs/latest.log
           kill -TERM "$SERVER_PID" 2>/dev/null || true
           for attempt in $(seq 1 15); do
@@ -136,7 +138,7 @@ jobs:
       - name: Run Paper 26.2 with BetterModel and validate imported assets
         run: |
           mkdir -p bettermodel-smoke/plugins
-          cp target/DeadStreets_R22.jar bettermodel-smoke/plugins/DeadStreets.jar
+          cp target/DeadStreets_R23.jar bettermodel-smoke/plugins/DeadStreets.jar
           cp bettermodel.jar bettermodel-smoke/plugins/BetterModel.jar
           mkdir -p bettermodel-smoke/plugins/BetterModel
           unzip -p bettermodel.jar config.yml > bettermodel-smoke/plugins/BetterModel/config.yml
@@ -154,7 +156,7 @@ jobs:
           SERVER_PID=$!
           READY=0
           for attempt in $(seq 1 300); do
-            if grep -Fq 'BetterModel asset smoke test passed' logs/latest.log 2>/dev/null; then READY=1; break; fi
+            if grep -Fq 'BetterModel integrated pack smoke test passed' logs/latest.log 2>/dev/null; then READY=1; break; fi
             if grep -Eq 'Error occurred while enabling DeadStreets|NoClassDefFoundError|NoSuchMethodError|BetterModel did not import both' logs/latest.log 2>/dev/null; then break; fi
             if ! kill -0 "$SERVER_PID" 2>/dev/null; then break; fi
             sleep 1
@@ -166,7 +168,7 @@ jobs:
             wait "$SERVER_PID" 2>/dev/null || true
             exit 1
           fi
-          grep -F 'BetterModel asset smoke test passed' logs/latest.log
+          grep -F 'BetterModel integrated pack smoke test passed' logs/latest.log
           python3 - <<'PY'
           from zipfile import ZipFile
           from pathlib import Path
@@ -184,34 +186,18 @@ jobs:
           kill -TERM "$SERVER_PID" 2>/dev/null || true
           wait "$SERVER_PID" 2>/dev/null || true
           cd ..
-      - name: Build item-atlas-enabled pack with client zombie texture reference
-        run: |
-          mkdir -p release-assets
-          python3 tools/prepare_bettermodel_vanilla_texture_pack.py \
-            bettermodel-smoke/plugins/BetterModel/build.zip \
-            release-assets/DeadStreets-R22-models.zip
-      - name: Publish item-atlas-enabled model pack for client delivery
-        if: github.event_name == 'push' && github.ref == 'refs/heads/r10-runner-popper-crawler-hulk'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f release-assets/DeadStreets-R22-models.zip
-          if ! git diff --cached --quiet; then
-            git commit -m "Publish Dead Streets R22 atlas-enabled model pack"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
       - name: Package full source
         run: |
           mkdir -p dist
-          cp target/DeadStreets_R22.jar dist/
-          git archive --format=zip --output=dist/DeadStreets_R22-source.zip HEAD
+          cp target/DeadStreets_R23.jar dist/
+          git archive --format=zip --output=dist/DeadStreets_R23-source.zip HEAD
           cd dist
-          zip -q DeadStreets-R22-delivery.zip DeadStreets_R22.jar DeadStreets_R22-source.zip
+          zip -q DeadStreets-R23-delivery.zip DeadStreets_R23.jar DeadStreets_R23-source.zip
           cd ..
       - name: Upload test build
         uses: actions/upload-artifact@v4
         with:
-          name: DeadStreets-R22-test-build
-          path: dist/DeadStreets-R22-delivery.zip
+          name: DeadStreets-R23-test-build
+          path: dist/DeadStreets-R23-delivery.zip
           if-no-files-found: error
           retention-days: 30
