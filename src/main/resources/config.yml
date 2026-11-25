@@ -1,4 +1,4 @@
-# Dead Streets R19: native infected, persistent scragglers, migrating hordes, Blood Moon events and building populations.
+# Dead Streets R20: native infected, persistent scragglers, migrating hordes, Blood Moon events and building populations.
 blood-moon:
   enabled: true
   # Every N in-game days, the selected night becomes a Blood Moon.
@@ -54,15 +54,6 @@ zombies:
     update-interval-ticks: 3
   # Durable global admission cap for NEW Dead Streets walkers, including offloaded chunks.
   max-total-managed-walkers: 3000
-models:
-  bettermodel:
-    enabled: true
-    # BetterModel is optional; without it the vanilla Zombie remains visible.
-    # Add this pack as a separate layer so QualityArmory and other plugin packs remain active.
-    resource-pack:
-      enabled: true
-      url: "https://raw.githubusercontent.com/gorgefinkle/Losthorde/r10-runner-popper-crawler-hulk/release-assets/DeadStreets-R19-resourcepack.zip"
-      required: false
 vanilla-mobs:
   # Non-zombie hostile mobs are blocked for every spawn reason except COMMAND and SPAWNER_EGG.
   block-non-zombie-hostiles: true
