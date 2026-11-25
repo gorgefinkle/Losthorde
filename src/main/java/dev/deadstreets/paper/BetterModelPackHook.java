@@ -57,6 +57,7 @@ final class BetterModelPackHook {
     }
 
     private void onReloadStart(Object event) {
+        injected = false;
         try {
             Object zipper = event.getClass().getMethod("zipper").invoke(event);
             Object assets = zipper.getClass().getMethod("assets").invoke(zipper);
