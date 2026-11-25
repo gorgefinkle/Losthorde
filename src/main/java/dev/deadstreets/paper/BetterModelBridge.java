@@ -3,6 +3,7 @@ package dev.deadstreets.paper;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
+import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.plugin.Plugin;
 
 import java.io.IOException;
@@ -29,6 +30,7 @@ final class BetterModelBridge {
     private boolean warnedApi;
     private boolean packReady;
     private final java.util.Set<UUID> packSentPlayers = new java.util.HashSet<>();
+    private final java.util.Set<UUID> packLoadedPlayers = new java.util.HashSet<>();
     private static final UUID DEAD_STREETS_PACK_ID = UUID.fromString("a2b8fef3-3a90-4f15-9a9b-1e4c0b8d1919");
 
     BetterModelBridge(DeadStreetsPlugin plugin) { this.plugin = plugin; }
@@ -264,8 +266,28 @@ final class BetterModelBridge {
         }
     }
 
+    void handleResourcePackStatus(PlayerResourcePackStatusEvent event) {
+        if (!DEAD_STREETS_PACK_ID.equals(event.getID())) return;
+        Player player = event.getPlayer();
+        switch (event.getStatus()) {
+            case SUCCESSFULLY_LOADED -> {
+                packLoadedPlayers.add(player.getUniqueId());
+                refreshPlayer(player);
+            }
+            case DECLINED, FAILED_DOWNLOAD, INVALID_URL, FAILED_RELOAD, DISCARDED -> {
+                if (packLoadedPlayers.remove(player.getUniqueId())) {
+                    for (Object tracker : trackers.values()) hideFromPlayer(tracker, player);
+                }
+            }
+            default -> {
+                // ACCEPTED and DOWNLOADED are not proof that the client applied the pack yet.
+            }
+        }
+    }
+
     void forgetPackPlayer(UUID playerId) {
         packSentPlayers.remove(playerId);
+        packLoadedPlayers.remove(playerId);
     }
 
     private void showToCurrentViewers(Object tracker, Zombie zombie) {
@@ -273,6 +295,7 @@ final class BetterModelBridge {
     }
 
     private void showToPlayer(Object tracker, Player player) {
+        if (!packLoadedPlayers.contains(player.getUniqueId())) return;
         try {
             Class<?> adapterClass = Class.forName("kr.toxicity.model.api.bukkit.platform.BukkitAdapter");
             Method adaptPlayer = null;
@@ -301,6 +324,35 @@ final class BetterModelBridge {
             }
         } catch (ReflectiveOperationException failure) {
             plugin.getLogger().warning("Could not send BetterModel tracker to " + player.getName() + ": " + failure.getMessage());
+        }
+    }
+
+    private void hideFromPlayer(Object tracker, Player player) {
+        try {
+            Class<?> adapterClass = Class.forName("kr.toxicity.model.api.bukkit.platform.BukkitAdapter");
+            Method adaptPlayer = null;
+            for (Method candidate : adapterClass.getMethods()) {
+                if (candidate.getName().equals("adapt") && candidate.getParameterCount() == 1
+                        && candidate.getParameterTypes()[0] == Player.class) {
+                    adaptPlayer = candidate;
+                    break;
+                }
+            }
+            if (adaptPlayer == null) throw new NoSuchMethodException("BukkitAdapter.adapt(Player)");
+            Object platformPlayer = adaptPlayer.invoke(null, player);
+            Method hide = null;
+            for (Method candidate : tracker.getClass().getMethods()) {
+                if (candidate.getName().equals("hide") && candidate.getParameterCount() == 1
+                        && candidate.getParameterTypes()[0].isInstance(platformPlayer)) {
+                    hide = candidate;
+                    break;
+                }
+            }
+            if (hide == null) throw new NoSuchMethodException("Tracker.hide(PlatformPlayer)");
+            hide.invoke(tracker, platformPlayer);
+        } catch (ReflectiveOperationException failure) {
+            plugin.getLogger().warning("Could not restore vanilla infected rendering for " + player.getName()
+                    + ": " + failure.getMessage());
         }
     }
 
