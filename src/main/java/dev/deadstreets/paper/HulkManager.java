@@ -126,7 +126,7 @@ final class HulkManager {
                 if (!isHulk(created)) prepareTest(created);
                 if (!force) plugin.budget().tag(created);
             });
-            return (force ? "DEV FORCE: spawned uncounted test Hulk " : "Spawned test Hulk ") + zombie.getUniqueId() + " at native three-block scale (" + String.format(java.util.Locale.ROOT, "%.3f", zombie.getBoundingBox().getHeight()) + " blocks tall); BetterModel visual: " + (plugin.models().attach(zombie, "deadstreets_hulk", "heavy_walk") ? "attached" : "not loaded; vanilla fallback active") + ".";
+            return (force ? "DEV FORCE: spawned uncounted test Hulk " : "Spawned test Hulk ") + zombie.getUniqueId() + " at native three-block scale (" + String.format(java.util.Locale.ROOT, "%.3f", zombie.getBoundingBox().getHeight()) + " blocks tall); native zombie texture follows the player's active resource pack.";
         } catch (RuntimeException failure) {
             if (!force) plugin.budget().rollback();
             return "Test Hulk spawn failed: " + failure.getMessage();
