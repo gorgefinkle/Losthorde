@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a geometry-only BetterModel pack that inherits the client's vanilla zombie skin."""
+"""Build a BetterModel pack that registers the client zombie texture in the item atlas."""
 from __future__ import annotations
 
 import json
@@ -32,6 +32,15 @@ def prepare(source: Path, destination: Path) -> tuple[int, int]:
         )
 
     output_files: dict[str, bytes] = {"pack.mcmeta": source_files["pack.mcmeta"]}
+    # BetterModel renders Blockbench geometry through item-display models. Their
+    # textures are sampled from the items atlas; zombie.png normally belongs to
+    # the entity renderer and is not registered there. Add it as an atlas sprite.
+    # Atlas source definitions merge across active packs, while the resource
+    # manager resolves the PNG from the client's effective resource-pack stack.
+    atlas_path = "assets/minecraft/atlases/items.json"
+    output_files[atlas_path] = (
+        json.dumps({"sources": [{"type": "minecraft:single", "resource": VANILLA_ZOMBIE}]}, separators=(",", ":")) + "\n"
+    ).encode("utf-8")
     model_paths: set[str] = set()
     crawler_items = sum("deadstreets_crawler_" in path for path in item_paths)
     hulk_items = sum("deadstreets_hulk_" in path for path in item_paths)
@@ -84,7 +93,12 @@ def prepare(source: Path, destination: Path) -> tuple[int, int]:
     with ZipFile(destination, "r") as archive:
         names = archive.namelist()
         if any(name.lower().endswith(".png") for name in names):
-            raise RuntimeError("Geometry-only pack unexpectedly contains PNG textures")
+            raise RuntimeError("Texture-inheriting pack unexpectedly contains PNG textures")
+        if atlas_path not in names:
+            raise RuntimeError("Output pack is missing the item-atlas registration")
+        atlas = json.loads(archive.read(atlas_path))
+        if {"type": "minecraft:single", "resource": VANILLA_ZOMBIE} not in atlas.get("sources", []):
+            raise RuntimeError("Zombie entity texture is not registered as an item-atlas sprite")
         if len([name for name in names if "/items/" in name and name.endswith(".json")]) != 18:
             raise RuntimeError("Output pack is missing Dead Streets item definitions")
         if len([name for name in names if "/models/" in name and name.endswith(".json")]) != 18:
@@ -104,5 +118,5 @@ if __name__ == "__main__":
     items, models = prepare(Path(sys.argv[1]), Path(sys.argv[2]))
     print(
         f"Geometry-only pack ready: {items} item definitions, {models} model JSONs, "
-        f"all textures resolve to {VANILLA_ZOMBIE}; no PNG assets included."
+        f"item atlas registers {VANILLA_ZOMBIE}; no PNG assets included."
     )
