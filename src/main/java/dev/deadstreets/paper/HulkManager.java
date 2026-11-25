@@ -67,7 +67,6 @@ final class HulkManager {
         zombie.setPersistent(true);
         zombie.setRemoveWhenFarAway(false);
         zombie.setShouldBurnInDay(false);
-        plugin.models().attach(zombie, "deadstreets_hulk", "heavy_walk");
     }
 
     /**
