@@ -64,7 +64,7 @@ final class BetterModelBridge {
                                     Bukkit.getScheduler().runTaskLater(plugin, () -> sendModelResourcePack(online), 40L);
                                 }
                                 if (Boolean.getBoolean("deadstreets.bettermodel-smoke"))
-                                    plugin.getLogger().info("BetterModel asset smoke test passed: both models registered and generated pack contains their texture assets.");
+                                    plugin.getLogger().info("BetterModel asset smoke test passed: both custom infected models registered; client pack is geometry-only and uses the vanilla zombie texture.");
                             } catch (IOException failure) {
                                 if (Boolean.getBoolean("deadstreets.bettermodel-smoke"))
                                     throw new IllegalStateException("BetterModel generated resource-pack audit failed: " + failure.getMessage(), failure);
@@ -250,13 +250,13 @@ final class BetterModelBridge {
         if (!packReady || !player.isOnline() || !plugin.getConfig().getBoolean("models.bettermodel.resource-pack.enabled", true)) return;
         String url = plugin.getConfig().getString("models.bettermodel.resource-pack.url", "").trim();
         if (url.isEmpty() || !url.startsWith("https://")) {
-            plugin.getLogger().severe("Dead Streets model resource pack URL is missing or is not HTTPS; custom infected textures cannot be delivered.");
+            plugin.getLogger().severe("Dead Streets model resource pack URL is missing or is not HTTPS; custom infected model geometry cannot be rendered.");
             return;
         }
         if (!packSentPlayers.add(player.getUniqueId())) return;
         try {
             // Additive Paper API keeps existing packs (including QualityArmory) active.
-            player.addResourcePack(DEAD_STREETS_PACK_ID, url, null, "Dead Streets: infected model textures", false);
+            player.addResourcePack(DEAD_STREETS_PACK_ID, url, null, "Dead Streets: infected model geometry (uses your zombie texture pack)", false);
             plugin.getLogger().info("Requested the Dead Streets model resource pack for " + player.getName() + ".");
         } catch (IllegalArgumentException failure) {
             packSentPlayers.remove(player.getUniqueId());
