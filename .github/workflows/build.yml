@@ -26,7 +26,7 @@ jobs:
           import re, json, base64
           from zipfile import ZipFile
 
-          jar_path = "target/DeadStreets_R16.jar"
+          jar_path = "target/DeadStreets_R17.jar"
           with ZipFile(jar_path) as jar:
               names = jar.namelist()
               descriptor = jar.read("plugin.yml").decode("utf-8")
@@ -67,7 +67,7 @@ jobs:
           PY
       - name: Download Paper 26.2
         run: |
-          curl -fsSL -H 'User-Agent: Losthorde-R16-Smoke/1.0' \
+          curl -fsSL -H 'User-Agent: Losthorde-R17-Smoke/1.0' \
             'https://fill.papermc.io/v3/projects/paper/versions/26.2/builds?channel=STABLE' \
             -o paper-builds.json
           PAPER_URL="$(jq -r 'first(.[] | select(.channel == "STABLE") | .downloads["server:default"].url)' paper-builds.json)"
@@ -76,7 +76,7 @@ jobs:
       - name: Run Paper 26.2 without optional plugins
         run: |
           mkdir -p plugins
-          cp target/DeadStreets_R16.jar plugins/DeadStreets.jar
+          cp target/DeadStreets_R17.jar plugins/DeadStreets.jar
           test "$(find plugins -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 1
           echo 'eula=true' > eula.txt
           cat > server.properties <<'EOF'
@@ -102,7 +102,7 @@ jobs:
             wait "$SERVER_PID" 2>/dev/null || true
             exit 1
           fi
-          grep -F 'Dead Streets R16:' logs/latest.log
+          grep -F 'Dead Streets R17:' logs/latest.log
           grep -F 'Native infected smoke test passed' logs/latest.log
           kill -TERM "$SERVER_PID" 2>/dev/null || true
           for attempt in $(seq 1 15); do
@@ -117,7 +117,7 @@ jobs:
       - name: Run Paper 26.2 with BetterModel and validate imported assets
         run: |
           mkdir -p bettermodel-smoke/plugins
-          cp target/DeadStreets_R16.jar bettermodel-smoke/plugins/DeadStreets.jar
+          cp target/DeadStreets_R17.jar bettermodel-smoke/plugins/DeadStreets.jar
           cp bettermodel.jar bettermodel-smoke/plugins/BetterModel.jar
           mkdir -p bettermodel-smoke/plugins/BetterModel
           unzip -p bettermodel.jar config.yml > bettermodel-smoke/plugins/BetterModel/config.yml
@@ -154,12 +154,12 @@ jobs:
       - name: Package full source
         run: |
           mkdir -p dist
-          cp target/DeadStreets_R16.jar dist/
-          git archive --format=zip --output=dist/DeadStreets_R16-source.zip HEAD
+          cp target/DeadStreets_R17.jar dist/
+          git archive --format=zip --output=dist/DeadStreets_R17-source.zip HEAD
       - name: Upload test build
         uses: actions/upload-artifact@v4
         with:
-          name: DeadStreets-R16-test-build
+          name: DeadStreets-R17-test-build
           path: dist/*
           if-no-files-found: error
           retention-days: 30
