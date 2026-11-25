@@ -31,7 +31,7 @@ final class BetterModelBridge {
     private boolean packReady;
     private final java.util.Set<UUID> packSentPlayers = new java.util.HashSet<>();
     private final java.util.Set<UUID> packLoadedPlayers = new java.util.HashSet<>();
-    private static final UUID DEAD_STREETS_PACK_ID = UUID.fromString("a2b8fef3-3a90-4f15-9a9b-1e4c0b8d1919");
+    private static final UUID DEAD_STREETS_PACK_ID = UUID.fromString("b9c1d6e7-2f43-4b83-9a11-5d72e6c0a422");
 
     BetterModelBridge(DeadStreetsPlugin plugin) { this.plugin = plugin; }
 
@@ -61,12 +61,12 @@ final class BetterModelBridge {
                                 String packReport = auditGeneratedPack(dependency);
                                 plugin.getLogger().info("BetterModel generated-pack audit passed: " + packReport);
                                 packReady = true;
-                                plugin.getLogger().info("BetterModel generated model pack is ready for additive client delivery: " + packReport);
+                                plugin.getLogger().info("BetterModel generated model assets passed the server-side audit; the R22 atlas bridge will be packaged for client delivery: " + packReport);
                                 for (Player online : Bukkit.getOnlinePlayers()) {
                                     Bukkit.getScheduler().runTaskLater(plugin, () -> sendModelResourcePack(online), 40L);
                                 }
                                 if (Boolean.getBoolean("deadstreets.bettermodel-smoke"))
-                                    plugin.getLogger().info("BetterModel asset smoke test passed: both custom infected models registered; client pack is geometry-only and uses the vanilla zombie texture.");
+                                    plugin.getLogger().info("BetterModel asset smoke test passed: both custom infected models registered; client model pack registers the active zombie texture in the item atlas without shipping a PNG.");
                             } catch (IOException failure) {
                                 if (Boolean.getBoolean("deadstreets.bettermodel-smoke"))
                                     throw new IllegalStateException("BetterModel generated resource-pack audit failed: " + failure.getMessage(), failure);
