@@ -32,6 +32,7 @@ import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerBedEnterEvent;
@@ -339,6 +340,10 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             walkerBudget.onDeath(zombie);
             if (poppers != null) poppers.onDeath(zombie);
         }
+    }
+
+    @EventHandler public void onResourcePackStatus(PlayerResourcePackStatusEvent event) {
+        if (models != null) models.handleResourcePackStatus(event);
     }
 
     @EventHandler public void onQuit(PlayerQuitEvent event) {
