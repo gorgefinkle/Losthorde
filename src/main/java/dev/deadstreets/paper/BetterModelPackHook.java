@@ -40,6 +40,7 @@ final class BetterModelPackHook {
         ClassLoader loader = plugin.getClass().getClassLoader();
         Class<?> betterModel = Class.forName("kr.toxicity.model.api.BetterModel", true, loader);
         Object eventBus = betterModel.getMethod("eventBus").invoke(null);
+        Class<?> eventBusType = Class.forName("kr.toxicity.model.api.BetterModelEventBus", true, loader);
         Class<?> applicationType = Class.forName("kr.toxicity.model.api.event.ModelEventApplication", true, loader);
         Class<?> eventType = Class.forName("kr.toxicity.model.api.event.PluginStartReloadEvent", true, loader);
         Object application = Proxy.newProxyInstance(loader, new Class<?>[]{applicationType}, (proxy, method, args) -> {
@@ -50,7 +51,7 @@ final class BetterModelPackHook {
             return null;
         });
         Consumer<Object> callback = this::onReloadStart;
-        Method subscribe = eventBus.getClass().getMethod("subscribe", applicationType, Class.class, Consumer.class);
+        Method subscribe = eventBusType.getMethod("subscribe", applicationType, Class.class, Consumer.class);
         subscription = subscribe.invoke(eventBus, application, eventType, callback);
         registered = true;
         plugin.getLogger().info("Registered BetterModel's official pack-reload injection hook.");
