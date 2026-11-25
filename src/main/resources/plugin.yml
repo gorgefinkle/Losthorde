@@ -1,5 +1,5 @@
 name: DeadStreets
-version: R17
+version: R18
 main: dev.deadstreets.paper.DeadStreetsPlugin
 api-version: '26.2'
 author: Dead Streets Project
