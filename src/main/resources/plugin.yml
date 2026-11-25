@@ -1,9 +1,9 @@
 name: DeadStreets
-version: R22
+version: R23
 main: dev.deadstreets.paper.DeadStreetsPlugin
 api-version: '26.2'
 author: Dead Streets Project
-description: Persistent zombie populations with custom animated infected using vanilla zombie textures
+description: Persistent zombie populations with custom animated infected inheriting client zombie textures
 load: POSTWORLD
 softdepend: [Metropolis, BetterModel]
 commands:
