@@ -211,9 +211,9 @@ final class BetterModelPackHook {
                 }
             }
             if (!found) throw new IOException("Injected zombie texture sprite is absent from BetterModel final items atlas.");
-            ZipEntry oldItemsAtlas = zip.getEntry("assets/minecraft/atlases/items.json");
-            if (oldItemsAtlas != null) {
-                try (var in = zip.getInputStream(oldItemsAtlas)) {
+            ZipEntry oldBlocksAtlas = zip.getEntry("assets/minecraft/atlases/blocks.json");
+            if (oldBlocksAtlas != null) {
+                try (var in = zip.getInputStream(oldBlocksAtlas)) {
                     JsonObject oldAtlas = JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
                     if (oldAtlas.has("sources") && oldAtlas.get("sources").isJsonArray()) {
                         for (JsonElement source : oldAtlas.getAsJsonArray("sources")) {
