@@ -32,7 +32,8 @@ import java.util.zip.ZipFile;
  * than by filename prefixes.
  */
 final class BetterModelPackHook {
-    static final String ZOMBIE_TEXTURE = "minecraft:entity/zombie/zombie";
+    static final String ZOMBIE_TEXTURE_RESOURCE = "minecraft:entity/zombie/zombie";
+    private static final String ZOMBIE_TEXTURE_SPRITE = "deadstreets:item/zombie";
     private static final String CRAWLER_MODEL = "bettermodel/models/deadstreets_crawler.bbmodel";
     private static final String HULK_MODEL = "bettermodel/models/deadstreets_hulk.bbmodel";
     private final DeadStreetsPlugin plugin;
@@ -116,13 +117,13 @@ final class BetterModelPackHook {
                         if (!texture.getValue().isJsonPrimitive()) throw new IOException("Invalid texture value in " + modelPath);
                         String value = texture.getValue().getAsString();
                         if (value.startsWith("bettermodel:item/")) {
-                            textures.addProperty(texture.getKey(), ZOMBIE_TEXTURE);
+                            textures.addProperty(texture.getKey(), ZOMBIE_TEXTURE_SPRITE);
                             rewritten = true;
-                        } else if (!value.equals(ZOMBIE_TEXTURE)) {
+                        } else if (!value.equals(ZOMBIE_TEXTURE_SPRITE)) {
                             throw new IOException("Unexpected texture reference in UV-matched model " + modelPath + ": " + value);
                         }
                     }
-                    if (!rewritten && textures.entrySet().stream().noneMatch(e -> e.getValue().getAsString().equals(ZOMBIE_TEXTURE)))
+                    if (!rewritten && textures.entrySet().stream().noneMatch(e -> e.getValue().getAsString().equals(ZOMBIE_TEXTURE_SPRITE)))
                         throw new IOException("No zombie texture alias found in " + modelPath);
 
                     modelPaths.add(modelPath);
@@ -156,7 +157,8 @@ final class BetterModelPackHook {
                 for (JsonElement source : sources) {
                     if (source.isJsonObject()
                             && "minecraft:single".equals(source.getAsJsonObject().has("type") ? source.getAsJsonObject().get("type").getAsString() : "")
-                            && ZOMBIE_TEXTURE.equals(source.getAsJsonObject().has("resource") ? source.getAsJsonObject().get("resource").getAsString() : "")) {
+                            && ZOMBIE_TEXTURE_RESOURCE.equals(source.getAsJsonObject().has("resource") ? source.getAsJsonObject().get("resource").getAsString() : "")
+                            && ZOMBIE_TEXTURE_SPRITE.equals(source.getAsJsonObject().has("sprite") ? source.getAsJsonObject().get("sprite").getAsString() : "")) {
                         present = true;
                         break;
                     }
@@ -164,7 +166,8 @@ final class BetterModelPackHook {
                 if (!present) {
                     JsonObject source = new JsonObject();
                     source.addProperty("type", "minecraft:single");
-                    source.addProperty("resource", ZOMBIE_TEXTURE);
+                    source.addProperty("resource", ZOMBIE_TEXTURE_RESOURCE);
+                    source.addProperty("sprite", ZOMBIE_TEXTURE_SPRITE);
                     sources.add(source);
                 }
                 addAsset(assets, atlasPath, (atlas.toString() + "\n").getBytes(StandardCharsets.UTF_8));
@@ -177,8 +180,10 @@ final class BetterModelPackHook {
                         JsonArray cleaned = new JsonArray();
                         for (JsonElement source : oldAtlas.getAsJsonArray("sources")) {
                             boolean zombieAlias = source.isJsonObject()
-                                    && ZOMBIE_TEXTURE.equals(source.getAsJsonObject().has("resource")
-                                            ? source.getAsJsonObject().get("resource").getAsString() : "");
+                                    && (ZOMBIE_TEXTURE_RESOURCE.equals(source.getAsJsonObject().has("resource")
+                                            ? source.getAsJsonObject().get("resource").getAsString() : "")
+                                    || ZOMBIE_TEXTURE_SPRITE.equals(source.getAsJsonObject().has("sprite")
+                                            ? source.getAsJsonObject().get("sprite").getAsString() : ""));
                             if (!zombieAlias) cleaned.add(source);
                         }
                         oldAtlas.add("sources", cleaned);
@@ -277,7 +282,9 @@ final class BetterModelPackHook {
                     if (source.isJsonObject() && source.has("type")
                             && "minecraft:single".equals(source.getAsJsonObject().get("type").getAsString())
                             && source.has("resource")
-                            && ZOMBIE_TEXTURE.equals(source.getAsJsonObject().get("resource").getAsString())) found = true;
+                            && ZOMBIE_TEXTURE_RESOURCE.equals(source.getAsJsonObject().get("resource").getAsString())
+                            && source.getAsJsonObject().has("sprite")
+                            && ZOMBIE_TEXTURE_SPRITE.equals(source.getAsJsonObject().get("sprite").getAsString())) found = true;
                 }
             }
             if (!found) throw new IOException("Injected zombie texture sprite is absent from BetterModel final items atlas.");
@@ -324,7 +331,7 @@ final class BetterModelPackHook {
                 if (!model.has("textures") || !model.get("textures").isJsonObject())
                     throw new IOException("UV-matched final model has no texture map: " + modelPath);
                 for (Map.Entry<String, JsonElement> texture : model.getAsJsonObject("textures").entrySet()) {
-                    if (!texture.getValue().isJsonPrimitive() || !ZOMBIE_TEXTURE.equals(texture.getValue().getAsString()))
+                    if (!texture.getValue().isJsonPrimitive() || !ZOMBIE_TEXTURE_SPRITE.equals(texture.getValue().getAsString()))
                         throw new IOException("Final UV-matched model still points at a private/missing texture: "
                                 + modelPath + " -> " + texture.getValue());
                 }
@@ -341,7 +348,7 @@ final class BetterModelPackHook {
                         + signature + "; expected one Crawler and one Hulk.");
             }
             return "items=" + referencedItems.size() + ", models=" + referencedModels.size()
-                    + ", zombie texture registered in items atlas, obfuscated filenames supported, no zombie PNG shipped";
+                    + ", zombie entity texture exposed as deadstreets:item/zombie in the items atlas, obfuscated filenames supported, no zombie PNG shipped";
         }
     }
 }
