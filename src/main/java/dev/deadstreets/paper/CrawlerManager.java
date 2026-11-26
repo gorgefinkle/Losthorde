@@ -48,7 +48,7 @@ final class CrawlerManager {
         plugin.models().attach(zombie, "deadstreets_crawler", "crawl");
     }
     private void applyAttributes(Zombie zombie) {
-        // Keep native zombie dimensions; Pose.SWIMMING supplies the low profile.
+        // Keep native zombie dimensions; the horizontal profile belongs to the custom model.
         set(zombie, Attribute.SCALE, 1.0);
         set(zombie, Attribute.MAX_HEALTH, clamp(plugin.getConfig().getDouble("special-infected.crawler.max-health", 24.0), 10.0, 60.0));
         set(zombie, Attribute.MOVEMENT_SPEED, clamp(plugin.getConfig().getDouble("special-infected.crawler.movement-speed", 0.20), 0.08, 0.35));
