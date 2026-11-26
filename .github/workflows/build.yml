@@ -87,6 +87,7 @@ jobs:
           assert "models.forgetPackPlayer(event.getPlayer().getUniqueId())" in plugin_source, "Disconnect must clear integrated resource-pack state for reconnects"
           assert "frontX" in crawler and "actual.getBlockX()" in crawler, "Crawler test spawn must prioritize a visible front position and report exact coordinates"
           assert "Pose.SWIMMING" not in crawler, "Crawler must remain an upright native zombie"
+          assert "Pose.STANDING" in warning and "must remain upright" in warning, "Native smoke test must enforce upright Crawler fallback"
           pack_hook = open("src/main/java/dev/deadstreets/paper/BetterModelPackHook.java", encoding="utf-8").read()
           assert 'String atlasPath = "assets/minecraft/atlases/items.json"' in pack_hook, "BetterModel item textures must register in the items atlas"
           assert "final items atlas" in pack_hook, "Generated-pack audit must verify the items atlas"
