@@ -279,9 +279,9 @@ final class BetterModelPackHook {
             boolean found = false;
             if (atlas.has("sources") && atlas.get("sources").isJsonArray()) {
                 for (JsonElement source : atlas.getAsJsonArray("sources")) {
-                    if (source.isJsonObject() && source.has("type")
+                    if (source.isJsonObject() && source.getAsJsonObject().has("type")
                             && "minecraft:single".equals(source.getAsJsonObject().get("type").getAsString())
-                            && source.has("resource")
+                            && source.getAsJsonObject().has("resource")
                             && ZOMBIE_TEXTURE_RESOURCE.equals(source.getAsJsonObject().get("resource").getAsString())
                             && source.getAsJsonObject().has("sprite")
                             && ZOMBIE_TEXTURE_SPRITE.equals(source.getAsJsonObject().get("sprite").getAsString())) found = true;
@@ -295,8 +295,8 @@ final class BetterModelPackHook {
                     if (oldAtlas.has("sources") && oldAtlas.get("sources").isJsonArray()) {
                         for (JsonElement source : oldAtlas.getAsJsonArray("sources")) {
                             if (source.isJsonObject()
-                                    && ((source.has("resource") && ZOMBIE_TEXTURE_RESOURCE.equals(source.getAsJsonObject().get("resource").getAsString()))
-                                        || (source.has("sprite") && ZOMBIE_TEXTURE_SPRITE.equals(source.getAsJsonObject().get("sprite").getAsString()))))
+                                    && ((source.getAsJsonObject().has("resource") && ZOMBIE_TEXTURE_RESOURCE.equals(source.getAsJsonObject().get("resource").getAsString()))
+                                        || (source.getAsJsonObject().has("sprite") && ZOMBIE_TEXTURE_SPRITE.equals(source.getAsJsonObject().get("sprite").getAsString()))))
                                 throw new IOException("Zombie texture alias is incorrectly registered in the blocks atlas.");
                         }
                     }
