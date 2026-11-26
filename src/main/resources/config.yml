@@ -56,9 +56,8 @@ zombies:
   max-total-managed-walkers: 3000
 models:
   bettermodel:
-    enabled: false
-    # SAFETY DEFAULT: keep the native vanilla zombie renderer visible until custom texture resolution is proven on a real client.
-    # Set true only after the integrated BetterModel texture pipeline has been independently verified.
+    enabled: true
+    # Custom infected geometry stays enabled. Texture fallback is handled separately; do not replace the model with a vanilla entity.
     resource-pack:
       enabled: true
       # R24 keeps the R23 model assets unchanged; reuse the already-published pack with identical asset contents.
