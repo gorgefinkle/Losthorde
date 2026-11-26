@@ -93,12 +93,15 @@ jobs:
           assert "horizontal animated BetterModel geometry" in warning, "Native smoke test must describe the custom horizontal Crawler model, not an upright fallback"
           pack_hook = open("src/main/java/dev/deadstreets/paper/BetterModelPackHook.java", encoding="utf-8").read()
           assert 'String atlasPath = "assets/minecraft/atlases/items.json"' in pack_hook, "BetterModel item textures must register in the items atlas"
+          assert 'ZOMBIE_TEXTURE_SPRITE = "deadstreets:item/zombie"' in pack_hook, "Entity texture must be exposed under an explicit item-atlas sprite identifier"
+          assert 'source.addProperty("sprite", ZOMBIE_TEXTURE_SPRITE)' in pack_hook, "Atlas source must map the client entity texture to the item sprite name"
+          assert 'textures.addProperty(texture.getKey(), ZOMBIE_TEXTURE_SPRITE)' in pack_hook, "Generated item models must reference the explicit item-atlas sprite, not the raw entity texture path"
           assert "final items atlas" in pack_hook, "Generated-pack audit must verify the items atlas"
           assert 'String oldAtlasPath = "assets/minecraft/atlases/blocks.json"' in pack_hook, "Obsolete blocks-atlas alias cleanup is missing"
           assert 'ZipEntry oldBlocksAtlas = zip.getEntry("assets/minecraft/atlases/blocks.json")' in pack_hook, "Final-pack audit must inspect blocks.json for an obsolete alias, not reject the valid items-atlas alias"
           assert "expectedUvSignatures()" in pack_hook and "matchingUvSignature(model, expectedUv)" in pack_hook, "BetterModel model discovery must work with obfuscated filenames by matching model UV geometry"
           assert 'path.contains("deadstreets_")' not in pack_hook and 'itemPath.contains("deadstreets_")' not in pack_hook, "Do not depend on BetterModel's optional filename obfuscation setting"
-          print("Packaging check passed: optional BetterModel integration, source-entity lifecycle, explicit tracker visibility, UV-matched items-atlas texture fallback, horizontal Crawler model, both model assets and targeted identity display are present.")
+          print("Packaging check passed: optional BetterModel integration, source-entity lifecycle, explicit tracker visibility, UV-matched item-atlas sprite alias to the client zombie texture, horizontal Crawler model, both model assets and targeted identity display are present.")
           PY
       - name: Download Paper 26.2
         run: |
