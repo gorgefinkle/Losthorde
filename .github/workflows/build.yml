@@ -71,7 +71,7 @@ jobs:
               config = jar.read("config.yml").decode("utf-8")
               assert "target-display:" in config and "update-interval-ticks: 3" in config, "Aimed identity display is missing"
               assert "chat-health-bars:" not in config, "Obsolete chat health bars remain"
-              assert "resource-pack:" in config and "DeadStreets-R23-models.zip" in config, "Integrated BetterModel pack delivery URL is missing"
+              assert "resource-pack:" in config and "DeadStreets-R24-models.zip" in config, "Integrated BetterModel pack delivery URL is missing"
           horde = open("src/main/java/dev/deadstreets/paper/HordeManager.java", encoding="utf-8").read()
           warning = open("src/main/java/dev/deadstreets/paper/DeadStreetsPlugin.java", encoding="utf-8").read()
           assert "eta,dist" in horde, "Horde alert does not pass live block distance"
@@ -86,7 +86,9 @@ jobs:
           plugin_source = open("src/main/java/dev/deadstreets/paper/DeadStreetsPlugin.java", encoding="utf-8").read()
           assert "models.forgetPackPlayer(event.getPlayer().getUniqueId())" in plugin_source, "Disconnect must clear integrated resource-pack state for reconnects"
           assert "frontX" in crawler and "actual.getBlockX()" in crawler, "Crawler test spawn must prioritize a visible front position and report exact coordinates"
-          print("Packaging check passed: optional BetterModel integration, source-entity lifecycle, explicit tracker visibility, both model assets and targeted identity display are present.")
+          assert "atlases/blocks.json" in bridge and "final blocks atlas" in bridge, "Generated-pack audit must verify the blocks atlas"
+          assert "atlases/items.json" in bridge, "Obsolete items-atlas alias cleanup is missing"
+          print("Packaging check passed: optional BetterModel integration, source-entity lifecycle, explicit tracker visibility, blocks-atlas texture fallback, both model assets and targeted identity display are present.")
           PY
       - name: Download Paper 26.2
         run: |
