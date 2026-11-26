@@ -86,8 +86,10 @@ jobs:
           plugin_source = open("src/main/java/dev/deadstreets/paper/DeadStreetsPlugin.java", encoding="utf-8").read()
           assert "models.forgetPackPlayer(event.getPlayer().getUniqueId())" in plugin_source, "Disconnect must clear integrated resource-pack state for reconnects"
           assert "frontX" in crawler and "actual.getBlockX()" in crawler, "Crawler test spawn must prioritize a visible front position and report exact coordinates"
-          assert "atlases/blocks.json" in bridge and "final blocks atlas" in bridge, "Generated-pack audit must verify the blocks atlas"
-          assert "atlases/items.json" in bridge, "Obsolete items-atlas alias cleanup is missing"
+          assert "Pose.SWIMMING" not in crawler, "Crawler must remain an upright native zombie"
+          pack_hook = open("src/main/java/dev/deadstreets/paper/BetterModelPackHook.java", encoding="utf-8").read()
+          assert "atlases/blocks.json" in pack_hook and "final blocks atlas" in pack_hook, "Generated-pack audit must verify the blocks atlas"
+          assert "atlases/items.json" in pack_hook, "Obsolete items-atlas alias cleanup is missing"
           print("Packaging check passed: optional BetterModel integration, source-entity lifecycle, explicit tracker visibility, blocks-atlas texture fallback, both model assets and targeted identity display are present.")
           PY
       - name: Download Paper 26.2
