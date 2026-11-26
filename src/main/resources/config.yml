@@ -60,8 +60,8 @@ models:
     # Custom infected geometry stays enabled. Texture fallback is handled separately; do not replace the model with a vanilla entity.
     resource-pack:
       enabled: true
-      # R24 keeps the R23 model assets unchanged; reuse the already-published pack with identical asset contents.
-      url: "https://raw.githubusercontent.com/gorgefinkle/Losthorde/r10-runner-popper-crawler-hulk/release-assets/DeadStreets-R23-models.zip"
+      # R24 contains the corrected blocks-atlas registration for the zombie texture alias.
+      url: "https://raw.githubusercontent.com/gorgefinkle/Losthorde/r10-runner-popper-crawler-hulk/release-assets/DeadStreets-R24-models.zip"
       required: false
 vanilla-mobs:
   # Non-zombie hostile mobs are blocked for every spawn reason except COMMAND and SPAWNER_EGG.
