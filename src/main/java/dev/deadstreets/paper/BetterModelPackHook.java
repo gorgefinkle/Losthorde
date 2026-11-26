@@ -128,7 +128,11 @@ final class BetterModelPackHook {
                     throw new IOException("Expected 9 crawler + 9 hulk model parts; found crawler=" + crawlerItems
                             + ", hulk=" + hulkItems + ", models=" + modelPaths.size());
 
-                String atlasPath = "assets/minecraft/atlases/items.json";
+                // BetterModel emits minecraft:model block models. These resolve textures
+                // from the blocks atlas, not the items atlas. Register the vanilla entity
+                // texture there so the client resource-pack stack supplies its active skin
+                // (or the vanilla zombie texture when no override is installed).
+                String atlasPath = "assets/minecraft/atlases/blocks.json";
                 JsonObject atlas = files.containsKey(atlasPath)
                         ? JsonParser.parseString(new String(files.get(atlasPath), StandardCharsets.UTF_8)).getAsJsonObject()
                         : new JsonObject();
@@ -151,6 +155,23 @@ final class BetterModelPackHook {
                     sources.add(source);
                 }
                 addAsset(assets, atlasPath, (atlas.toString() + "\n").getBytes(StandardCharsets.UTF_8));
+
+                // Remove the obsolete alias from the items atlas if a prior build carried it.
+                String oldAtlasPath = "assets/minecraft/atlases/items.json";
+                if (files.containsKey(oldAtlasPath)) {
+                    JsonObject oldAtlas = JsonParser.parseString(new String(files.get(oldAtlasPath), StandardCharsets.UTF_8)).getAsJsonObject();
+                    if (oldAtlas.has("sources") && oldAtlas.get("sources").isJsonArray()) {
+                        JsonArray cleaned = new JsonArray();
+                        for (JsonElement source : oldAtlas.getAsJsonArray("sources")) {
+                            boolean zombieAlias = source.isJsonObject()
+                                    && ZOMBIE_TEXTURE.equals(source.getAsJsonObject().has("resource")
+                                            ? source.getAsJsonObject().get("resource").getAsString() : "");
+                            if (!zombieAlias) cleaned.add(source);
+                        }
+                        oldAtlas.add("sources", cleaned);
+                        addAsset(assets, oldAtlasPath, (oldAtlas.toString() + "\n").getBytes(StandardCharsets.UTF_8));
+                    }
+                }
                 injected = true;
                 plugin.getLogger().info("Injected zombie texture atlas registration and " + modelPaths.size()
                         + " rewritten infected model definitions into BetterModel's own pack.");
@@ -174,8 +195,8 @@ final class BetterModelPackHook {
     String auditGeneratedPack(Path zipPath) throws IOException {
         if (!injected) throw new IOException("BetterModel's reload hook did not inject any assets.");
         try (ZipFile zip = new ZipFile(zipPath.toFile())) {
-            ZipEntry atlasEntry = zip.getEntry("assets/minecraft/atlases/items.json");
-            if (atlasEntry == null) throw new IOException("BetterModel output pack is missing the injected items atlas.");
+            ZipEntry atlasEntry = zip.getEntry("assets/minecraft/atlases/blocks.json");
+            if (atlasEntry == null) throw new IOException("BetterModel output pack is missing the injected blocks atlas.");
             JsonObject atlas;
             try (var in = zip.getInputStream(atlasEntry)) {
                 atlas = JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
@@ -187,7 +208,7 @@ final class BetterModelPackHook {
                             && ZOMBIE_TEXTURE.equals(source.getAsJsonObject().get("resource").getAsString())) found = true;
                 }
             }
-            if (!found) throw new IOException("Injected zombie texture sprite is absent from BetterModel's final items atlas.");
+            if (!found) throw new IOException("Injected zombie texture sprite is absent from BetterModel final blocks atlas.");
             if (zip.getEntry("assets/minecraft/textures/entity/zombie/zombie.png") != null)
                 throw new IOException("Dead Streets must not replace the client's zombie texture PNG.");
             Set<String> referencedModels = new HashSet<>();
@@ -226,7 +247,7 @@ final class BetterModelPackHook {
                     }
                 }
             }
-            return "items=" + itemCount + ", models=" + referencedModels.size() + ", client zombie texture alias registered, no zombie PNG shipped";
+            return "items=" + itemCount + ", models=" + referencedModels.size() + ", zombie texture registered in blocks atlas, no zombie PNG shipped";
         }
     }
 }
