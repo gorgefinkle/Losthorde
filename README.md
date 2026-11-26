@@ -11,7 +11,7 @@ Experimental Paper 26.2 / Java 25 zombie population, migration, and special-infe
 - Dead Streets R24
 - BetterModel 3.7.1 is optional. When installed, its custom Crawler/Hulk geometry and animations remain enabled; the vanilla zombie texture is the texture fallback.
 
-BetterModel builds the model geometry; Dead Streets delivers a companion pack that registers `minecraft:entity/zombie/zombie` in the **items atlas** used by BetterModel's generated item models. The companion pack deliberately contains no zombie PNG: each client resolves that resource from its active resource-pack stack, using the vanilla Minecraft zombie texture when no client override exists. This preserves client-side zombie texture replacements without allowing a missing texture to be substituted by a blank placeholder. Players must accept the companion pack to see custom models. No client mod is required. Metropolis integration remains optional and file-based.
+BetterModel builds the model geometry; Dead Streets adds an explicit `deadstreets:item/zombie` sprite to the **items atlas**, sourced from `minecraft:entity/zombie/zombie`. That item-atlas sprite name keeps the generated item models on the correct 26.2 atlas while the underlying image still resolves from each client's active resource-pack stack. The companion pack deliberately contains no zombie PNG: clients use their own zombie texture override, or Minecraft's vanilla texture when no override exists. This preserves client-side zombie texture replacements without allowing a missing texture to be substituted by a blank placeholder. Players must accept the companion pack to see custom models. No client mod is required. Metropolis integration remains optional and file-based.
 
 ## Special infected
 
