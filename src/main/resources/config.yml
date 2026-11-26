@@ -60,7 +60,7 @@ models:
     # Custom infected geometry stays enabled. Texture fallback is handled separately; do not replace the model with a vanilla entity.
     resource-pack:
       enabled: true
-      # R24 contains the corrected blocks-atlas registration for the zombie texture alias.
+      # R24 registers the client-resolved zombie texture in the items atlas used by BetterModel's generated item models.
       url: "https://raw.githubusercontent.com/gorgefinkle/Losthorde/r10-runner-popper-crawler-hulk/release-assets/DeadStreets-R24-models.zip"
       required: false
 vanilla-mobs:
