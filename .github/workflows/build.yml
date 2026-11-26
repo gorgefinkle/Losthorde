@@ -115,7 +115,7 @@ jobs:
           curl -fsSL "$ASSET_INDEX_URL" -o minecraft-assets.json
           curl -fsSL "$CLIENT_URL" -o minecraft-client.jar
           python3 - <<'PY'
-          import json
+          import json, re
           from zipfile import ZipFile
           assets = json.load(open("minecraft-assets.json", encoding="utf-8"))["objects"]
           indexed = sorted(p for p in assets if p.startswith("minecraft/textures/") and ("zombie" in p.lower() or "humanoid" in p.lower()) and p.endswith(".png"))
@@ -123,15 +123,22 @@ jobs:
               names = jar.namelist()
               bundled = sorted(p for p in names if p.startswith("assets/minecraft/textures/") and ("zombie" in p.lower() or "humanoid" in p.lower()) and p.endswith(".png"))
               entity_textures = sorted(p for p in names if p.startswith("assets/minecraft/textures/entity/") and p.endswith(".png"))
-              class_matches = sorted(p for p in names if p.endswith(".class") and b"zombie" in jar.read(p).lower())
+              class_strings = []
+              for class_path in (p for p in names if p.endswith(".class")):
+                  raw = jar.read(class_path)
+                  if b"zombie" not in raw.lower():
+                      continue
+                  for value in re.findall(rb"[\\x20-\\x7e]{5,}", raw):
+                      if b"zombie" in value.lower() or b"entity/" in value.lower():
+                          class_strings.append(class_path + ": " + value.decode("ascii", "replace"))
           print("Minecraft 26.2 indexed zombie/humanoid textures:")
           print("\\n".join(indexed) or "(none)")
           print("Minecraft 26.2 bundled zombie/humanoid textures:")
           print("\\n".join(bundled) or "(none)")
           print(f"Minecraft 26.2 entity texture count: {len(entity_textures)}")
           print("\\n".join(entity_textures))
-          print("Minecraft 26.2 classes containing the string 'zombie':")
-          print("\\n".join(class_matches[:100]) or "(none)")
+          print("Minecraft 26.2 zombie-related client class strings:")
+          print("\\n".join(sorted(set(class_strings))[:200]) or "(none)")
           assert entity_textures, "Minecraft 26.2 client jar contains no entity texture assets."
           PY
       - name: Run Paper 26.2 without optional plugins
