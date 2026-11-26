@@ -132,13 +132,13 @@ jobs:
                       if b"zombie" in value.lower() or b"entity/" in value.lower():
                           class_strings.append(class_path + ": " + value.decode("ascii", "replace"))
           print("Minecraft 26.2 indexed zombie/humanoid textures:")
-          print("\\n".join(indexed) or "(none)")
+          print("\n".join(indexed) or "(none)")
           print("Minecraft 26.2 bundled zombie/humanoid textures:")
-          print("\\n".join(bundled) or "(none)")
+          print("\n".join(bundled) or "(none)")
           print(f"Minecraft 26.2 entity texture count: {len(entity_textures)}")
-          print("\\n".join(entity_textures))
+          print("\n".join(entity_textures))
           print("Minecraft 26.2 zombie-related client class strings:")
-          print("\\n".join(sorted(set(class_strings))[:200]) or "(none)")
+          print("\n".join(sorted(set(class_strings))[:200]) or "(none)")
           assert entity_textures, "Minecraft 26.2 client jar contains no entity texture assets."
           PY
       - name: Run Paper 26.2 without optional plugins
