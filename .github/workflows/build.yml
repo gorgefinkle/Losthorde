@@ -101,6 +101,22 @@ jobs:
           PAPER_URL="$(jq -r 'first(.[] | select(.channel == "STABLE") | .downloads["server:default"].url)' paper-builds.json)"
           test -n "$PAPER_URL" && test "$PAPER_URL" != "null"
           curl -fL "$PAPER_URL" -o paper.jar
+      - name: Verify the vanilla 26.2 zombie texture resource exists
+        run: |
+          curl -fsSL 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json' -o version-manifest.json
+          VERSION_URL="$(jq -r '.versions[] | select(.id == "26.2") | .url' version-manifest.json)"
+          test -n "$VERSION_URL" && test "$VERSION_URL" != "null"
+          curl -fsSL "$VERSION_URL" -o minecraft-version.json
+          ASSET_INDEX_URL="$(jq -r '.assetIndex.url' minecraft-version.json)"
+          test -n "$ASSET_INDEX_URL" && test "$ASSET_INDEX_URL" != "null"
+          curl -fsSL "$ASSET_INDEX_URL" -o minecraft-assets.json
+          python3 - <<'PY'
+          import json
+          assets = json.load(open("minecraft-assets.json", encoding="utf-8"))["objects"]
+          path = "minecraft/textures/entity/zombie/zombie.png"
+          assert path in assets, f"Minecraft 26.2 client assets do not contain {path}; update the texture alias to the actual vanilla resource."
+          print(f"Vanilla zombie texture confirmed in Minecraft 26.2 asset index: {path} ({assets[path]['size']} bytes)")
+          PY
       - name: Run Paper 26.2 without optional plugins
         run: |
           mkdir -p plugins
