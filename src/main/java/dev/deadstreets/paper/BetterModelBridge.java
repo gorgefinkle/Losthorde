@@ -237,6 +237,7 @@ final class BetterModelBridge {
         }
     }
 
+    // Pack status belongs to a connection, not a UUID; clear it so reconnects request the pack again.
     void forgetPackPlayer(UUID playerId) {
         packSentPlayers.remove(playerId);
         packLoadedPlayers.remove(playerId);
