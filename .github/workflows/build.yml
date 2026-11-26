@@ -92,6 +92,7 @@ jobs:
           assert 'String atlasPath = "assets/minecraft/atlases/items.json"' in pack_hook, "BetterModel item textures must register in the items atlas"
           assert "final items atlas" in pack_hook, "Generated-pack audit must verify the items atlas"
           assert 'String oldAtlasPath = "assets/minecraft/atlases/blocks.json"' in pack_hook, "Obsolete blocks-atlas alias cleanup is missing"
+          assert 'ZipEntry oldBlocksAtlas = zip.getEntry("assets/minecraft/atlases/blocks.json")' in pack_hook, "Final-pack audit must inspect blocks.json for an obsolete alias, not reject the valid items-atlas alias"
           print("Packaging check passed: optional BetterModel integration, source-entity lifecycle, explicit tracker visibility, items-atlas texture fallback, both model assets and targeted identity display are present.")
           PY
       - name: Download Paper 26.2
