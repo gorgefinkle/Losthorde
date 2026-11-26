@@ -9,9 +9,9 @@ Experimental Paper 26.2 / Java 25 zombie population, migration, and special-infe
 - Paper 26.2
 - Java 25
 - Dead Streets R22
-- BetterModel 3.7.1 recommended for the custom Crawler and Hulk visuals (optional; vanilla fallback remains visible without it)
+- BetterModel 3.7.1 is optional. Native vanilla zombie rendering is the default safety mode; custom Crawler/Hulk visuals remain opt-in until client texture resolution is verified.
 
-BetterModel builds the model geometry; Dead Streets delivers a small companion pack that registers the client's zombie texture in the item atlas. It ships no zombie PNG. Players must accept the pack to see custom models. No client mod is required. Metropolis integration remains optional and file-based.
+BetterModel builds the model geometry; Dead Streets delivers a small companion pack that registers the client's zombie texture in the item atlas. It ships no zombie PNG. Players must accept the pack to see custom models. No client mod is required. The default configuration keeps native vanilla rendering active to prevent missing-texture checkerboards. Metropolis integration remains optional and file-based.
 
 ## Special infected
 
