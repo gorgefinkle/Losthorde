@@ -47,6 +47,9 @@ jobs:
                   group_ids = {group["uuid"] for group in model["groups"]}
                   assert None not in group_ids and model["outliner"][0]["uuid"] in group_ids, "Model root bone UUID is invalid"
                   assert any(a["name"] == animation and a["loop"] == "loop" for a in model["animations"])
+                  if animation == "crawl":
+                      root = next(group for group in model["groups"] if group["uuid"] == model["outliner"][0]["uuid"])
+                      assert root["rotation"] == [-90, 0, 0], "Crawler's custom root geometry must be horizontal; do not rely on vanilla swimming pose"
                   source = model["textures"][0]["source"]
                   assert source.startswith("data:image/png;base64,"), f"Texture placeholder is not a PNG data URI: {path}"
                   png = base64.b64decode(source.split(",", 1)[1])
@@ -86,8 +89,8 @@ jobs:
           plugin_source = open("src/main/java/dev/deadstreets/paper/DeadStreetsPlugin.java", encoding="utf-8").read()
           assert "models.forgetPackPlayer(event.getPlayer().getUniqueId())" in plugin_source, "Disconnect must clear integrated resource-pack state for reconnects"
           assert "frontX" in crawler and "actual.getBlockX()" in crawler, "Crawler test spawn must prioritize a visible front position and report exact coordinates"
-          assert "Pose.SWIMMING" not in crawler, "Crawler must remain an upright native zombie"
-          assert "Pose.STANDING" in warning and "must remain upright" in warning, "Native smoke test must enforce upright Crawler fallback"
+          assert "Pose.SWIMMING" not in crawler, "Do not pretend vanilla swimming pose is a crawl animation"
+          assert "horizontal animated BetterModel geometry" in warning, "Native smoke test must describe the custom horizontal Crawler model, not an upright fallback"
           pack_hook = open("src/main/java/dev/deadstreets/paper/BetterModelPackHook.java", encoding="utf-8").read()
           assert 'String atlasPath = "assets/minecraft/atlases/items.json"' in pack_hook, "BetterModel item textures must register in the items atlas"
           assert "final items atlas" in pack_hook, "Generated-pack audit must verify the items atlas"
