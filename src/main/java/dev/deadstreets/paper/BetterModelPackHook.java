@@ -209,6 +209,19 @@ final class BetterModelPackHook {
                 }
             }
             if (!found) throw new IOException("Injected zombie texture sprite is absent from BetterModel final blocks atlas.");
+            ZipEntry oldItemsAtlas = zip.getEntry("assets/minecraft/atlases/items.json");
+            if (oldItemsAtlas != null) {
+                try (var in = zip.getInputStream(oldItemsAtlas)) {
+                    JsonObject oldAtlas = JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
+                    if (oldAtlas.has("sources") && oldAtlas.get("sources").isJsonArray()) {
+                        for (JsonElement source : oldAtlas.getAsJsonArray("sources")) {
+                            if (source.isJsonObject() && source.getAsJsonObject().has("resource")
+                                    && ZOMBIE_TEXTURE.equals(source.getAsJsonObject().get("resource").getAsString()))
+                                throw new IOException("Zombie texture alias is incorrectly registered in the items atlas.");
+                        }
+                    }
+                }
+            }
             if (zip.getEntry("assets/minecraft/textures/entity/zombie/zombie.png") != null)
                 throw new IOException("Dead Streets must not replace the client's zombie texture PNG.");
             Set<String> referencedModels = new HashSet<>();
