@@ -351,6 +351,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         observation.forget(event.getPlayer().getUniqueId());
         if (bloodMoon != null) bloodMoon.onPlayerQuit(event.getPlayer());
         if (identities != null) identities.onQuit(event.getPlayer());
+        if (models != null) models.forgetPackPlayer(event.getPlayer().getUniqueId());
     }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void onTeleport(PlayerTeleportEvent event) {
         observeTeleport(event.getPlayer(),event.getTo());
