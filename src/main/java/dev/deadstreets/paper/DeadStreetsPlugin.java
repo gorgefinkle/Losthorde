@@ -161,8 +161,8 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             crawlers.refresh(crawler);
             hulks.prepareTest(hulk);
 
-            if (crawler.getPose() != org.bukkit.entity.Pose.SWIMMING) {
-                throw new IllegalStateException("Crawler failed to retain Pose.SWIMMING: " + crawler.getPose());
+            if (crawler.getPose() != org.bukkit.entity.Pose.STANDING) {
+                throw new IllegalStateException("Crawler native fallback must remain upright (STANDING), not " + crawler.getPose());
             }
             var scale = hulk.getAttribute(org.bukkit.attribute.Attribute.SCALE);
             if (scale == null || Math.abs(scale.getBaseValue() - 1.53846) > 0.001) {
