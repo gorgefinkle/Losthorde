@@ -118,7 +118,7 @@ jobs:
           import json, re
           from zipfile import ZipFile
           assets = json.load(open("minecraft-assets.json", encoding="utf-8"))["objects"]
-          indexed = sorted(p for p in assets if p.startswith("minecraft/textures/") and ("zombie" in p.lower() or "humanoid" in p.lower()) and p.endswith(".png"))
+          indexed = sorted(p for p in assets if ("zombie" in p.lower() or "humanoid" in p.lower()) and p.endswith(".png"))
           with ZipFile("minecraft-client.jar") as jar:
               names = jar.namelist()
               bundled = sorted(p for p in names if p.startswith("assets/minecraft/textures/") and ("zombie" in p.lower() or "humanoid" in p.lower()) and p.endswith(".png"))
