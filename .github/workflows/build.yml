@@ -30,7 +30,7 @@ jobs:
           import re, json, base64
           from zipfile import ZipFile
 
-          jar_path = "target/DeadStreets_R23.jar"
+          jar_path = "target/DeadStreets_R24.jar"
           with ZipFile(jar_path) as jar:
               names = jar.namelist()
               descriptor = jar.read("plugin.yml").decode("utf-8")
@@ -71,7 +71,7 @@ jobs:
               config = jar.read("config.yml").decode("utf-8")
               assert "target-display:" in config and "update-interval-ticks: 3" in config, "Aimed identity display is missing"
               assert "chat-health-bars:" not in config, "Obsolete chat health bars remain"
-              assert "resource-pack:" in config and "DeadStreets-R23-models.zip" in config, "Integrated BetterModel pack delivery URL is missing"
+              assert "resource-pack:" in config and "DeadStreets-R24-models.zip" in config, "Integrated BetterModel pack delivery URL is missing"
           horde = open("src/main/java/dev/deadstreets/paper/HordeManager.java", encoding="utf-8").read()
           warning = open("src/main/java/dev/deadstreets/paper/DeadStreetsPlugin.java", encoding="utf-8").read()
           assert "eta,dist" in horde, "Horde alert does not pass live block distance"
@@ -83,6 +83,8 @@ jobs:
           assert "candidate.getParameterTypes()[0] == Player.class" in bridge, "BetterModel PlatformPlayer adapter overload must be selected exactly"
           assert "runTask(plugin, () ->" in bridge, "BetterModel tracker must be shown again after Bukkit completes the source spawn tick"
           assert "showToPlayer(entry.getValue(), player)" in bridge, "Late-joining viewers do not receive existing model trackers"
+          plugin_source = open("src/main/java/dev/deadstreets/paper/DeadStreetsPlugin.java", encoding="utf-8").read()
+          assert "models.forgetPackPlayer(event.getPlayer().getUniqueId())" in plugin_source, "Disconnect must clear integrated resource-pack state for reconnects"
           assert "frontX" in crawler and "actual.getBlockX()" in crawler, "Crawler test spawn must prioritize a visible front position and report exact coordinates"
           print("Packaging check passed: optional BetterModel integration, source-entity lifecycle, explicit tracker visibility, both model assets and targeted identity display are present.")
           PY
@@ -97,7 +99,7 @@ jobs:
       - name: Run Paper 26.2 without optional plugins
         run: |
           mkdir -p plugins
-          cp target/DeadStreets_R23.jar plugins/DeadStreets.jar
+          cp target/DeadStreets_R24.jar plugins/DeadStreets.jar
           test "$(find plugins -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 1
           echo 'eula=true' > eula.txt
           cat > server.properties <<'EOF'
@@ -123,7 +125,7 @@ jobs:
             wait "$SERVER_PID" 2>/dev/null || true
             exit 1
           fi
-          grep -F 'Dead Streets R23:' logs/latest.log
+          grep -F 'Dead Streets R24:' logs/latest.log
           grep -F 'Native infected smoke test passed' logs/latest.log
           kill -TERM "$SERVER_PID" 2>/dev/null || true
           for attempt in $(seq 1 15); do
@@ -138,7 +140,7 @@ jobs:
       - name: Run Paper 26.2 with BetterModel and validate imported assets
         run: |
           mkdir -p bettermodel-smoke/plugins
-          cp target/DeadStreets_R23.jar bettermodel-smoke/plugins/DeadStreets.jar
+          cp target/DeadStreets_R24.jar bettermodel-smoke/plugins/DeadStreets.jar
           cp bettermodel.jar bettermodel-smoke/plugins/BetterModel.jar
           mkdir -p bettermodel-smoke/plugins/BetterModel
           unzip -p bettermodel.jar config.yml > bettermodel-smoke/plugins/BetterModel/config.yml
@@ -189,7 +191,7 @@ jobs:
       - name: Upload integrated BetterModel pack for inspection
         uses: actions/upload-artifact@v4
         with:
-          name: DeadStreets-R23-integrated-model-pack
+          name: DeadStreets-R24-integrated-model-pack
           path: bettermodel-smoke/plugins/BetterModel/build.zip
           if-no-files-found: error
           retention-days: 30
@@ -197,26 +199,26 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/r10-runner-popper-crawler-hulk'
         run: |
           mkdir -p release-assets
-          cp bettermodel-smoke/plugins/BetterModel/build.zip release-assets/DeadStreets-R23-models.zip
+          cp bettermodel-smoke/plugins/BetterModel/build.zip release-assets/DeadStreets-R24-models.zip
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f release-assets/DeadStreets-R23-models.zip
+          git add -f release-assets/DeadStreets-R24-models.zip
           if ! git diff --cached --quiet; then
-            git commit -m "Publish Dead Streets R23 integrated BetterModel pack"
+            git commit -m "Publish Dead Streets R24 integrated BetterModel pack"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
       - name: Package full source
         run: |
           mkdir -p dist
-          cp target/DeadStreets_R23.jar dist/
-          git archive --format=zip --output=dist/DeadStreets_R23-source.zip HEAD
+          cp target/DeadStreets_R24.jar dist/
+          git archive --format=zip --output=dist/DeadStreets_R24-source.zip HEAD
           cd dist
-          zip -q DeadStreets-R23-delivery.zip DeadStreets_R23.jar DeadStreets_R23-source.zip
+          zip -q DeadStreets-R24-delivery.zip DeadStreets_R24.jar DeadStreets_R24-source.zip
           cd ..
       - name: Upload test build
         uses: actions/upload-artifact@v4
         with:
-          name: DeadStreets-R23-test-build
-          path: dist/DeadStreets-R23-delivery.zip
+          name: DeadStreets-R24-test-build
+          path: dist/DeadStreets-R24-delivery.zip
           if-no-files-found: error
           retention-days: 30
