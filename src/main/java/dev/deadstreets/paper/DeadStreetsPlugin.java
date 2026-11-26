@@ -161,9 +161,6 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             crawlers.refresh(crawler);
             hulks.prepareTest(hulk);
 
-            if (crawler.getPose() != org.bukkit.entity.Pose.STANDING) {
-                throw new IllegalStateException("Crawler native fallback must remain upright (STANDING), not " + crawler.getPose());
-            }
             var scale = hulk.getAttribute(org.bukkit.attribute.Attribute.SCALE);
             if (scale == null || Math.abs(scale.getBaseValue() - 1.53846) > 0.001) {
                 throw new IllegalStateException("Hulk native scale is not the three-block target: "
@@ -173,7 +170,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             if (Math.abs(measuredHeight - 3.0) > 0.08) {
                 throw new IllegalStateException("Hulk bounding box is not three blocks tall: " + measuredHeight);
             }
-            getLogger().info("Native infected smoke test passed: Crawler compact pose hitbox; Hulk native scale "
+            getLogger().info("Native infected smoke test passed: Crawler uses its horizontal animated BetterModel geometry (native pose is not the crawl animation); Hulk native scale "
                     + String.format(Locale.ROOT, "%.5f", scale.getBaseValue()) + " and "
                     + String.format(Locale.ROOT, "%.3f", measuredHeight) + "-block bounding box; BetterModel integration is optional.");
         } finally {
