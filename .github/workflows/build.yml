@@ -128,7 +128,7 @@ jobs:
                   raw = jar.read(class_path)
                   if b"zombie" not in raw.lower():
                       continue
-                  for value in re.findall(rb"[\\x20-\\x7e]{5,}", raw):
+                  for value in re.findall(rb"[\x20-\x7e]{5,}", raw):
                       if b"zombie" in value.lower() or b"entity/" in value.lower():
                           class_strings.append(class_path + ": " + value.decode("ascii", "replace"))
           print("Minecraft 26.2 indexed zombie/humanoid textures:")
