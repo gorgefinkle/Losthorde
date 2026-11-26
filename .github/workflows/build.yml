@@ -108,15 +108,23 @@ jobs:
           test -n "$VERSION_URL" && test "$VERSION_URL" != "null"
           curl -fsSL "$VERSION_URL" -o minecraft-version.json
           ASSET_INDEX_URL="$(jq -r '.assetIndex.url' minecraft-version.json)"
+          CLIENT_URL="$(jq -r '.downloads.client.url' minecraft-version.json)"
           test -n "$ASSET_INDEX_URL" && test "$ASSET_INDEX_URL" != "null"
+          test -n "$CLIENT_URL" && test "$CLIENT_URL" != "null"
           curl -fsSL "$ASSET_INDEX_URL" -o minecraft-assets.json
+          curl -fsSL "$CLIENT_URL" -o minecraft-client.jar
           python3 - <<'PY'
           import json
+          from zipfile import ZipFile
           assets = json.load(open("minecraft-assets.json", encoding="utf-8"))["objects"]
-          candidates = [p for p in assets if p.startswith("minecraft/textures/") and "zombie" in p.lower() and p.endswith(".png")]
-          print("Minecraft 26.2 zombie-related texture assets:")
-          print("\\n".join(f"{p} ({assets[p]['size']} bytes)" for p in sorted(candidates)))
-          assert candidates, "Minecraft 26.2 asset index contains no zombie-related texture PNGs."
+          indexed = sorted(p for p in assets if p.startswith("minecraft/textures/") and ("zombie" in p.lower() or "humanoid" in p.lower()) and p.endswith(".png"))
+          with ZipFile("minecraft-client.jar") as jar:
+              bundled = sorted(p for p in jar.namelist() if p.startswith("assets/minecraft/textures/") and ("zombie" in p.lower() or "humanoid" in p.lower()) and p.endswith(".png"))
+          print("Minecraft 26.2 indexed zombie/humanoid textures:")
+          print("\\n".join(indexed) or "(none)")
+          print("Minecraft 26.2 bundled zombie/humanoid textures:")
+          print("\\n".join(bundled) or "(none)")
+          assert indexed or bundled, "Minecraft 26.2 client contains no zombie/humanoid texture assets."
           PY
       - name: Run Paper 26.2 without optional plugins
         run: |
