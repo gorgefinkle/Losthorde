@@ -2,13 +2,13 @@
 
 Experimental Paper 26.2 / Java 25 zombie population, migration, and special-infected plugin, with optional Metropolis BUILD population integration.
 
-**R23** carries optional BetterModel 3.7.1 visuals for the horizontal Crawler and broad three-block Hulk, plus per-player aimed identity/health displays.
+**R24** carries optional BetterModel 3.7.1 visuals for the horizontal Crawler and broad three-block Hulk, plus per-player aimed identity/health displays.
 
 ## Server requirements
 
 - Paper 26.2
 - Java 25
-- Dead Streets R22
+- Dead Streets R24
 - BetterModel 3.7.1 is optional. When installed, its custom Crawler/Hulk geometry and animations remain enabled; the vanilla zombie texture is the texture fallback.
 
 BetterModel builds the model geometry; Dead Streets delivers a companion pack that registers `minecraft:entity/zombie/zombie` in the **blocks atlas** used by BetterModel's generated block models. The companion pack deliberately contains no zombie PNG: each client resolves that resource from its active resource-pack stack, using the vanilla Minecraft zombie texture when no client override exists. This preserves client-side zombie texture replacements without allowing a missing texture to be substituted by a blank placeholder. Players must accept the companion pack to see custom models. No client mod is required. Metropolis integration remains optional and file-based.
