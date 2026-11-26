@@ -9,14 +9,14 @@ Experimental Paper 26.2 / Java 25 zombie population, migration, and special-infe
 - Paper 26.2
 - Java 25
 - Dead Streets R22
-- BetterModel 3.7.1 is optional. Native vanilla zombie rendering is the default safety mode; custom Crawler/Hulk visuals remain opt-in until client texture resolution is verified.
+- BetterModel 3.7.1 is optional. When installed, its custom Crawler/Hulk geometry and animations remain enabled; the vanilla zombie texture is the texture fallback.
 
-BetterModel builds the model geometry; Dead Streets delivers a small companion pack that registers the client's zombie texture in the item atlas. It ships no zombie PNG. Players must accept the pack to see custom models. No client mod is required. The default configuration keeps native vanilla rendering active to prevent missing-texture checkerboards. Metropolis integration remains optional and file-based.
+BetterModel builds the model geometry; Dead Streets delivers a companion pack that registers `minecraft:entity/zombie/zombie` in the **blocks atlas** used by BetterModel's generated block models. The companion pack deliberately contains no zombie PNG: each client resolves that resource from its active resource-pack stack, using the vanilla Minecraft zombie texture when no client override exists. This preserves client-side zombie texture replacements without allowing a missing texture to be substituted by a blank placeholder. Players must accept the companion pack to see custom models. No client mod is required. Metropolis integration remains optional and file-based.
 
 ## Special infected
 
-- **Crawler:** Real Zombie gameplay entity with a fixed compact swimming-pose hitbox and a horizontal animated Blockbench model. The previous vanilla swimming pose alone rendered upright; R15 corrects a visibility lifecycle bug: the plugin now lets BetterModel manage source-entity hiding and explicitly requests the model for current viewers. In-game rendering still requires client verification.
-- **Hulk:** Real Zombie with native scale 1.53846 and a measured three-block bounding box, plus a broad BetterModel zombie model and heavy_walk animation.
+- **Crawler:** Real upright Zombie gameplay entity with a horizontal animated Blockbench model. BetterModel supplies the crawl geometry and animation; the native entity is not put into a swimming pose.
+- **Hulk:** Real upright Zombie with native scale 1.53846 and a measured three-block bounding box, plus a broad BetterModel model and heavy_walk animation.
 - **Runner:** Retains its existing fast movement and combat tuning.
 - **Popper:** Retains its death burst, modest player damage, and release of 1–4 Crawlers.
 
@@ -47,4 +47,4 @@ The check runs once per player every three ticks by default. It does not scan al
 
 Run bash test_core.sh with Java 25. Build with mvn -B -ntp clean package. Paper is the only compile-time server dependency; BetterModel is integrated through its optional runtime API.
 
-CI starts Paper 26.2 without BetterModel to prove that the optional dependency does not prevent startup. It checks native Crawler/Hulk entity state and that both Blockbench models and the aimed identity system are packaged. A connected Minecraft client with the R22 pack accepted is still required to verify the item-atlas texture bridge, actual appearance, and animation; CI cannot prove visual texture resolution. Test on a disposable world first.
+CI starts Paper 26.2 without BetterModel to prove that the optional dependency does not prevent startup. It checks native Crawler/Hulk entity state and that both Blockbench models and the aimed identity system are packaged. A connected Minecraft client with the R24 companion pack accepted is still required to verify the blocks-atlas texture bridge, actual appearance, and animation; CI cannot prove client-side resource-pack resolution. Test on a disposable world first.
