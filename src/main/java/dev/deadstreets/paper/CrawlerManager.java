@@ -2,7 +2,6 @@ package dev.deadstreets.paper;
 
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
-import org.bukkit.entity.Pose;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
@@ -44,8 +43,8 @@ final class CrawlerManager {
         applyCrawlPose(zombie);
     }
     private void applyCrawlPose(Zombie zombie) {
-        // Keep the compact swimming hitbox; BetterModel supplies the actual horizontal body and crawl animation.
-        zombie.setPose(Pose.SWIMMING, true);
+        // The custom BetterModel supplies the horizontal body and crawl animation.
+        // Keep the native zombie upright so any visual fallback is an ordinary vanilla zombie.
         plugin.models().attach(zombie, "deadstreets_crawler", "crawl");
     }
     private void applyAttributes(Zombie zombie) {
