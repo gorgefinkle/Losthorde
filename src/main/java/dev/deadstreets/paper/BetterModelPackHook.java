@@ -204,7 +204,9 @@ final class BetterModelPackHook {
             boolean found = false;
             if (atlas.has("sources") && atlas.get("sources").isJsonArray()) {
                 for (JsonElement source : atlas.getAsJsonArray("sources")) {
-                    if (source.isJsonObject() && source.getAsJsonObject().has("resource")
+                    if (source.isJsonObject() && source.getAsJsonObject().has("type")
+                            && "minecraft:single".equals(source.getAsJsonObject().get("type").getAsString())
+                            && source.getAsJsonObject().has("resource")
                             && ZOMBIE_TEXTURE.equals(source.getAsJsonObject().get("resource").getAsString())) found = true;
                 }
             }
