@@ -294,8 +294,9 @@ final class BetterModelPackHook {
                     JsonObject oldAtlas = JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
                     if (oldAtlas.has("sources") && oldAtlas.get("sources").isJsonArray()) {
                         for (JsonElement source : oldAtlas.getAsJsonArray("sources")) {
-                            if (source.isJsonObject() && source.has("resource")
-                                    && ZOMBIE_TEXTURE.equals(source.getAsJsonObject().get("resource").getAsString()))
+                            if (source.isJsonObject()
+                                    && ((source.has("resource") && ZOMBIE_TEXTURE_RESOURCE.equals(source.getAsJsonObject().get("resource").getAsString()))
+                                        || (source.has("sprite") && ZOMBIE_TEXTURE_SPRITE.equals(source.getAsJsonObject().get("sprite").getAsString()))))
                                 throw new IOException("Zombie texture alias is incorrectly registered in the blocks atlas.");
                         }
                     }
