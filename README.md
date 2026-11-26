@@ -15,7 +15,7 @@ BetterModel builds the model geometry; Dead Streets delivers a companion pack th
 
 ## Special infected
 
-- **Crawler:** Real upright Zombie gameplay entity with a horizontal animated Blockbench model. BetterModel supplies the crawl geometry and animation; the native entity is not put into a swimming pose.
+- **Crawler:** A Zombie gameplay carrier rendered as a horizontal custom Blockbench crawler. BetterModel's root geometry is rotated 90 degrees and its crawl animation drives the limbs; the vanilla swimming pose is not used as a substitute for crawling.
 - **Hulk:** Real upright Zombie with native scale 1.53846 and a measured three-block bounding box, plus a broad BetterModel model and heavy_walk animation.
 - **Runner:** Retains its existing fast movement and combat tuning.
 - **Popper:** Retains its death burst, modest player damage, and release of 1–4 Crawlers.
