@@ -129,7 +129,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         hordes.start();
         bloodMoon.start();
         scragglers.start();
-        getLogger().info("Dead Streets R24: BetterModel-native pack injection; client zombie texture is inherited without a separate Dead Streets pack.");
+        getLogger().info("Dead Streets R24: native vanilla infected rendering is the safe default; BetterModel visuals are opt-in until client texture resolution is verified.");
     }
     @Override public void onDisable() {
         if (spawners != null) spawners.stop();
