@@ -194,8 +194,8 @@ def run_client(game_directory: Path, server_log: Path, server_address: str, time
                 if request_marker in server_text and not prompt_fallback_sent:
                     if time.monotonic() - started > 35:
                         window = find_window()
-                        xdotool("windowactivate", "--sync", window)
-                        xdotool("key", "--window", window, "Return")
+                        xdotool("windowfocus", "--sync", window)
+                        xdotool("key", "Return")
                         prompt_fallback_sent = True
                 time.sleep(1)
 
@@ -210,10 +210,10 @@ def run_client(game_directory: Path, server_log: Path, server_address: str, time
             # The server pack is now active in an ordinary, unmodified 26.2
             # client. Spawn a Crawler in front of this player and capture it.
             window = find_window()
-            xdotool("windowactivate", "--sync", window)
-            xdotool("key", "--window", window, "t")
-            xdotool("type", "--window", window, "--clearmodifiers", "--delay", "25", "/ds spawn crawler -f")
-            xdotool("key", "--window", window, "Return")
+            xdotool("windowfocus", "--sync", window)
+            xdotool("key", "t")
+            xdotool("type", "--clearmodifiers", "--delay", "25", "/ds spawn crawler -f")
+            xdotool("key", "Return")
 
             spawn_marker = "Client texture smoke command: DEV FORCE: spawned uncounted test Crawler"
             spawn_deadline = time.monotonic() + 45
@@ -232,7 +232,7 @@ def run_client(game_directory: Path, server_log: Path, server_address: str, time
                 )
 
             time.sleep(4)
-            xdotool("key", "--window", window, "F2")
+            xdotool("key", "F2")
             screenshot_deadline = time.monotonic() + 15
             screenshot = None
             while time.monotonic() < screenshot_deadline:
