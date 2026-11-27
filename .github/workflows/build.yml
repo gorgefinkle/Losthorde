@@ -79,6 +79,7 @@ jobs:
               assert "target-display:" in config and "update-interval-ticks: 3" in config, "Aimed identity display is missing"
               assert "chat-health-bars:" not in config, "Obsolete chat health bars remain"
               assert "resource-pack:" in config and "DeadStreets-R26-models.zip" in config, "Integrated BetterModel pack delivery URL is missing"
+              assert "r26-vanilla-texture-alias-validation/release-assets/DeadStreets-R26-models.zip" in config, "R26 model pack URL must point at the R26 validation branch"
           horde = open("src/main/java/dev/deadstreets/paper/HordeManager.java", encoding="utf-8").read()
           warning = open("src/main/java/dev/deadstreets/paper/DeadStreetsPlugin.java", encoding="utf-8").read()
           assert "eta,dist" in horde, "Horde alert does not pass live block distance"
@@ -95,6 +96,9 @@ jobs:
           assert "frontX" in crawler and "actual.getBlockX()" in crawler, "Crawler test spawn must prioritize a visible front position and report exact coordinates"
           assert "Pose.SWIMMING" not in crawler, "Do not pretend vanilla swimming pose is a crawl animation"
           assert "horizontal animated BetterModel geometry" in warning, "Native smoke test must describe the custom horizontal Crawler model, not an upright fallback"
+          hulk_manager = open("src/main/java/dev/deadstreets/paper/HulkManager.java", encoding="utf-8").read()
+          assert "zombie.setAdult()" in hulk_manager, "Every Hulk must be forced to adult size before scale is applied"
+          assert "hulk.isAdult()" in warning, "Native smoke test must reject baby-sized Hulks"
           pack_hook = open("src/main/java/dev/deadstreets/paper/BetterModelPackHook.java", encoding="utf-8").read()
           assert 'String atlasPath = "assets/minecraft/atlases/items.json"' in pack_hook, "BetterModel item textures must register in the items atlas"
           assert 'ZOMBIE_TEXTURE_SPRITE = "deadstreets:item/zombie"' in pack_hook, "Entity texture must be exposed under an explicit item-atlas sprite identifier"

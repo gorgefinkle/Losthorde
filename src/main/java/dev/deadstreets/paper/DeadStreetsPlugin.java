@@ -160,6 +160,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             crawlers.prepareTest(crawler);
             crawlers.refresh(crawler);
             hulks.prepareTest(hulk);
+            if (!hulk.isAdult()) throw new IllegalStateException("Hulk must be an adult zombie before applying its three-block scale");
 
             var scale = hulk.getAttribute(org.bukkit.attribute.Attribute.SCALE);
             if (scale == null || Math.abs(scale.getBaseValue() - 1.53846) > 0.001) {

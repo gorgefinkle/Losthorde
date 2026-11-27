@@ -53,6 +53,9 @@ final class HulkManager {
     }
 
     private void applyAttributes(Zombie zombie) {
+        // Hulks are never baby zombies. Java 26.2 baby zombie hitboxes are only 0.98 blocks tall,
+        // which would defeat the three-block scale target even though the SCALE attribute is correct.
+        zombie.setAdult();
         double scale = clamp(plugin.getConfig().getDouble("special-infected.hulk.scale", THREE_BLOCK_SCALE), 1.0, THREE_BLOCK_SCALE);
         set(zombie, Attribute.SCALE, scale);
         refreshNativeDimensions(zombie);
