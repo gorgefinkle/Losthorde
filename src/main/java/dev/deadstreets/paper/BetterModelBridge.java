@@ -226,6 +226,7 @@ final class BetterModelBridge {
         switch (event.getStatus()) {
             case SUCCESSFULLY_LOADED -> {
                 packLoadedPlayers.add(player.getUniqueId());
+                plugin.getLogger().info("Player " + player.getName() + " successfully loaded the integrated Dead Streets model pack.");
                 refreshPlayer(player);
             }
             case DECLINED, FAILED_DOWNLOAD, INVALID_URL, FAILED_RELOAD, DISCARDED -> {

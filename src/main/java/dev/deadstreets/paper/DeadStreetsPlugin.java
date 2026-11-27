@@ -129,7 +129,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         hordes.start();
         bloodMoon.start();
         scragglers.start();
-        getLogger().info("Dead Streets R27: BetterModel custom infected geometry is enabled; zombie textures resolve through the client resource-pack stack with vanilla as the fallback.");
+        getLogger().info("Dead Streets R28: BetterModel custom infected geometry is enabled; zombie textures resolve through the client resource-pack stack with vanilla as the fallback.");
     }
     @Override public void onDisable() {
         if (spawners != null) spawners.stop();
@@ -460,6 +460,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
                 return true;
             }
             sender.sendMessage((result.startsWith("Spawned") || result.startsWith("DEV FORCE")) ? ChatColor.GREEN + result : ChatColor.RED + result);
+            if (Boolean.getBoolean("deadstreets.client-texture-smoke")) getLogger().info("Client texture smoke command: " + result);
             return true;
         }
         if (args.length == 1 && args[0].equalsIgnoreCase("flags")) {
