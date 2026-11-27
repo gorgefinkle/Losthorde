@@ -129,7 +129,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         hordes.start();
         bloodMoon.start();
         scragglers.start();
-        getLogger().info("Dead Streets R26: BetterModel custom infected geometry is enabled; zombie textures resolve through the client resource-pack stack with vanilla as the fallback.");
+        getLogger().info("Dead Streets R27: BetterModel custom infected geometry is enabled; zombie textures resolve through the client resource-pack stack with vanilla as the fallback.");
     }
     @Override public void onDisable() {
         if (spawners != null) spawners.stop();
@@ -159,6 +159,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
 
             crawlers.prepareTest(crawler);
             crawlers.refresh(crawler);
+            if (!crawler.isAdult()) throw new IllegalStateException("Crawler must be an adult zombie so its model uses the aliased adult zombie texture");
             hulks.prepareTest(hulk);
             if (!hulk.isAdult()) throw new IllegalStateException("Hulk must be an adult zombie before applying its three-block scale");
 
@@ -171,7 +172,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
             if (Math.abs(measuredHeight - 3.0) > 0.08) {
                 throw new IllegalStateException("Hulk bounding box is not three blocks tall: " + measuredHeight);
             }
-            getLogger().info("Native infected smoke test passed: Crawler uses its horizontal animated BetterModel geometry (native pose is not the crawl animation); Hulk native scale "
+            getLogger().info("Native infected smoke test passed: adult Crawler uses its horizontal animated BetterModel geometry (native pose is not the crawl animation); Hulk native scale "
                     + String.format(Locale.ROOT, "%.5f", scale.getBaseValue()) + " and "
                     + String.format(Locale.ROOT, "%.3f", measuredHeight) + "-block bounding box; BetterModel integration is optional.");
         } finally {

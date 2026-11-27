@@ -48,6 +48,9 @@ final class CrawlerManager {
         plugin.models().attach(zombie, "deadstreets_crawler", "crawl");
     }
     private void applyAttributes(Zombie zombie) {
+        // The custom model UVs and items-atlas alias target the adult zombie skin. Baby zombies use
+        // a separate zombie_baby texture, so every Crawler is normalized to the adult source form.
+        zombie.setAdult();
         // Keep native zombie dimensions; the horizontal profile belongs to the custom model.
         set(zombie, Attribute.SCALE, 1.0);
         set(zombie, Attribute.MAX_HEALTH, clamp(plugin.getConfig().getDouble("special-infected.crawler.max-health", 24.0), 10.0, 60.0));

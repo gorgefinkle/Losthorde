@@ -30,7 +30,7 @@ jobs:
           import re, json, base64
           from zipfile import ZipFile
 
-          jar_path = "target/DeadStreets_R26.jar"
+          jar_path = "target/DeadStreets_R27.jar"
           with ZipFile(jar_path) as jar:
               names = jar.namelist()
               descriptor = jar.read("plugin.yml").decode("utf-8")
@@ -78,8 +78,8 @@ jobs:
               config = jar.read("config.yml").decode("utf-8")
               assert "target-display:" in config and "update-interval-ticks: 3" in config, "Aimed identity display is missing"
               assert "chat-health-bars:" not in config, "Obsolete chat health bars remain"
-              assert "resource-pack:" in config and "DeadStreets-R26-models.zip" in config, "Integrated BetterModel pack delivery URL is missing"
-              assert "r26-vanilla-texture-alias-validation/release-assets/DeadStreets-R26-models.zip" in config, "R26 model pack URL must point at the R26 validation branch"
+              assert "resource-pack:" in config and "DeadStreets-R27-models.zip" in config, "Integrated BetterModel pack delivery URL is missing"
+              assert "r27-adult-crawler-texture-consistency/release-assets/DeadStreets-R27-models.zip" in config, "R27 model pack URL must point at the R27 validation branch"
           horde = open("src/main/java/dev/deadstreets/paper/HordeManager.java", encoding="utf-8").read()
           warning = open("src/main/java/dev/deadstreets/paper/DeadStreetsPlugin.java", encoding="utf-8").read()
           assert "eta,dist" in horde, "Horde alert does not pass live block distance"
@@ -96,6 +96,9 @@ jobs:
           assert "frontX" in crawler and "actual.getBlockX()" in crawler, "Crawler test spawn must prioritize a visible front position and report exact coordinates"
           assert "Pose.SWIMMING" not in crawler, "Do not pretend vanilla swimming pose is a crawl animation"
           assert "horizontal animated BetterModel geometry" in warning, "Native smoke test must describe the custom horizontal Crawler model, not an upright fallback"
+          crawler_manager = open("src/main/java/dev/deadstreets/paper/CrawlerManager.java", encoding="utf-8").read()
+          assert "zombie.setAdult()" in crawler_manager, "Crawlers must use adult form to match the aliased adult zombie texture"
+          assert "crawler.isAdult()" in warning, "Native smoke test must reject baby Crawlers"
           hulk_manager = open("src/main/java/dev/deadstreets/paper/HulkManager.java", encoding="utf-8").read()
           assert "zombie.setAdult()" in hulk_manager, "Every Hulk must be forced to adult size before scale is applied"
           assert "hulk.isAdult()" in warning, "Native smoke test must reject baby-sized Hulks"
@@ -162,7 +165,7 @@ jobs:
       - name: Run Paper 26.2 without optional plugins
         run: |
           mkdir -p plugins
-          cp target/DeadStreets_R26.jar plugins/DeadStreets.jar
+          cp target/DeadStreets_R27.jar plugins/DeadStreets.jar
           test "$(find plugins -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 1
           echo 'eula=true' > eula.txt
           cat > server.properties <<'EOF'
@@ -188,7 +191,7 @@ jobs:
             wait "$SERVER_PID" 2>/dev/null || true
             exit 1
           fi
-          grep -F 'Dead Streets R26:' logs/latest.log
+          grep -F 'Dead Streets R27:' logs/latest.log
           grep -F 'Native infected smoke test passed' logs/latest.log
           kill -TERM "$SERVER_PID" 2>/dev/null || true
           for attempt in $(seq 1 15); do
@@ -203,7 +206,7 @@ jobs:
       - name: Run Paper 26.2 with BetterModel and validate imported assets
         run: |
           mkdir -p bettermodel-smoke/plugins
-          cp target/DeadStreets_R26.jar bettermodel-smoke/plugins/DeadStreets.jar
+          cp target/DeadStreets_R27.jar bettermodel-smoke/plugins/DeadStreets.jar
           cp bettermodel.jar bettermodel-smoke/plugins/BetterModel.jar
           mkdir -p bettermodel-smoke/plugins/BetterModel
           unzip -p bettermodel.jar config.yml > bettermodel-smoke/plugins/BetterModel/config.yml
@@ -255,34 +258,34 @@ jobs:
       - name: Upload integrated BetterModel pack for inspection
         uses: actions/upload-artifact@v4
         with:
-          name: DeadStreets-R26-integrated-model-pack
+          name: DeadStreets-R27-integrated-model-pack
           path: bettermodel-smoke/plugins/BetterModel/build.zip
           if-no-files-found: error
           retention-days: 30
       - name: Publish integrated BetterModel pack
-        if: github.event_name == 'push' && github.ref == 'refs/heads/r26-vanilla-texture-alias-validation'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/r27-adult-crawler-texture-consistency'
         run: |
           mkdir -p release-assets
-          cp bettermodel-smoke/plugins/BetterModel/build.zip release-assets/DeadStreets-R26-models.zip
+          cp bettermodel-smoke/plugins/BetterModel/build.zip release-assets/DeadStreets-R27-models.zip
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f release-assets/DeadStreets-R26-models.zip
+          git add -f release-assets/DeadStreets-R27-models.zip
           if ! git diff --cached --quiet; then
-            git commit -m "Publish Dead Streets R26 integrated BetterModel pack"
+            git commit -m "Publish Dead Streets R27 integrated BetterModel pack"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
       - name: Package full source
         run: |
           mkdir -p dist
-          cp target/DeadStreets_R26.jar dist/
-          git archive --format=zip --output=dist/DeadStreets_R26-source.zip HEAD
+          cp target/DeadStreets_R27.jar dist/
+          git archive --format=zip --output=dist/DeadStreets_R27-source.zip HEAD
           cd dist
-          zip -q DeadStreets-R26-delivery.zip DeadStreets_R26.jar DeadStreets_R26-source.zip
+          zip -q DeadStreets-R27-delivery.zip DeadStreets_R27.jar DeadStreets_R27-source.zip
           cd ..
       - name: Upload test build
         uses: actions/upload-artifact@v4
         with:
-          name: DeadStreets-R26-test-build
-          path: dist/DeadStreets-R26-delivery.zip
+          name: DeadStreets-R27-test-build
+          path: dist/DeadStreets-R27-delivery.zip
           if-no-files-found: error
           retention-days: 30
