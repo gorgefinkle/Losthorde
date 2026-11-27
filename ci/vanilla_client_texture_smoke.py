@@ -70,11 +70,9 @@ def write_probe_pack(game_directory: Path) -> None:
     (root / "pack.mcmeta").write_text(
         json.dumps({
             "pack": {
-                "pack_format": 88,
                 "description": "Dead Streets CI: local zombie texture inheritance probe",
-                "supported_formats": [88, 88],
-                "min_format": 88,
-                "max_format": 88
+                "min_format": [88, 0],
+                "max_format": [88, 0]
             }
         }),
         encoding="utf-8"
@@ -205,6 +203,19 @@ def run_client(game_directory: Path, server_log: Path, server_address: str, time
                     "Server log:\n" + tail(server_log) +
                     "\nClient log:\n" + tail(client_log) +
                     "\nLauncher log:\n" + tail(launcher_log)
+                )
+
+            loaded_client_log = client_log.read_text(encoding="utf-8", errors="replace") if client_log.exists() else ""
+            if PROBE_PACK not in loaded_client_log:
+                raise RuntimeError(
+                    f"The vanilla client did not keep the local probe pack '{PROBE_PACK}' active. "
+                    "Its local pack must remain in the resource stack under the server pack.\n"
+                    + tail(client_log)
+                )
+            if "Removed resource pack file/" + PROBE_PACK + " from options" in loaded_client_log:
+                raise RuntimeError(
+                    f"Minecraft rejected the local probe pack '{PROBE_PACK}' as incompatible.\n"
+                    + tail(client_log)
                 )
 
             # The server pack is now active in an ordinary, unmodified 26.2
