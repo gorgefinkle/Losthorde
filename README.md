@@ -2,13 +2,13 @@
 
 Experimental Paper 26.2 / Java 25 zombie population, migration, and special-infected plugin, with optional Metropolis BUILD population integration.
 
-**R24** carries optional BetterModel 3.7.1 visuals for the horizontal Crawler and broad three-block Hulk, plus per-player aimed identity/health displays.
+**R25** carries optional BetterModel 3.7.1 visuals for the horizontal Crawler and broad three-block Hulk, plus per-player aimed identity/health displays.
 
 ## Server requirements
 
 - Paper 26.2
 - Java 25
-- Dead Streets R24
+- Dead Streets R25
 - BetterModel 3.7.1 is optional. When installed, its custom Crawler/Hulk geometry and animations remain enabled; the vanilla zombie texture is the texture fallback.
 
 BetterModel builds the model geometry; Dead Streets adds an explicit `deadstreets:item/zombie` sprite to the **items atlas**, sourced from `minecraft:entity/zombie/zombie`. That item-atlas sprite name keeps the generated item models on the correct 26.2 atlas while the underlying image still resolves from each client's active resource-pack stack. The companion pack deliberately contains no zombie PNG: clients use their own zombie texture override, or Minecraft's vanilla texture when no override exists. This preserves client-side zombie texture replacements without allowing a missing texture to be substituted by a blank placeholder. Players must accept the companion pack to see custom models. No client mod is required. Metropolis integration remains optional and file-based.
@@ -47,4 +47,4 @@ The check runs once per player every three ticks by default. It does not scan al
 
 Run bash test_core.sh with Java 25. Build with mvn -B -ntp clean package. Paper is the only compile-time server dependency; BetterModel is integrated through its optional runtime API.
 
-CI starts Paper 26.2 without BetterModel to prove that the optional dependency does not prevent startup. It checks native Crawler/Hulk entity state and that both Blockbench models and the aimed identity system are packaged. A connected Minecraft client with the R24 companion pack accepted is still required to verify the items-atlas texture bridge, actual appearance, and animation; CI cannot prove client-side resource-pack resolution. Test on a disposable world first.
+CI starts Paper 26.2 without BetterModel to prove that the optional dependency does not prevent startup. It checks native Crawler/Hulk entity state and that both Blockbench models and the aimed identity system are packaged. A connected Minecraft client with the R25 companion pack accepted is still required to verify the items-atlas texture bridge, actual appearance, and animation; CI cannot prove client-side resource-pack resolution. Test on a disposable world first.
