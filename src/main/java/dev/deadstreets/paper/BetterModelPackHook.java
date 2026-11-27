@@ -40,6 +40,7 @@ final class BetterModelPackHook {
     private Object subscription;
     private boolean registered;
     private boolean injected;
+    private Set<String> omittedTexturePngPaths = Set.of();
 
     BetterModelPackHook(DeadStreetsPlugin plugin) {
         this.plugin = plugin;
@@ -80,6 +81,7 @@ final class BetterModelPackHook {
             }
 
             Set<String> expectedUv = expectedUvSignatures();
+            Set<String> expectedOmittedTexturePngPaths = new HashSet<>();
             try (ZipFile zip = new ZipFile(generated.toFile())) {
                 Map<String, byte[]> files = new java.util.HashMap<>();
                 var entries = zip.entries();
@@ -117,6 +119,7 @@ final class BetterModelPackHook {
                         if (!texture.getValue().isJsonPrimitive()) throw new IOException("Invalid texture value in " + modelPath);
                         String value = texture.getValue().getAsString();
                         if (value.startsWith("bettermodel:item/")) {
+                            expectedOmittedTexturePngPaths.add(texturePngPath(value, modelPath));
                             textures.addProperty(texture.getKey(), ZOMBIE_TEXTURE_SPRITE);
                             rewritten = true;
                         } else if (!value.equals(ZOMBIE_TEXTURE_SPRITE)) {
@@ -143,9 +146,15 @@ final class BetterModelPackHook {
                             + signature + "; found " + count);
                 }
 
-                // Java 26.2 has no general mob atlas. BetterModel's generated item
-                // models resolve through the items atlas, so expose the client's
-                // active zombie texture there without shipping or overriding its PNG.
+                if (expectedOmittedTexturePngPaths.size() != 2) {
+                    throw new IOException("Expected exactly two BetterModel input placeholder PNGs to suppress; found "
+                            + expectedOmittedTexturePngPaths.size() + ": " + expectedOmittedTexturePngPaths);
+                }
+
+                // Atlas sources are merged from active packs by the vanilla client.
+                // The single-file source resolves this resource through each client's ResourceManager.
+                // Since Dead Streets supplies no zombie PNG, a player's local override wins; otherwise vanilla wins.
+                // The alias belongs in the items atlas because BetterModel renders these parts as ItemDisplays.
                 String atlasPath = "assets/minecraft/atlases/items.json";
                 JsonObject atlas = files.containsKey(atlasPath)
                         ? JsonParser.parseString(new String(files.get(atlasPath), StandardCharsets.UTF_8)).getAsJsonObject()
@@ -190,6 +199,7 @@ final class BetterModelPackHook {
                         addAsset(assets, oldAtlasPath, (oldAtlas.toString() + "\n").getBytes(StandardCharsets.UTF_8));
                     }
                 }
+                omittedTexturePngPaths = Set.copyOf(expectedOmittedTexturePngPaths);
                 injected = true;
                 plugin.getLogger().info("Injected zombie texture atlas registration and " + modelPaths.size()
                         + " UV-matched infected model definitions into BetterModel's own pack (filename obfuscation supported).");
@@ -244,6 +254,17 @@ final class BetterModelPackHook {
                 uv.get(3).getAsDouble() / divisorY);
     }
 
+    private static String texturePngPath(String textureReference, String modelPath) throws IOException {
+        int colon = textureReference.indexOf(':');
+        if (colon < 1) throw new IOException("Invalid BetterModel texture reference in " + modelPath + ": " + textureReference);
+        String namespace = textureReference.substring(0, colon);
+        String texturePath = textureReference.substring(colon + 1);
+        if (!texturePath.startsWith("item/"))
+            throw new IOException("Expected BetterModel item texture in " + modelPath + ": " + textureReference);
+        if (!texturePath.endsWith(".png")) texturePath += ".png";
+        return "assets/" + namespace + "/textures/" + texturePath;
+    }
+
     private static String modelReference(JsonObject item) {
         if (!item.has("model") || !item.get("model").isJsonObject()) return null;
         JsonElement reference = item.getAsJsonObject("model").get("model");
@@ -269,6 +290,8 @@ final class BetterModelPackHook {
     String auditGeneratedPack(Path zipPath) throws IOException {
         if (!injected) throw new IOException("BetterModel's reload hook did not inject any assets.");
         Set<String> expectedUv = expectedUvSignatures();
+        if (omittedTexturePngPaths.size() != 2)
+            throw new IOException("The pack hook did not identify both non-exportable Blockbench placeholder PNGs.");
         try (ZipFile zip = new ZipFile(zipPath.toFile())) {
             ZipEntry atlasEntry = zip.getEntry("assets/minecraft/atlases/items.json");
             if (atlasEntry == null) throw new IOException("BetterModel output pack is missing the injected items atlas.");
@@ -304,6 +327,10 @@ final class BetterModelPackHook {
             }
             if (zip.getEntry("assets/minecraft/textures/entity/zombie/zombie.png") != null)
                 throw new IOException("Dead Streets must not replace the client's zombie texture PNG.");
+            for (String placeholderPath : omittedTexturePngPaths) {
+                if (zip.getEntry(placeholderPath) != null || zip.getEntry(placeholderPath + ".mcmeta") != null)
+                    throw new IOException("BetterModel exported an unused Dead Streets import placeholder: " + placeholderPath);
+            }
 
             Set<String> referencedModels = new HashSet<>();
             Set<String> referencedItems = new HashSet<>();
@@ -349,7 +376,8 @@ final class BetterModelPackHook {
                         + signature + "; expected one Crawler and one Hulk.");
             }
             return "items=" + referencedItems.size() + ", models=" + referencedModels.size()
-                    + ", zombie entity texture exposed as deadstreets:item/zombie in the items atlas, obfuscated filenames supported, no zombie PNG shipped";
+                    + ", zombie entity texture exposed as deadstreets:item/zombie in the items atlas, obfuscated filenames supported, omitted-placeholder-pngs="
+                    + omittedTexturePngPaths.size() + ", no zombie PNG shipped";
         }
     }
 }

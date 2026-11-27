@@ -1,4 +1,4 @@
-# Dead Streets R25: BetterModel-native pack injection for client zombie texture inheritance.
+# Dead Streets R26: BetterModel-native pack injection for client zombie texture inheritance.
 blood-moon:
   enabled: true
   # Every N in-game days, the selected night becomes a Blood Moon.
@@ -60,8 +60,8 @@ models:
     # Custom infected geometry stays enabled. Texture fallback is handled separately; do not replace the model with a vanilla entity.
     resource-pack:
       enabled: true
-      # R25 maps the client's zombie entity texture to the deadstreets:item/zombie sprite in BetterModel's items atlas.
-      url: "https://raw.githubusercontent.com/gorgefinkle/Losthorde/r10-runner-popper-crawler-hulk/release-assets/DeadStreets-R25-models.zip"
+      # R26 maps the client's zombie entity texture to the deadstreets:item/zombie sprite in BetterModel's items atlas.
+      url: "https://raw.githubusercontent.com/gorgefinkle/Losthorde/r10-runner-popper-crawler-hulk/release-assets/DeadStreets-R26-models.zip"
       required: false
 vanilla-mobs:
   # Non-zombie hostile mobs are blocked for every spawn reason except COMMAND and SPAWNER_EGG.

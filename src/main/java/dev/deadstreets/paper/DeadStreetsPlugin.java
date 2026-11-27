@@ -129,7 +129,7 @@ public final class DeadStreetsPlugin extends JavaPlugin implements Listener, Com
         hordes.start();
         bloodMoon.start();
         scragglers.start();
-        getLogger().info("Dead Streets R25: BetterModel custom infected geometry is enabled; zombie textures resolve through the client resource-pack stack with vanilla as the fallback.");
+        getLogger().info("Dead Streets R26: BetterModel custom infected geometry is enabled; zombie textures resolve through the client resource-pack stack with vanilla as the fallback.");
     }
     @Override public void onDisable() {
         if (spawners != null) spawners.stop();

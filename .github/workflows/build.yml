@@ -30,7 +30,7 @@ jobs:
           import re, json, base64
           from zipfile import ZipFile
 
-          jar_path = "target/DeadStreets_R25.jar"
+          jar_path = "target/DeadStreets_R26.jar"
           with ZipFile(jar_path) as jar:
               names = jar.namelist()
               descriptor = jar.read("plugin.yml").decode("utf-8")
@@ -50,6 +50,10 @@ jobs:
                   if animation == "crawl":
                       root = next(group for group in model["groups"] if group["uuid"] == model["outliner"][0]["uuid"])
                       assert root["rotation"] == [-90, 0, 0], "Crawler's custom root geometry must be horizontal; do not rely on vanilla swimming pose"
+                  assert model["textures"][0]["name"] == "-infected_skin.png", f"{path} must keep the UV image internal-only"
+                  assert len(model["textures"]) == 2 and model["textures"][1]["name"] == "unused_pack_gate.png", f"{path} must have an unreferenced BetterModel import gate"
+                  assert model["textures"][1]["id"] == "1", f"{path} unused import gate must be texture id 1"
+                  assert all(face.get("texture", 0) == 0 for element in model["elements"] for face in element["faces"].values()), f"{path} geometry must not reference the unused import gate"
                   source = model["textures"][0]["source"]
                   assert source.startswith("data:image/png;base64,"), f"Texture placeholder is not a PNG data URI: {path}"
                   png = base64.b64decode(source.split(",", 1)[1])
@@ -74,7 +78,7 @@ jobs:
               config = jar.read("config.yml").decode("utf-8")
               assert "target-display:" in config and "update-interval-ticks: 3" in config, "Aimed identity display is missing"
               assert "chat-health-bars:" not in config, "Obsolete chat health bars remain"
-              assert "resource-pack:" in config and "DeadStreets-R25-models.zip" in config, "Integrated BetterModel pack delivery URL is missing"
+              assert "resource-pack:" in config and "DeadStreets-R26-models.zip" in config, "Integrated BetterModel pack delivery URL is missing"
           horde = open("src/main/java/dev/deadstreets/paper/HordeManager.java", encoding="utf-8").read()
           warning = open("src/main/java/dev/deadstreets/paper/DeadStreetsPlugin.java", encoding="utf-8").read()
           assert "eta,dist" in horde, "Horde alert does not pass live block distance"
@@ -100,6 +104,7 @@ jobs:
           assert 'String oldAtlasPath = "assets/minecraft/atlases/blocks.json"' in pack_hook, "Obsolete blocks-atlas alias cleanup is missing"
           assert 'ZipEntry oldBlocksAtlas = zip.getEntry("assets/minecraft/atlases/blocks.json")' in pack_hook, "Final-pack audit must inspect blocks.json for an obsolete alias, not reject the valid items-atlas alias"
           assert "expectedUvSignatures()" in pack_hook and "matchingUvSignature(model, expectedUv)" in pack_hook, "BetterModel model discovery must work with obfuscated filenames by matching model UV geometry"
+          assert "omittedTexturePngPaths" in pack_hook and "placeholderPath" in pack_hook, "BetterModel pack audit must prove its embedded import placeholders are not exported"
           assert 'path.contains("deadstreets_")' not in pack_hook and 'itemPath.contains("deadstreets_")' not in pack_hook, "Do not depend on BetterModel's optional filename obfuscation setting"
           print("Packaging check passed: optional BetterModel integration, source-entity lifecycle, explicit tracker visibility, UV-matched item-atlas sprite alias to the client zombie texture, horizontal Crawler model, both model assets and targeted identity display are present.")
           PY
@@ -153,7 +158,7 @@ jobs:
       - name: Run Paper 26.2 without optional plugins
         run: |
           mkdir -p plugins
-          cp target/DeadStreets_R25.jar plugins/DeadStreets.jar
+          cp target/DeadStreets_R26.jar plugins/DeadStreets.jar
           test "$(find plugins -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 1
           echo 'eula=true' > eula.txt
           cat > server.properties <<'EOF'
@@ -179,7 +184,7 @@ jobs:
             wait "$SERVER_PID" 2>/dev/null || true
             exit 1
           fi
-          grep -F 'Dead Streets R25:' logs/latest.log
+          grep -F 'Dead Streets R26:' logs/latest.log
           grep -F 'Native infected smoke test passed' logs/latest.log
           kill -TERM "$SERVER_PID" 2>/dev/null || true
           for attempt in $(seq 1 15); do
@@ -194,7 +199,7 @@ jobs:
       - name: Run Paper 26.2 with BetterModel and validate imported assets
         run: |
           mkdir -p bettermodel-smoke/plugins
-          cp target/DeadStreets_R25.jar bettermodel-smoke/plugins/DeadStreets.jar
+          cp target/DeadStreets_R26.jar bettermodel-smoke/plugins/DeadStreets.jar
           cp bettermodel.jar bettermodel-smoke/plugins/BetterModel.jar
           mkdir -p bettermodel-smoke/plugins/BetterModel
           unzip -p bettermodel.jar config.yml > bettermodel-smoke/plugins/BetterModel/config.yml
@@ -225,6 +230,7 @@ jobs:
             exit 1
           fi
           grep -F 'BetterModel integrated pack smoke test passed' logs/latest.log
+          grep -F 'omitted-placeholder-pngs=2' logs/latest.log
           python3 - <<'PY'
           from zipfile import ZipFile
           from pathlib import Path
@@ -235,7 +241,7 @@ jobs:
               names = [n for n in z.namelist() if not n.endswith("/")]
               pngs = [n for n in names if n.lower().endswith(".png")]
               assert "pack.mcmeta" in names, "Generated BetterModel pack is missing pack.mcmeta"
-              assert len(pngs) >= 2, f"Generated BetterModel pack has only {len(pngs)} PNG assets"
+              # The Dead Streets model-import placeholders are explicitly audited by the Java pack hook.
               assert any(n.lower().startswith("assets/") for n in names), "Generated pack has no Minecraft assets tree"
           print(f"Generated BetterModel pack verified: {len(pngs)} PNGs, {pack.stat().st_size} bytes, SHA1={hashlib.sha1(pack.read_bytes()).hexdigest()}")
           PY
@@ -245,34 +251,34 @@ jobs:
       - name: Upload integrated BetterModel pack for inspection
         uses: actions/upload-artifact@v4
         with:
-          name: DeadStreets-R25-integrated-model-pack
+          name: DeadStreets-R26-integrated-model-pack
           path: bettermodel-smoke/plugins/BetterModel/build.zip
           if-no-files-found: error
           retention-days: 30
       - name: Publish integrated BetterModel pack
-        if: github.event_name == 'push' && github.ref == 'refs/heads/r10-runner-popper-crawler-hulk'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/r26-vanilla-texture-alias-validation'
         run: |
           mkdir -p release-assets
-          cp bettermodel-smoke/plugins/BetterModel/build.zip release-assets/DeadStreets-R25-models.zip
+          cp bettermodel-smoke/plugins/BetterModel/build.zip release-assets/DeadStreets-R26-models.zip
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f release-assets/DeadStreets-R25-models.zip
+          git add -f release-assets/DeadStreets-R26-models.zip
           if ! git diff --cached --quiet; then
-            git commit -m "Publish Dead Streets R25 integrated BetterModel pack"
+            git commit -m "Publish Dead Streets R26 integrated BetterModel pack"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
       - name: Package full source
         run: |
           mkdir -p dist
-          cp target/DeadStreets_R25.jar dist/
-          git archive --format=zip --output=dist/DeadStreets_R25-source.zip HEAD
+          cp target/DeadStreets_R26.jar dist/
+          git archive --format=zip --output=dist/DeadStreets_R26-source.zip HEAD
           cd dist
-          zip -q DeadStreets-R25-delivery.zip DeadStreets_R25.jar DeadStreets_R25-source.zip
+          zip -q DeadStreets-R26-delivery.zip DeadStreets_R26.jar DeadStreets_R26-source.zip
           cd ..
       - name: Upload test build
         uses: actions/upload-artifact@v4
         with:
-          name: DeadStreets-R25-test-build
-          path: dist/DeadStreets-R25-delivery.zip
+          name: DeadStreets-R26-test-build
+          path: dist/DeadStreets-R26-delivery.zip
           if-no-files-found: error
           retention-days: 30

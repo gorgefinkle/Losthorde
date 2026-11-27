@@ -68,7 +68,7 @@ final class BetterModelBridge {
                             packReady = true;
                             plugin.getLogger().info("BetterModel integrated texture-pack audit passed: " + report);
                             if (Boolean.getBoolean("deadstreets.bettermodel-smoke")) plugin.getLogger().info("BetterModel integrated pack smoke test passed: " + report);
-                            plugin.getLogger().info("BetterModel model assets and texture alias are integrated in the generated server-delivered pack; no zombie PNG is shipped.");
+                            plugin.getLogger().info("BetterModel model assets and the per-client zombie texture alias are integrated; no mob or import-placeholder PNG is shipped.");
                             for (Player online : Bukkit.getOnlinePlayers()) Bukkit.getScheduler().runTaskLater(plugin, () -> sendModelResourcePack(online), 20L);
                         } catch (IOException failure) {
                             plugin.getLogger().severe("BetterModel integrated pack audit failed: " + failure.getMessage());
