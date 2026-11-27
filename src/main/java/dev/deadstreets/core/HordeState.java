@@ -58,8 +58,8 @@ public final class HordeState {
         if (now <= updatedAt) return;
         double dt = Math.min(5.0, (now-updatedAt)/1000.0);
         updatedAt = now;
-        // Never let the virtual anchor migrate away from physical walkers left in chunks.
-        if (pending <= 0 || hasPhysicalWalkers() || dt <= 0 || blocksPerSecond <= 0) return;
+        // The virtual remainder continues migrating after partial materialization; physical walkers are tracked independently.
+        if (pending <= 0 || dt <= 0 || blocksPerSecond <= 0) return;
         double direction = heading;
         if (hasInterest(now)) direction = Math.atan2(soundZ-z,soundX-x);
         else { soundX=null; soundZ=null; }
@@ -72,6 +72,8 @@ public final class HordeState {
     public void turn(double radians) {if (Double.isFinite(radians)) heading = radians;}
     /** Called only after a successfully spawned physical walker, never for a failed attempt. */
     public void materialized() {if (pending <= 0) throw new IllegalStateException("No pending walkers");pending--;}
+    /** Add an already-physical independent walker to this shared horde. */
+    public void absorbPhysicalMember() { if (population <= 0) throw new IllegalStateException("Cannot join an empty horde"); population++; }
     public void died() {if (population > 0) population--;}
     /** Retire unmaterialized walkers only when a group has been completely absent
      * from all active gameplay for a long time; physical entities are untouched. */

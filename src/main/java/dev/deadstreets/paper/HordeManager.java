@@ -1,12 +1,14 @@
 package dev.deadstreets.paper;
 
 import dev.deadstreets.core.DangerRating;
+import dev.deadstreets.core.CompassDirection;
 import dev.deadstreets.core.HordeAlertGate;
 import dev.deadstreets.core.HordeArrivalPolicy;
 import dev.deadstreets.core.HordeState;
 import dev.deadstreets.core.ObservationGuard;
 import dev.deadstreets.core.Temperament;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -34,13 +36,12 @@ import java.util.SplittableRandom;
 import java.util.UUID;
 
 /**
- * R04 conservative horde lifecycle. Virtual groups never load chunks. Walkers are only
+ * R08 shared horde lifecycle. Virtual groups never generate terrain. Walkers are only
  * materialized in loaded chunks which no player is currently watching; once physical,
  * they remain ordinary persistent entities, including across chunk unloads.
  *
- * R04 does not virtualize existing physical entities. That deliberate restriction
- * avoids unsafe removal/duplication in front of players, at the cost of limited
- * long-range movement once a whole horde has materialized.
+ * Physical walkers remain ordinary persistent entities; the virtual remainder keeps migrating
+ * independently until it is fully materialized or safely retired.
  */
 final class HordeManager {
     private final DeadStreetsPlugin plugin;
@@ -85,9 +86,9 @@ final class HordeManager {
                 Math.max(10,plugin.getConfig().getLong("hordes.warning-reset-seconds",240))*1000L);
         for(World w:Bukkit.getWorlds()) for(Chunk c:w.getLoadedChunks()) onEntitiesLoad(c);
         long now=System.currentTimeMillis();
-        for(World w:Bukkit.getWorlds()) nextAmbient.put(w.getUID(),now + intervalMs());
+        for(World w:Bukkit.getWorlds()) nextAmbient.put(w.getUID(),now + Math.min(60_000L,intervalMs()));
         tickTask=Bukkit.getScheduler().runTaskTimer(plugin,this::tick,20,20);
-        plugin.getLogger().warning("R06 experimental migrating hordes ON: unobserved chunk activation only; use a backup world.");
+        plugin.getLogger().warning("R08 experimental migrating hordes ON: virtual population migrates independently; physical materialization remains visibility-guarded.");
     }
     void stop() {
         if(tickTask!=null) tickTask.cancel();
@@ -115,7 +116,7 @@ final class HordeManager {
         long now=System.currentTimeMillis();
         for(int attempt=0;attempt<40;attempt++) {
             double direction=random.nextDouble(0,Math.PI*2);
-            double distance=random.nextDouble(320,480);
+            double distance=random.nextDouble(280,360);
             double x=playerX+Math.cos(direction)*distance;
             double z=playerZ+Math.sin(direction)*distance;
             if(!candidateUnobserved(world,x,z)) continue;
@@ -169,7 +170,7 @@ final class HordeManager {
                 }
             }
         }
-        double speed=Math.max(0,Math.min(2.0,plugin.getConfig().getDouble("hordes.virtual-speed-blocks-per-second",0.75)));
+        double speed=Math.max(0,Math.min(2.0,plugin.getConfig().getDouble("hordes.virtual-speed-blocks-per-second",1.0)));
         long retireAfter=1000L*Math.max(600,plugin.getConfig().getLong("hordes.virtual-retire-after-seconds",1800));
         int budget=availableBudget();
         for(HordeState h:new ArrayList<>(hordes.values())) {
@@ -208,23 +209,29 @@ final class HordeManager {
                     }
             }
             for(Player p:w.getPlayers()) {
-                double dx=p.getLocation().getX()-h.x(),dz=p.getLocation().getZ()-h.z();
+                double sourceX=h.x(),sourceZ=h.z();
+                double dx=p.getLocation().getX()-sourceX,dz=p.getLocation().getZ()-sourceZ;
                 double dist=Math.sqrt(dx*dx+dz*dz);
-                // Once physical walkers walk away from their original anchor, report their
-                // actual proximity, not only the parked virtual horde position.
+                // Use the nearest live member when it has moved closer than the virtual anchor.
                 var tracked=loadedPhysical.get(h.id());
                 if(tracked!=null) for(UUID member:tracked) {
                     Entity live=Bukkit.getEntity(member);
                     if(live instanceof Zombie zombie && zombie.isValid()
                             && zombie.getWorld().getUID().equals(w.getUID())) {
                         Location loc=zombie.getLocation();
-                        dist=Math.min(dist,Math.hypot(p.getLocation().getX()-loc.getX(),
-                                p.getLocation().getZ()-loc.getZ()));
+                        double physicalDist=Math.hypot(p.getLocation().getX()-loc.getX(),
+                                p.getLocation().getZ()-loc.getZ());
+                        if(physicalDist<dist) {
+                            dist=physicalDist;sourceX=loc.getX();sourceZ=loc.getZ();
+                        }
                     }
                 }
                 // Shared horde, one alert per nearby player. Gate also ensures closing distance.
                 if(h.population()>0 && alertGate.observe(p.getUniqueId(),h.id(),dist,now)) {
-                    plugin.showWarning(p,DangerRating.calculate(h.population(),h.temperament()));
+                    double alertSpeed=Math.max(0.25,plugin.getConfig().getDouble("hordes.virtual-speed-blocks-per-second",1.0));
+                    int eta=(int)Math.min(3600,Math.ceil(dist/alertSpeed));
+                    plugin.showWarning(p,DangerRating.calculate(h.population(),h.temperament()),
+                            CompassDirection.from(p.getLocation().getX(),p.getLocation().getZ(),sourceX,sourceZ),eta,dist);
                     warningsSent++;
                 }
             }
@@ -235,6 +242,77 @@ final class HordeManager {
     }
     // Only virtual groups consume ambient migration slots. Fully-materialized
     // groups remain tracked for deaths/warnings but no longer block new migrations.
+    /** Admin-only diagnostic teleport. It never creates or force-generates terrain. */
+    String teleportToHorde(Player player, String requestedId) {
+        HordeState selected=null;
+        if(requestedId!=null && !requestedId.isBlank()) {
+            UUID id;
+            try { id=UUID.fromString(requestedId); }
+            catch(IllegalArgumentException bad) { return "Invalid horde UUID."; }
+            HordeState candidate=hordes.get(id);
+            if(candidate==null || !candidate.worldId().equals(player.getWorld().getUID()))
+                return "That horde is not active in this world.";
+            selected=candidate;
+        } else {
+            double best=Double.MAX_VALUE;
+            for(HordeState candidate:hordes.values()) {
+                if(!candidate.worldId().equals(player.getWorld().getUID()) || candidate.empty())continue;
+                double dx=player.getLocation().getX()-candidate.x(),dz=player.getLocation().getZ()-candidate.z();
+                double d=dx*dx+dz*dz;
+                if(d<best){best=d;selected=candidate;}
+            }
+            if(selected==null)return "No active horde exists in this world.";
+        }
+        final HordeState target=selected;
+        double targetX=target.x(),targetZ=target.z();
+        double anchorDistance=Math.hypot(player.getLocation().getX()-targetX,player.getLocation().getZ()-targetZ);
+        HashSet<UUID> members=loadedPhysical.get(target.id());
+        if(members!=null)for(UUID id:members) {
+            Entity entity=Bukkit.getEntity(id);
+            if(entity instanceof Zombie zombie&&zombie.isValid()&&zombie.getWorld().equals(player.getWorld())) {
+                Location at=zombie.getLocation();
+                if(Math.hypot(player.getLocation().getX()-at.getX(),player.getLocation().getZ()-at.getZ())<anchorDistance) {
+                    targetX=at.getX();targetZ=at.getZ();
+                    anchorDistance=Math.hypot(player.getLocation().getX()-targetX,player.getLocation().getZ()-targetZ);
+                }
+            }
+        }
+        final double destinationX=targetX,destinationZ=targetZ;
+        int cx=((int)Math.floor(destinationX))>>4,cz=((int)Math.floor(destinationZ))>>4;
+        World world=player.getWorld();
+        if(!world.isChunkLoaded(cx,cz)) {
+            world.getChunkAtAsync(cx,cz,false,chunk -> Bukkit.getScheduler().runTask(plugin,() -> {
+                if(!player.isOnline())return;
+                if(chunk==null || !chunk.isLoaded()) { player.sendMessage(ChatColor.RED+"Horde area is not currently loaded; no terrain was generated."); return; }
+                Location safe=findHordeTeleportSpot(chunk,destinationX,destinationZ);
+                if(safe==null) {player.sendMessage(ChatColor.RED+"No safe landing spot near this horde anchor.");return;}
+                if(!player.teleport(safe)){player.sendMessage(ChatColor.RED+"Teleport was cancelled.");return;}
+                player.sendMessage(ChatColor.YELLOW+"Teleported near horde "+target.id()+" (population "+target.population()+").");
+            }));
+        } else {
+            Location safe=findHordeTeleportSpot(world.getChunkAt(cx,cz),destinationX,destinationZ);
+            if(safe==null)return "No safe landing spot near this horde anchor.";
+            if(!player.teleport(safe))return "Teleport was cancelled.";
+            return "Teleported near horde "+target.id()+" (population "+target.population()+").";
+        }
+        return "Loading the horde's already-generated chunk; no new terrain will be generated.";
+    }
+    private Location findHordeTeleportSpot(Chunk chunk,double anchorX,double anchorZ) {
+        World world=chunk.getWorld();
+        int ax=(int)Math.floor(anchorX),az=(int)Math.floor(anchorZ);
+        for(int radius=0;radius<=8;radius++) for(int dx=-radius;dx<=radius;dx++) for(int dz=-radius;dz<=radius;dz++) {
+            if(Math.max(Math.abs(dx),Math.abs(dz))!=radius)continue;
+            int x=ax+dx,z=az+dz;
+            if((x>>4)!=chunk.getX() || (z>>4)!=chunk.getZ())continue;
+            int y=world.getHighestBlockYAt(x,z)+1;
+            if(y<=world.getMinHeight()+1 || y>=world.getMaxHeight()-2)continue;
+            Block feet=world.getBlockAt(x,y,z),head=world.getBlockAt(x,y+1,z),floor=world.getBlockAt(x,y-1,z);
+            if(feet.isPassable()&&head.isPassable()&&!feet.isLiquid()&&!head.isLiquid()&&floor.getType().isSolid())
+                return new Location(world,x+.5,y,z+.5);
+        }
+        return null;
+    }
+
     private int countWorld(World w) {int n=0;for(HordeState h:hordes.values())
         if(h.worldId().equals(w.getUID()) && h.pending()>0)n++;return n;}
     private boolean nearSomePlayer(World w,double x,double z,double radius) {
@@ -407,7 +485,7 @@ final class HordeManager {
                 if(!save())return made;
                 try {
                     Zombie zombie=w.spawn(new Location(w,x+0.5,y,z+0.5),Zombie.class,created -> {
-                        plugin.markWalker(created);
+                        plugin.markHordeWalker(created);
                         plugin.budget().tag(created);
                         created.getPersistentDataContainer().set(hordeTag,PersistentDataType.STRING,h.id().toString());
                     });
@@ -424,6 +502,30 @@ final class HordeManager {
         }
         if(made>0) save(); // record decrement promptly; physical entity persistence is managed by Paper
         return made;
+    }
+    /** Absorb a nearby scraggler into the shared population without spawning or teleporting it. */
+    boolean absorbScraggler(Zombie zombie) {
+        if(!enabled() || zombie==null || !zombie.isValid()
+                || !zombie.getPersistentDataContainer().has(plugin.scragglerTag(),PersistentDataType.BYTE)
+                || zombie.getPersistentDataContainer().has(hordeTag,PersistentDataType.STRING))return false;
+        World world=zombie.getWorld();Location at=zombie.getLocation();
+        HordeState nearest=null;double best=32.0*32.0;
+        for(HordeState h:hordes.values()){
+            if(!h.worldId().equals(world.getUID())||h.empty())continue;
+            double dx=at.getX()-h.x(),dz=at.getZ()-h.z(),distance=dx*dx+dz*dz;
+            HashSet<UUID> members=loadedPhysical.get(h.id());
+            if(members!=null){int inspected=0;for(UUID id:members){if(inspected++>=32)break;Entity e=Bukkit.getEntity(id);if(e instanceof Zombie live&&live.isValid()){
+                double pdx=at.getX()-live.getLocation().getX(),pdz=at.getZ()-live.getLocation().getZ();
+                distance=Math.min(distance,pdx*pdx+pdz*pdz);
+            }}}
+            if(distance<best){best=distance;nearest=h;}
+        }
+        if(nearest==null)return false;
+        nearest.absorbPhysicalMember();
+        zombie.getPersistentDataContainer().remove(plugin.scragglerTag());
+        zombie.getPersistentDataContainer().set(hordeTag,PersistentDataType.STRING,nearest.id().toString());
+        loadedPhysical.computeIfAbsent(nearest.id(),ignored->new HashSet<>()).add(zombie.getUniqueId());
+        save();return true;
     }
     void onEntitiesLoad(Chunk chunk) {
         if(!enabled())return;

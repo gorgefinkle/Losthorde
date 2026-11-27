@@ -6,6 +6,7 @@ import java.util.SplittableRandom;
  * then: java -ea -cp build/core dev.deadstreets.core.CoreHarness
  */
 public final class CoreHarness {
+    private static String direction(double px,double pz,double sx,double sz){return CompassDirection.from(px,pz,sx,sz);}
     private static int assertions=0;
     private static void check(boolean yes, String what) { if(!yes) throw new AssertionError(what); assertions++; }
     public static void main(String[] args) {
@@ -59,6 +60,33 @@ public final class CoreHarness {
         check(total==64 && visited.size()==64,"all 64 walkers assigned once");
         check(PopulationPlan.inChunk(multi,new PopulationRoller.Range(0,0),-1,-1,256).isEmpty(),"empty flag cannot generate zombies");
         check(PopulationPlan.activationKey(multi).equals(PopulationPlan.activationKey(multi)),"persistent marker key stable");
+        var indoor=new MetropolisFlag("world-a",431L,"indoor-build","HIGHRISE",0,40,0,31,90,31,
+                java.util.List.of(new MetropolisFlag.SpawnPoint(2,-1,2),new MetropolisFlag.SpawnPoint(18,-1,18)));
+        var parsed=MetropolisFlag.parse(indoor.format());
+        check(parsed.interiorPoints().size()==2 && parsed.interiorPointsProvided(),"v2 interior points round-trip");
+        var noIndoor=MetropolisFlag.parse("BUILD\tworld-a\t431\tno-room\tHIGHRISE\t0\t40\t0\t15\t90\t15\t");
+        check(PopulationPlan.inChunk(noIndoor,new PopulationRoller.Range(3,3),0,0,10).isEmpty(),"v2 empty interior list never falls back to outdoor placement");
+        var insideA=PopulationPlan.inChunk(indoor,new PopulationRoller.Range(2,2),0,0,10);
+        var insideB=PopulationPlan.inChunk(indoor,new PopulationRoller.Range(2,2),1,1,10);
+        check(insideA.size()+insideB.size()==2,"interior points assigned to their owning chunks");
+        check(insideA.stream().allMatch(cnd->cnd.y()==-1)&&insideB.stream().allMatch(cnd->cnd.y()==-1),"interior candidate columns retain runtime floor-resolution sentinel");
+        check(direction(0,0,0,-10).equals("North"),"north uses negative Z");
+        check(direction(0,0,10,-10).equals("North-East"),"north-east sector");
+        check(direction(0,0,10,0).equals("East"),"east sector");
+        check(direction(0,0,10,10).equals("South-East"),"south-east sector");
+        check(direction(0,0,0,10).equals("South"),"south uses positive Z");
+        check(direction(0,0,-10,10).equals("South-West"),"south-west sector");
+        check(direction(0,0,-10,0).equals("West"),"west sector");
+        check(direction(0,0,-10,-10).equals("North-West"),"north-west sector");
+        var joined=new HordeState(java.util.UUID.randomUUID(),java.util.UUID.randomUUID(),10,Temperament.RESTLESS,0,0,0,1000);
+        joined.absorbPhysicalMember();
+        check(joined.population()==11&&joined.pending()==10,"scraggler joins as physical member without pending spawn");
+        joined.died();
+        check(joined.population()==10&&joined.pending()==10,"joined physical member death updates shared population");
+        var joinedCopy=HordeState.restore(joined.save());
+        check(joinedCopy.population()==10&&joinedCopy.pending()==10,"joined horde population persists");
+
+
         try {PopulationPlan.inChunk(multi,generous,0,0,10);throw new AssertionError("missing limit");}
         catch(IllegalArgumentException expected){assertions++;}
         System.out.println("PASS " + assertions + " Dead Streets R03 core assertions, JDK " + Runtime.version());

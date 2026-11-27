@@ -1,5 +1,34 @@
-# Dead Streets R06: experimental migrating hordes, persistent walker spawners, opt-in Metropolis flags.
+# Dead Streets R25: BetterModel-native pack injection for client zombie texture inheritance.
+blood-moon:
+  enabled: true
+  # Every N in-game days, the selected night becomes a Blood Moon.
+  every-days: 7
+  # Daytime warning appears before nightfall; waves begin after 13000 ticks.
+  waves: 3
+  # How long the Blood Moon remains active after nightfall, in real minutes.
+  # The event is always capped at sunrise, so the moon is never red in daytime.
+  duration-minutes: 10
+  # Runtime switch: BOSSBAR or SCOREBOARD. Command:
+  # /deadstreets bloodmoon display <bossbar|scoreboard>
+  display-mode: BOSSBAR
+  # Optional additive client pack; only Dead Streets' own UUID is removed at event end.
+  moon-pack:
+    enabled: true
+    url: "https://cdn.modrinth.com/data/p9sqIz3S/versions/M6uWxUGK/BloodMoon%20-%20Texture%281.21.9-1.21.11%29.zip"
+    sha1: ""
+  wave-interval-seconds: 90
+  groups-per-wave: 2
+  group-min-population: 100
+  group-max-population: 180
+
+scragglers:
+  enabled: true
+  assignment-chance: 0.12
+  max-chunks-per-cycle: 32
+  max-wander-goals-per-tick: 16
+
 spawners:
+  # Custom 30–60s proximity waves for converted spawners. Off leaves converted vanilla zombie spawners operating normally.
   enabled: true
   activation-radius: 16
   wave-min: 2
@@ -15,12 +44,44 @@ spawners:
   show-countdown: true
 zombies:
   stop-natural-zombie-spawns: true
-  stop-vanilla-zombie-spawners: true
   stop-zombie-reinforcements: true
   never-burn-in-daylight: true
   make-all-zombies-persistent: true
+  target-display:
+    enabled: true
+    # Only the entity the viewer is aiming at receives a temporary identity/health plate.
+    range: 9
+    update-interval-ticks: 3
   # Durable global admission cap for NEW Dead Streets walkers, including offloaded chunks.
-  max-total-managed-walkers: 1800
+  max-total-managed-walkers: 3000
+models:
+  bettermodel:
+    enabled: true
+    # Custom infected geometry stays enabled. Texture fallback is handled separately; do not replace the model with a vanilla entity.
+    resource-pack:
+      enabled: true
+      # R25 maps the client's zombie entity texture to the deadstreets:item/zombie sprite in BetterModel's items atlas.
+      url: "https://raw.githubusercontent.com/gorgefinkle/Losthorde/r10-runner-popper-crawler-hulk/release-assets/DeadStreets-R25-models.zip"
+      required: false
+vanilla-mobs:
+  # Non-zombie hostile mobs are blocked for every spawn reason except COMMAND and SPAWNER_EGG.
+  block-non-zombie-hostiles: true
+  # Chance that each natural spawn is allowed through. 0.0 = disabled, 1.0 = vanilla rate.
+  natural-spawn-chance:
+    skeletons: 0.0
+    creepers: 0.0
+    witches: 0.0
+    spiders: 0.0
+    animals: 0.10
+    villagers: 0.20
+    ambient: 0.05
+    other_hostiles: 0.0
+    other_creatures: 0.05
+vanilla-spawners:
+  # ALLOW_ALL leaves every vanilla spawner untouched. CONVERT_TO_ZOMBIES converts
+  # every loaded/newly placed spawner to zombies while preserving its other settings.
+  # Returning to ALLOW_ALL restores the original mob type for spawners converted by this version.
+  mode: CONVERT_TO_ZOMBIES
 warnings:
   play-sound: true
   fade-in-ticks: 10
@@ -29,7 +90,7 @@ warnings:
 
 # Proposed STARTING RANGES per actually placed Metropolis BUILD (not per district).
 # No landmark or MegaMall type: those use their actual district context.
-# Activation is experimental and OFF by default; verify visibility ordering on Paper 26.2 first.
+# Activation is experimental; enable on a backup/test world and verify visibility ordering on Paper 26.2.
 population:
   ranges:
     HIGHRISE: {min: 2, max: 9}
@@ -43,40 +104,78 @@ population:
     PARK: {min: 0, max: 2}
 
   activation:
-    enabled: false
+    enabled: true
     max-chunks-per-tick: 2
     max-queued-chunks: 8192
-    max-new-zombies-per-tick: 12
+    max-new-zombies-per-tick: 3
     max-per-build: 64
     cached-regions: 64
-    max-region-file-bytes: 4194304
+    max-region-file-bytes: 6291456
     max-region-records: 12000
+    # The current per-world JSONL export is cached and bounded independently of legacy region TSV files.
+    max-world-file-bytes: 134217728
+    max-world-records: 200000
     # Once-per-30s retries when Metropolis finishes a build after chunk loading.
     max-late-retries: 2048
     late-retry-seconds: 30
 
 # R05 migrating hordes — EXPERIMENTAL. Enable only in a backup test world.
 hordes:
-  enabled: false
+  enabled: true
   ambient-creation: true
-  ambient-every-seconds: 420
-  max-groups-per-world: 12
+  ambient-every-seconds: 180
+  max-groups-per-world: 8
   # Virtual-only portions retire after prolonged unobserved absence, no physical removals.
   virtual-retire-after-seconds: 1800
-  min-population: 24
-  max-population: 100
-  virtual-speed-blocks-per-second: 0.75
-  max-materializations-per-second: 8
-  max-materializations-per-chunk: 4
+  min-population: 90
+  max-population: 240
+  virtual-speed-blocks-per-second: 1.0
+  max-materializations-per-second: 12
+  max-materializations-per-chunk: 6
   warning-distance: 150
   warning-reset-seconds: 240
   # Local pathfinder steering toward the horde migration heading (not player homing).
   max-navigation-goals-per-4s: 24
   # Bounded preparation of ALREADY GENERATED chunks, including travel corridors.
   # Being loaded NEVER authorizes zombie creation inside observed areas.
-  # Unverified with real players: retain overall hordes.enabled=false until tested.
+  # Experimental migration: set hordes.enabled=false to disable the system.
   prefetch:
     enabled: true
     max-tickets: 8
     requests-per-second: 2
     ticket-seconds: 30
+
+# Special infected are only assigned to scraggler walkers and physical horde members.
+# Each eligible walker receives at most one subtype.
+special-infected:
+  runner:
+    enabled: true
+    spawn-chance: 0.03
+    max-health: 26.0
+    movement-speed: 0.31
+    attack-damage: 5.5
+  popper:
+    enabled: true
+    spawn-chance: 0.02
+    max-health: 32.0
+    movement-speed: 0.13
+    attack-damage: 4.0
+    death-burst:
+      enabled: true
+      radius: 3.5
+      damage: 4.0
+  hulk:
+    enabled: true
+    spawn-chance: 0.02
+    scale: 1.53846 # Native zombie scale: 1.95 blocks x 1.53846 ~= 3.0 blocks tall.
+    max-health: 50.0
+    movement-speed: 0.16
+    attack-damage: 12.0
+    attack-knockback: 1.6
+    knockback-resistance: 0.70
+  crawler:
+    enabled: true
+    spawn-chance: 0.02
+    max-health: 24.0
+    movement-speed: 0.20
+    attack-damage: 5.0

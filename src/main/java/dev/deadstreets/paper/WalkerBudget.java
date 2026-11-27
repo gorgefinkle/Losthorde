@@ -60,7 +60,16 @@ final class WalkerBudget {
             plugin.getLogger().warning("Counted " + legacy + " loaded pre-R06 managed zombies against quota; unloaded legacy mobs require a migration audit.");
         }
     }
-    boolean reserve() {
+    String denialReason() {
+        if (!healthy) return "Walker budget persistence is unhealthy; normal admissions are fail-closed. Check the server log and walker-budget-v1.txt.";
+        if (reserved >= maximum()) return "Walker budget is full (" + reserved + "/" + maximum() + ").";
+        return "";
+    }
+    boolean reserve() { return reserve(false); }
+    boolean reserve(boolean force) {
+        // Developer force-through test spawns bypass quota and persistence admission.
+        // They are deliberately not tagged/accounted, so they cannot corrupt the durable count.
+        if (force) return true;
         if(!healthy || reserved>=maximum()) {denied++; return false;}
         reserved++;
         if(!save()) {reserved--; healthy=false;denied++;return false;}

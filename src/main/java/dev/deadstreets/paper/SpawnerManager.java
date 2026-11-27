@@ -6,6 +6,7 @@ import org.bukkit.Chunk;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -17,6 +18,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.entity.Zombie;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,6 +49,8 @@ public final class SpawnerManager {
         Managed(SpawnerId id, SpawnerCycle cycle) { this.id=id; this.cycle=cycle; }
     }
     private final DeadStreetsPlugin plugin;
+    private final NamespacedKey originalTypeKey;
+    private final NamespacedKey countdownDisplayKey;
     private final Map<SpawnerId,Managed> tracked = new HashMap<>();
     private final Map<String,String> checkpoints = new HashMap<>();
     private final SplittableRandom random = new SplittableRandom();
@@ -55,7 +59,11 @@ public final class SpawnerManager {
     private int scanCursor;
     private record ScanKey(UUID world,int cx,int cz) {}
     private final Map<ScanKey,Long> recentlyScanned = new HashMap<>();
-    SpawnerManager(DeadStreetsPlugin plugin) { this.plugin=plugin; }
+    SpawnerManager(DeadStreetsPlugin plugin) {
+        this.plugin=plugin;
+        this.originalTypeKey=new NamespacedKey(plugin,"vanilla_spawner_original_type");
+        this.countdownDisplayKey=new NamespacedKey(plugin,"spawner_countdown_display");
+    }
     int size() { return tracked.size(); }
     void start() {
         readCheckpoints();
@@ -69,20 +77,61 @@ public final class SpawnerManager {
         writeCheckpoints();
     }
     void onChunkLoad(Chunk chunk) {
-        if (!plugin.getConfig().getBoolean("spawners.enabled",true)) return;
         for (BlockState tile : chunk.getTileEntities()) {
-            if (tile instanceof CreatureSpawner cs && cs.getSpawnedType()==EntityType.ZOMBIE) register(tile.getBlock());
+            if (tile instanceof CreatureSpawner) prepareSpawner(tile.getBlock());
         }
     }
-    void onBlockPlaced(Block block) { if(block.getType()==Material.SPAWNER) register(block); }
+    void onBlockPlaced(Block block) { if(block.getType()==Material.SPAWNER) prepareSpawner(block); }
+    private void prepareSpawner(Block block) {
+        if (block.getType()!=Material.SPAWNER || !(block.getState() instanceof CreatureSpawner spawner)) return;
+        String mode=plugin.getConfig().getString("vanilla-spawners.mode","ALLOW_ALL");
+        var data=spawner.getPersistentDataContainer();
+        if ("CONVERT_TO_ZOMBIES".equalsIgnoreCase(mode)) {
+            // Preserve the original mob type once so switching back to ALLOW_ALL is reversible.
+            if(!data.has(originalTypeKey,PersistentDataType.STRING))
+                data.set(originalTypeKey,PersistentDataType.STRING,spawner.getSpawnedType().name());
+            if(spawner.getSpawnedType()!=EntityType.ZOMBIE) {
+                spawner.setSpawnedType(EntityType.ZOMBIE);
+                spawner.update(true,false);
+            }
+            if(plugin.getConfig().getBoolean("spawners.enabled",true))register(block);
+        } else {
+            String original=data.get(originalTypeKey,PersistentDataType.STRING);
+            if(original!=null) {
+                try {
+                    EntityType restored=EntityType.valueOf(original);
+                    if(spawner.getSpawnedType()!=restored)spawner.setSpawnedType(restored);
+                    data.remove(originalTypeKey);
+                    spawner.update(true,false);
+                } catch(IllegalArgumentException badType) {
+                    plugin.getLogger().warning("Cannot restore vanilla spawner type '"+original+"' at "+block.getLocation());
+                }
+            }
+            Managed managed=tracked.remove(id(block));
+            if(managed!=null)removeDisplay(managed);
+        }
+    }
     private void register(Block block) {
         var id = id(block);
         if (tracked.containsKey(id)) return;
         String saved = checkpoints.get(id.key());
         SpawnerCycle cycle;
-        try { cycle = saved==null ? new SpawnerCycle() : SpawnerCycle.restore(saved); }
+        try {
+            if(saved==null) cycle=new SpawnerCycle();
+            else {
+                String[] state=saved.split("\\|",-1);
+                cycle=SpawnerCycle.restore(state[0]);
+                
+            }
+        }
         catch (RuntimeException ex) { plugin.getLogger().warning("Ignoring corrupt spawner state " +id.key());cycle=new SpawnerCycle(); }
-        tracked.put(id,new Managed(id,cycle));
+        Managed managed=new Managed(id,cycle);
+        if(saved!=null) {
+            String[] state=saved.split("\\|",-1);
+            if(state.length>1) try { managed.pendingWave=Math.max(0,Math.min(256,Integer.parseInt(state[1]))); }
+            catch(NumberFormatException ignored) { managed.pendingWave=0; }
+        }
+        tracked.put(id,managed);
     }
     void onChunkUnload(Chunk chunk) {
         var iter = tracked.values().iterator();
@@ -139,14 +188,15 @@ public final class SpawnerManager {
             boolean playerNear=isPlayerNear(players.get(world.getUID()),center,radius);
             int nearby=playerNear?countZombies(center,Math.max(2,plugin.getConfig().getInt("spawners.nearby-cap-radius",12))):0;
             var result=m.cycle.tick(now,playerNear,nearby + m.pendingWave,rules,random);
-            if(result.spawnCount()>0) m.pendingWave = Math.min(rules.nearbyCap(), m.pendingWave+result.spawnCount());
-            if(!result.active()) {m.pendingWave=0;removeDisplay(m);}
+            if(result.spawnCount()>0) { m.pendingWave = Math.min(rules.nearbyCap(), m.pendingWave+result.spawnCount()); checkpoint(m); }
+            if(!result.active()) { if(m.pendingWave!=0) {m.pendingWave=0;checkpoint(m);} removeDisplay(m); }
             if(result.active() && m.pendingWave>0 && newZombieBudget>0) {
                 int available = Math.max(0,rules.nearbyCap() - nearby);
                 int allowed = Math.min(newZombieBudget, Math.min(available,m.pendingWave));
                 int created = spawnWave(center,allowed);
                 newZombieBudget -= created;
                 m.pendingWave -= created;
+                checkpoint(m);
             }
             if(!result.active()) removeDisplay(m);
             else if(plugin.getConfig().getBoolean("spawners.show-countdown",true)) updateDisplay(m,center,result);
@@ -238,7 +288,9 @@ public final class SpawnerManager {
     private void updateDisplay(Managed m,Location center,SpawnerCycle.Result state) {
         if(m.countdown==null || !m.countdown.isValid()) {
             m.countdown=center.getWorld().spawn(center.clone().add(0,1.35,0),TextDisplay.class);
-            m.countdown.setPersistent(false);m.countdown.setBillboard(Display.Billboard.CENTER);
+            m.countdown.setPersistent(false);
+            m.countdown.getPersistentDataContainer().set(countdownDisplayKey,PersistentDataType.BYTE,(byte)1);
+            m.countdown.setBillboard(Display.Billboard.CENTER);
             m.countdown.setShadowed(true);
         }
         long seconds=state.remainingSeconds();
@@ -251,7 +303,7 @@ public final class SpawnerManager {
         m.countdown=null;m.lastText="";
     }
     private static SpawnerId id(Block block) { return new SpawnerId(block.getWorld().getUID(),block.getX(),block.getY(),block.getZ()); }
-    private void checkpoint(Managed m) { checkpoints.put(m.id.key(),m.cycle.save(System.currentTimeMillis())); }
+    private void checkpoint(Managed m) { checkpoints.put(m.id.key(),m.cycle.save(System.currentTimeMillis())+"|"+m.pendingWave); }
     private Path dataFile() { return plugin.getDataFolder().toPath().resolve("spawner-states.properties"); }
     private void readCheckpoints() {
         if(!Files.isRegularFile(dataFile())) return;

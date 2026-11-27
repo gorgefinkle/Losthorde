@@ -29,6 +29,7 @@ public final class HordeArrivalHarness {
         }
         ok(materialized,"horde must materialize at an unobserved boundary");
         ok(h.pending()==84,"one materialization consumes one virtual member");
+        ok(h.x()<350,"virtual remainder continues migrating after a physical member materializes");
         ok(h.population()==85,"materialization does not alter population");
         ok(h.x()>=224 && h.x()<=260,"virtual anchor remains outside player visibility");
         ok(physical<150,"a steered physical walker can eventually cross the alert threshold");
