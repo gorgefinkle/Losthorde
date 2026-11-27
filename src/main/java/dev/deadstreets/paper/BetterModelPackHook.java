@@ -14,7 +14,11 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -40,7 +44,6 @@ final class BetterModelPackHook {
     private Object subscription;
     private boolean registered;
     private boolean injected;
-    private Set<String> omittedTexturePngPaths = Set.of();
 
     BetterModelPackHook(DeadStreetsPlugin plugin) {
         this.plugin = plugin;
@@ -81,7 +84,6 @@ final class BetterModelPackHook {
             }
 
             Set<String> expectedUv = expectedUvSignatures();
-            Set<String> expectedOmittedTexturePngPaths = new HashSet<>();
             try (ZipFile zip = new ZipFile(generated.toFile())) {
                 Map<String, byte[]> files = new java.util.HashMap<>();
                 var entries = zip.entries();
@@ -119,7 +121,6 @@ final class BetterModelPackHook {
                         if (!texture.getValue().isJsonPrimitive()) throw new IOException("Invalid texture value in " + modelPath);
                         String value = texture.getValue().getAsString();
                         if (value.startsWith("bettermodel:item/")) {
-                            expectedOmittedTexturePngPaths.add(texturePngPath(value, modelPath));
                             textures.addProperty(texture.getKey(), ZOMBIE_TEXTURE_SPRITE);
                             rewritten = true;
                         } else if (!value.equals(ZOMBIE_TEXTURE_SPRITE)) {
@@ -144,11 +145,6 @@ final class BetterModelPackHook {
                     int count = matchedUvCounts.getOrDefault(signature, 0);
                     if (count != 2) throw new IOException("Expected one Crawler and one Hulk model for UV signature "
                             + signature + "; found " + count);
-                }
-
-                if (expectedOmittedTexturePngPaths.size() != 2) {
-                    throw new IOException("Expected exactly two BetterModel input placeholder PNGs to suppress; found "
-                            + expectedOmittedTexturePngPaths.size() + ": " + expectedOmittedTexturePngPaths);
                 }
 
                 // Atlas sources are merged from active packs by the vanilla client.
@@ -199,7 +195,6 @@ final class BetterModelPackHook {
                         addAsset(assets, oldAtlasPath, (oldAtlas.toString() + "\n").getBytes(StandardCharsets.UTF_8));
                     }
                 }
-                omittedTexturePngPaths = Set.copyOf(expectedOmittedTexturePngPaths);
                 injected = true;
                 plugin.getLogger().info("Injected zombie texture atlas registration and " + modelPaths.size()
                         + " UV-matched infected model definitions into BetterModel's own pack (filename obfuscation supported).");
@@ -254,15 +249,51 @@ final class BetterModelPackHook {
                 uv.get(3).getAsDouble() / divisorY);
     }
 
-    private static String texturePngPath(String textureReference, String modelPath) throws IOException {
-        int colon = textureReference.indexOf(':');
-        if (colon < 1) throw new IOException("Invalid BetterModel texture reference in " + modelPath + ": " + textureReference);
-        String namespace = textureReference.substring(0, colon);
-        String texturePath = textureReference.substring(colon + 1);
-        if (!texturePath.startsWith("item/"))
-            throw new IOException("Expected BetterModel item texture in " + modelPath + ": " + textureReference);
-        if (!texturePath.endsWith(".png")) texturePath += ".png";
-        return "assets/" + namespace + "/textures/" + texturePath;
+    private List<byte[]> internalPlaceholderImages() throws IOException {
+        List<byte[]> images = new ArrayList<>();
+        for (String resource : Set.of(CRAWLER_MODEL, HULK_MODEL)) {
+            try (InputStream input = plugin.getResource(resource)) {
+                if (input == null) throw new IOException("Missing internal Blockbench model resource: " + resource);
+                JsonObject model = JsonParser.parseString(new String(input.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
+                if (!model.has("textures") || !model.get("textures").isJsonArray()
+                        || model.getAsJsonArray("textures").size() != 2)
+                    throw new IOException("Expected exactly two internal-only textures in " + resource);
+                JsonArray textures = model.getAsJsonArray("textures");
+                JsonObject uvInput = textures.get(0).getAsJsonObject();
+                JsonObject unusedGate = textures.get(1).getAsJsonObject();
+                if (!"-infected_skin.png".equals(uvInput.get("name").getAsString())
+                        || !"unused_pack_gate.png".equals(unusedGate.get("name").getAsString()))
+                    throw new IOException("Blockbench texture names are not marked internal-only in " + resource);
+                if (!"0".equals(uvInput.get("id").getAsString()) || !"1".equals(unusedGate.get("id").getAsString()))
+                    throw new IOException("Unexpected internal Blockbench texture IDs in " + resource);
+
+                JsonArray elements = model.getAsJsonArray("elements");
+                for (JsonElement element : elements) {
+                    JsonObject faces = element.getAsJsonObject().getAsJsonObject("faces");
+                    if (faces == null) continue;
+                    for (Map.Entry<String, JsonElement> face : faces.entrySet()) {
+                        JsonObject faceData = face.getValue().getAsJsonObject();
+                        if (faceData.has("texture") && faceData.get("texture").getAsInt() != 0)
+                            throw new IOException("Geometry references the unused placeholder gate in " + resource
+                                    + " (" + face.getKey() + ")");
+                    }
+                }
+
+                for (JsonObject texture : List.of(uvInput, unusedGate)) {
+                    String source = texture.get("source").getAsString();
+                    int comma = source.indexOf(',');
+                    if (comma < 0) throw new IOException("Malformed internal placeholder data URI in " + resource);
+                    try {
+                        byte[] bytes = Base64.getDecoder().decode(source.substring(comma + 1));
+                        if (bytes.length == 0) throw new IOException("Empty internal placeholder image in " + resource);
+                        images.add(bytes);
+                    } catch (IllegalArgumentException malformed) {
+                        throw new IOException("Malformed internal placeholder image in " + resource, malformed);
+                    }
+                }
+            }
+        }
+        return List.copyOf(images);
     }
 
     private static String modelReference(JsonObject item) {
@@ -290,8 +321,10 @@ final class BetterModelPackHook {
     String auditGeneratedPack(Path zipPath) throws IOException {
         if (!injected) throw new IOException("BetterModel's reload hook did not inject any assets.");
         Set<String> expectedUv = expectedUvSignatures();
-        if (omittedTexturePngPaths.size() != 2)
-            throw new IOException("The pack hook did not identify both non-exportable Blockbench placeholder PNGs.");
+        List<byte[]> internalPlaceholderImages = internalPlaceholderImages();
+        if (internalPlaceholderImages.size() != 4)
+            throw new IOException("Expected four internal-only Blockbench placeholder images (two per model); found "
+                    + internalPlaceholderImages.size() + ".");
         try (ZipFile zip = new ZipFile(zipPath.toFile())) {
             ZipEntry atlasEntry = zip.getEntry("assets/minecraft/atlases/items.json");
             if (atlasEntry == null) throw new IOException("BetterModel output pack is missing the injected items atlas.");
@@ -327,9 +360,19 @@ final class BetterModelPackHook {
             }
             if (zip.getEntry("assets/minecraft/textures/entity/zombie/zombie.png") != null)
                 throw new IOException("Dead Streets must not replace the client's zombie texture PNG.");
-            for (String placeholderPath : omittedTexturePngPaths) {
-                if (zip.getEntry(placeholderPath) != null || zip.getEntry(placeholderPath + ".mcmeta") != null)
-                    throw new IOException("BetterModel exported an unused Dead Streets import placeholder: " + placeholderPath);
+            var pngEntries = zip.entries();
+            while (pngEntries.hasMoreElements()) {
+                ZipEntry entry = pngEntries.nextElement();
+                if (entry.isDirectory() || !entry.getName().toLowerCase(Locale.ROOT).endsWith(".png")) continue;
+                byte[] image;
+                try (var in = zip.getInputStream(entry)) {
+                    image = in.readAllBytes();
+                }
+                for (byte[] placeholderImage : internalPlaceholderImages) {
+                    if (Arrays.equals(image, placeholderImage))
+                        throw new IOException("BetterModel exported an internal-only Dead Streets Blockbench placeholder PNG: "
+                                + entry.getName());
+                }
             }
 
             Set<String> referencedModels = new HashSet<>();
@@ -376,8 +419,8 @@ final class BetterModelPackHook {
                         + signature + "; expected one Crawler and one Hulk.");
             }
             return "items=" + referencedItems.size() + ", models=" + referencedModels.size()
-                    + ", zombie entity texture exposed as deadstreets:item/zombie in the items atlas, obfuscated filenames supported, omitted-placeholder-pngs="
-                    + omittedTexturePngPaths.size() + ", no zombie PNG shipped";
+                    + ", zombie entity texture exposed as deadstreets:item/zombie in the items atlas, obfuscated filenames supported, internal-placeholder-images-audited="
+                    + internalPlaceholderImages.size() + ", matching-placeholder-pngs=0, no zombie PNG shipped";
         }
     }
 }

@@ -108,7 +108,7 @@ jobs:
           assert 'String oldAtlasPath = "assets/minecraft/atlases/blocks.json"' in pack_hook, "Obsolete blocks-atlas alias cleanup is missing"
           assert 'ZipEntry oldBlocksAtlas = zip.getEntry("assets/minecraft/atlases/blocks.json")' in pack_hook, "Final-pack audit must inspect blocks.json for an obsolete alias, not reject the valid items-atlas alias"
           assert "expectedUvSignatures()" in pack_hook and "matchingUvSignature(model, expectedUv)" in pack_hook, "BetterModel model discovery must work with obfuscated filenames by matching model UV geometry"
-          assert "omittedTexturePngPaths" in pack_hook and "placeholderPath" in pack_hook, "BetterModel pack audit must prove its embedded import placeholders are not exported"
+          assert "internalPlaceholderImages()" in pack_hook and "Arrays.equals(image, placeholderImage)" in pack_hook, "BetterModel pack audit must prove embedded placeholder image bytes are not exported"
           assert 'path.contains("deadstreets_")' not in pack_hook and 'itemPath.contains("deadstreets_")' not in pack_hook, "Do not depend on BetterModel's optional filename obfuscation setting"
           print("Packaging check passed: optional BetterModel integration, source-entity lifecycle, explicit tracker visibility, UV-matched item-atlas sprite alias to the client zombie texture, horizontal Crawler model, both model assets and targeted identity display are present.")
           PY
@@ -234,7 +234,7 @@ jobs:
             exit 1
           fi
           grep -F 'BetterModel integrated pack smoke test passed' logs/latest.log
-          grep -F 'omitted-placeholder-pngs=2' logs/latest.log
+          grep -F 'internal-placeholder-images-audited=4, matching-placeholder-pngs=0' logs/latest.log
           python3 - <<'PY'
           from zipfile import ZipFile
           from pathlib import Path
