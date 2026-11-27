@@ -256,10 +256,33 @@ final class BetterModelPackHook {
         return "assets/" + modelRef.substring(0, colon) + "/models/" + modelRef.substring(colon + 1) + ".json";
     }
 
+    /**
+     * PackAssets.add(String, ...) is namespace-relative (normally assets/bettermodel/...).
+     * These integrations must also write into assets/minecraft/atlases and the generated
+     * model namespace, so add the PackResource at its exact pack-root path instead.
+     *
+     * BetterModel exposes PackResource.of and PackPath publicly; only the resource map
+     * and overlay are package-private. Reflect those two implementation details while
+     * keeping the actual resource creation on BetterModel's own API.
+     */
+    @SuppressWarnings("unchecked")
     private static void addAsset(Object assets, String path, byte[] bytes) throws ReflectiveOperationException {
-        Method add = assets.getClass().getMethod("add", String.class, long.class, Supplier.class);
-        Supplier<byte[]> supplier = () -> bytes.clone();
-        add.invoke(assets, path, (long) bytes.length, supplier);
+        ClassLoader loader = assets.getClass().getClassLoader();
+        Class<?> packPathType = Class.forName("kr.toxicity.model.api.pack.PackPath", true, loader);
+        Object packPath = packPathType.getConstructor(String.class).newInstance(path);
+        Class<?> overlayType = Class.forName("kr.toxicity.model.api.pack.PackOverlay", true, loader);
+        var overlayField = assets.getClass().getDeclaredField("overlay");
+        overlayField.setAccessible(true);
+        Object overlay = overlayField.get(assets);
+
+        Class<?> resourceType = Class.forName("kr.toxicity.model.api.pack.PackResource", true, loader);
+        Object resource = resourceType.getMethod("of", overlayType, packPathType, long.class, Supplier.class)
+                .invoke(null, overlay, packPath, (long) bytes.length, (Supplier<byte[]>) () -> bytes.clone());
+
+        var resourceMapField = assets.getClass().getDeclaredField("resourceMap");
+        resourceMapField.setAccessible(true);
+        Map<Object, Object> resourceMap = (Map<Object, Object>) resourceMapField.get(assets);
+        resourceMap.put(packPath, resource);
     }
 
     boolean injectedOnReload() {
